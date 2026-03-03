@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="ja">
+ <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Portfolio</title>
+  <style>
+   /* --- 変数定義 (カラーパレット) --- */
+   :root {
+    --primary-color: #0055ff;
+    /* しっかりとした青 */
+    --primary-hover: #0044cc;
+    --bg-color: #ffffff;
+    --text-main: #1a1a1a;
+    --text-sub: #666666;
+    --card-bg: #f8f9fa;
+    --border-color: #eeeeee;
+    --transition-speed: 0.4s;
+   }
+
+   /* ダークモード時の色定義 */
+   body.dark-mode {
+    --primary-color: #3377ff;
+    --primary-hover: #6699ff;
+    --bg-color: #121212;
+    --text-main: #f0f0f0;
+    --text-sub: #aaaaaa;
+    --card-bg: #1e1e1e;
+    --border-color: #333333;
+   }
+
+   /* --- 基本設定 --- */
+   body {
+    font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Segoe UI", "Hiragino Kaku Gothic ProN", "Hiragino Sans", "Meiryo", sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: var(--bg-color);
+    color: var(--text-main);
+    transition: background-color var(--transition-speed), color var(--transition-speed);
+    line-height: 1.7;
+    overflow-x: hidden;
+   }
+
+   h1,
+   h2,
+   h3 {
+    margin: 0;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+   }
+
+   a {
+    text-decoration: none;
+    color: inherit;
+   }
+
+   /* --- ヘッダー & ダークモード切替 --- */
+   header {
+    position: fixed;
+    top: 0;
+    right: 0;
+    padding: 24px;
+    z-index: 1000;
+   }
+
+   .theme-toggle {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    color: var(--text-main);
+    padding: 10px 20px;
+    border-radius: 30px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+   }
+
+   .theme-toggle:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+   }
+
+   /* --- セクション共通 --- */
+   section {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 80px 20px;
+    box-sizing: border-box;
+    max-width: 1000px;
+    margin: 0 auto;
+   }
+
+   .section-title {
+    font-size: 2.5rem;
+    color: var(--text-main);
+    margin-bottom: 60px;
+    position: relative;
+    display: inline-block;
+   }
+
+   .section-title::after {
+    content: '';
+    position: absolute;
+    bottom: -10px;
+    left: 0;
+    width: 40px;
+    height: 4px;
+    background-color: var(--primary-color);
+    transition: width 0.3s ease;
+   }
+
+   section:hover .section-title::after {
+    width: 100%;
+   }
+
+   /* --- Hero (メイン) --- */
+   #hero {
+    align-items: flex-start;
+    position: relative;
+   }
+
+   .hero-title {
+    font-size: clamp(3rem, 8vw, 6rem);
+    line-height: 1.1;
+    margin-bottom: 20px;
+   }
+
+   .hero-title span {
+    color: var(--primary-color);
+   }
+
+   .hero-subtitle {
+    font-size: clamp(1.2rem, 3vw, 1.8rem);
+    color: var(--text-sub);
+   }
+
+   .scroll-indicator {
+    position: absolute;
+    bottom: 40px;
+    left: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.9rem;
+    color: var(--text-sub);
+    animation: bounce 2s infinite;
+   }
+
+   .scroll-line {
+    width: 2px;
+    height: 40px;
+    background-color: var(--primary-color);
+   }
+
+   /* --- About (趣味) --- */
+   .cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 30px;
+    width: 100%;
+   }
+
+   .card {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 20px;
+    padding: 40px;
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    /* 楽しく弾むような動き */
+    position: relative;
+    overflow: hidden;
+   }
+
+   .card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 4px;
+    background-color: var(--primary-color);
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 0.4s ease;
+   }
+
+   .card:hover {
+    transform: translateY(-10px);
+    box-shadow: 0 15px 30px rgba(0, 0, 0, 0.1);
+   }
+
+   .card:hover::before {
+    transform: scaleX(1);
+   }
+
+   .card-icon {
+    font-size: 3rem;
+    margin-bottom: 20px;
+    display: inline-block;
+    transition: transform 0.3s ease;
+   }
+
+   .card:hover .card-icon {
+    transform: scale(1.2) rotate(5deg);
+   }
+
+   .card h3 {
+    font-size: 1.5rem;
+    margin-bottom: 15px;
+   }
+
+   .card p {
+    color: var(--text-sub);
+    margin: 0;
+   }
+
+   /* --- Club (将棋) --- */
+   .club-content {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 20px;
+    padding: 50px;
+    display: flex;
+    align-items: center;
+    gap: 40px;
+    transition: transform 0.4s ease;
+   }
+
+   .club-content:hover {
+    transform: scale(1.02);
+   }
+
+   .shogi-piece {
+    font-size: 5rem;
+    color: var(--primary-color);
+    flex-shrink: 0;
+    animation: float 3s ease-in-out infinite;
+   }
+
+   .club-details h3 {
+    font-size: 2rem;
+    margin-bottom: 15px;
+   }
+
+   .club-badge {
+    display: inline-block;
+    background-color: var(--primary-color);
+    color: #fff;
+    padding: 8px 16px;
+    border-radius: 30px;
+    font-weight: bold;
+    font-size: 0.9rem;
+    margin-bottom: 15px;
+    margin-right: 10px;
+   }
+
+   .club-badge.outline {
+    background-color: transparent;
+    color: var(--primary-color);
+    border: 2px solid var(--primary-color);
+   }
+
+   /* --- Links (SNS) --- */
+   #links {
+    min-height: 50vh;
+    align-items: center;
+    text-align: center;
+   }
+
+   #links .section-title::after {
+    left: 50%;
+    transform: translateX(-50%);
+   }
+
+   .social-container {
+    display: flex;
+    gap: 30px;
+    justify-content: center;
+    margin-top: 20px;
+   }
+
+   .social-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    color: var(--text-main);
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    cursor: pointer;
+   }
+
+   .social-icon svg {
+    width: 24px;
+    height: 24px;
+    fill: currentColor;
+   }
+
+   .social-icon:hover {
+    background-color: var(--primary-color);
+    color: #fff;
+    border-color: var(--primary-color);
+    transform: translateY(-10px) rotate(360deg);
+    /* 楽しく回るアニメーション */
+   }
+
+   /* --- アニメーション用クラス --- */
+   .reveal {
+    opacity: 0;
+    transform: translateY(40px);
+    transition: all 0.8s cubic-bezier(0.5, 0, 0, 1);
+   }
+
+   .reveal.active {
+    opacity: 1;
+    transform: translateY(0);
+   }
+
+   /* 遅延表示用 */
+   .delay-1 {
+    transition-delay: 0.1s;
+   }
+
+   .delay-2 {
+    transition-delay: 0.2s;
+   }
+
+   .delay-3 {
+    transition-delay: 0.3s;
+   }
+
+   @keyframes bounce {
+
+    0%,
+    20%,
+    50%,
+    80%,
+    100% {
+     transform: translateY(0);
+    }
+
+    40% {
+     transform: translateY(-10px);
+    }
+
+    60% {
+     transform: translateY(-5px);
+    }
+   }
+
+   @keyframes float {
+    0% {
+     transform: translateY(0px);
+    }
+
+    50% {
+     transform: translateY(-15px);
+    }
+
+    100% {
+     transform: translateY(0px);
+    }
+   }
+
+   /* --- レスポンシブ --- */
+   @media (max-width: 768px) {
+    .club-content {
+     flex-direction: column;
+     text-align: center;
+     padding: 30px;
+    }
+
+    #hero {
+     align-items: center;
+     text-align: center;
+    }
+   }
+  </style>
+ </head>
+ <body>
+
+  <!-- ダークモード切替ボタン -->
+  <header>
+   <button class="theme-toggle" id="themeToggle">
+    <span id="themeIcon">🌙</span> Dark
+   </button>
+  </header>
+
+  <!-- メイン (Hero) -->
+  <section id="hero">
+   <div class="reveal">
+    <h1 class="hero-title">Hello,<br>I'm <span>Your Name</span>.</h1>
+    <p class="hero-subtitle">High School Student / Creator</p>
+   </div>
+   <div class="scroll-indicator reveal delay-2">
+    <span>Scroll</span>
+    <div class="scroll-line"></div>
+   </div>
+  </section>
+
+  <!-- 自分について (About) -->
+  <section id="about">
+   <h2 class="section-title reveal">About Me</h2>
+   <div class="cards-grid">
+    <!-- 趣味1: マイクラ -->
+    <div class="card reveal delay-1">
+     <span class="card-icon">⛏️</span>
+     <h3>Minecraft</h3>
+     <p>建築やサバイバルはもちろん、コマンドを使ったギミック作りやレッドストーン回路を組むのが好きです。自分の世界を創り上げる楽しさにハマっています。</p>
+    </div>
+    <!-- 趣味2: ラノベ -->
+    <div class="card reveal delay-2">
+     <span class="card-icon">📖</span>
+     <h3>Light Novel</h3>
+     <p>休日はライトノベルを読んで過ごすことが多いです。ファンタジーから青春ものまでジャンル問わず読みます。面白い作品があればぜひ教えてください。</p>
+    </div>
+   </div>
+  </section>
+
+  <!-- 部活動 (Club) -->
+  <section id="club">
+   <h2 class="section-title reveal">Club Activity</h2>
+   <div class="club-content reveal delay-1">
+    <div class="shogi-piece">☗</div>
+    <div class="club-details">
+     <h3>将棋部</h3>
+     <div>
+      <span class="club-badge">県大会出場</span>
+      <span class="club-badge outline">アマチュア8級</span>
+     </div>
+     <p>盤面に向かってじっくりと深く考える時間が好きです。日々、定跡の勉強や詰将棋に取り組んでおり、さらなる昇級を目指して練習に励んでいます。</p>
+    </div>
+   </div>
+  </section>
+
+  <!-- SNSリンク (Links) -->
+  <section id="links">
+   <h2 class="section-title reveal">Connect</h2>
+   <p class="reveal delay-1" style="color: var(--text-sub); margin-bottom: 30px;">
+    SNSはこちら。フォローはお気軽にどうぞ。
+   </p>
+   <div class="social-container reveal delay-2">
+    <!-- X (Twitter) 風アイコン -->
+    <div class="social-icon" title="X (Twitter)">
+     <svg viewBox="0 0 24 24">
+      <path
+       d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+     </svg>
+    </div>
+    <!-- Instagram 風アイコン -->
+    <div class="social-icon" title="Instagram">
+     <svg viewBox="0 0 24 24">
+      <path
+       d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z" />
+     </svg>
+    </div>
+    <!-- GitHub 風アイコン -->
+    <div class="social-icon" title="GitHub">
+     <svg viewBox="0 0 24 24">
+      <path
+       d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" />
+     </svg>
+    </div>
+   </div>
+  </section>
+
+  <!-- JavaScript処理 -->
+  <script>
+   // ダークモード切り替え処理
+   const themeToggleBtn = document.getElementById('themeToggle');
+   const themeIcon = document.getElementById('themeIcon');
+
+   themeToggleBtn.addEventListener('click', () => {
+    document.body.classList.toggle('dark-mode');
+
+    if (document.body.classList.contains('dark-mode')) {
+     themeIcon.textContent = '☀️';
+     themeToggleBtn.childNodes[2].nodeValue = ' Light';
+    } else {
+     themeIcon.textContent = '🌙';
+     themeToggleBtn.childNodes[2].nodeValue = ' Dark';
+    }
+   });
+
+   // スクロール連動アニメーション処理 (Intersection Observer)
+   const revealElements = document.querySelectorAll('.reveal');
+
+   const revealOptions = {
+    threshold: 0.15, // 要素が15%見えたら発火
+    rootMargin: "0px 0px -50px 0px"
+   };
+
+   const revealOnScroll = new IntersectionObserver(function (entries, observer) {
+    entries.forEach(entry => {
+     if (!entry.isIntersecting) {
+      return;
+     } else {
+      entry.target.classList.add('active');
+      // 一度表示したら監視を解除する場合（繰り返しアニメーションさせない場合）
+      // observer.unobserve(entry.target);
+     }
+    });
+   }, revealOptions);
+
+   revealElements.forEach(el => {
+    revealOnScroll.observe(el);
+   });
+  </script>
+
+ </body>
+</html>

@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="ja">
+ <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>平和なRPG風自己紹介</title>
+
+  <!-- Tailwind CSS の読み込み -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- レトロフォントの読み込み -->
+  <link href="https://fonts.googleapis.com/css2?family=DotGothic16&display=swap" rel="stylesheet">
+
+  <style>
+   body {
+    font-family: 'DotGothic16', monospace;
+    user-select: none;
+   }
+
+   /* 戦闘背景（レトロなストライプグラデーション） */
+   .battle-bg {
+    background:
+     linear-gradient(rgba(0, 0, 0, 0.1), rgba(0, 0, 0, 0.8)),
+     repeating-linear-gradient(0deg,
+      #1a1a2e,
+      #1a1a2e 4px,
+      #16213e 4px,
+      #16213e 8px);
+   }
+
+   /* ひらめき（電球）エフェクト */
+   @keyframes bulb-flash {
+    0% {
+     transform: translate(-50%, 20px) scale(0.5);
+     opacity: 0;
+     filter: brightness(1);
+    }
+
+    15% {
+     transform: translate(-50%, -10px) scale(1.3);
+     opacity: 1;
+     filter: brightness(2) drop-shadow(0 0 15px yellow);
+    }
+
+    80% {
+     transform: translate(-50%, -10px) scale(1);
+     opacity: 1;
+     filter: brightness(1.2) drop-shadow(0 0 5px yellow);
+    }
+
+    100% {
+     transform: translate(-50%, -20px) scale(0.8);
+     opacity: 0;
+    }
+   }
+
+   .animate-bulb {
+    animation: bulb-flash 0.8s ease-out forwards;
+   }
+
+   /* 常にふわふわ浮遊するアニメーション */
+   @keyframes float {
+
+    0%,
+    100% {
+     transform: translateY(0px);
+    }
+
+    50% {
+     transform: translateY(-8px);
+    }
+   }
+
+   .animate-float {
+    animation: float 3s ease-in-out infinite;
+   }
+
+   /* 回復数値のポップアップ */
+   @keyframes heal-pop {
+    0% {
+     opacity: 1;
+     transform: translate(-50%, 0) scale(1);
+    }
+
+    50% {
+     transform: translate(-50%, -20px) scale(1.2);
+    }
+
+    100% {
+     opacity: 0;
+     transform: translate(-50%, -40px) scale(1);
+    }
+   }
+
+   .animate-heal {
+    animation: heal-pop 1.5s ease-out forwards;
+   }
+
+   /* 吹き出しのポップイン */
+   @keyframes pop-in {
+    0% {
+     opacity: 0;
+     transform: translateX(-50%) scale(0.5);
+    }
+
+    70% {
+     transform: translateX(-50%) scale(1.1);
+    }
+
+    100% {
+     opacity: 1;
+     transform: translateX(-50%) scale(1);
+    }
+   }
+
+   .animate-pop {
+    animation: pop-in 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+   }
+
+   /* モーダルのポップイン（中央用） */
+   @keyframes modal-pop {
+    0% {
+     opacity: 0;
+     transform: scale(0.5);
+    }
+
+    70% {
+     transform: scale(1.05);
+    }
+
+    100% {
+     opacity: 1;
+     transform: scale(1);
+    }
+   }
+
+   .animate-modal {
+    animation: modal-pop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+   }
+
+   /* 魔法発動時のフラッシュ */
+   @keyframes flash-screen {
+
+    0%,
+    100% {
+     background-color: transparent;
+    }
+
+    50% {
+     background-color: rgba(255, 255, 255, 0.8);
+    }
+   }
+
+   .animate-flash {
+    animation: flash-screen 0.5s ease-in-out;
+   }
+
+   /* 魔法発動時の画面揺れ */
+   @keyframes shake {
+
+    0%,
+    100% {
+     transform: translateX(0);
+    }
+
+    25% {
+     transform: translateX(-10px) rotate(-1deg);
+    }
+
+    50% {
+     transform: translateX(10px) rotate(1deg);
+    }
+
+    75% {
+     transform: translateX(-10px) rotate(-1deg);
+    }
+   }
+
+   .animate-shake {
+    animation: shake 0.4s ease-in-out;
+   }
+
+   /* 吹き出しのしっぽ */
+   .speech-tail::after {
+    content: '';
+    position: absolute;
+    bottom: -12px;
+    left: 50%;
+    transform: translateX(-50%);
+    border-width: 12px 10px 0;
+    border-style: solid;
+    border-color: white transparent transparent transparent;
+   }
+
+   /* カスタムスクロールバー（スキル画面用） */
+   .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+   }
+
+   .custom-scrollbar::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 4px;
+   }
+
+   .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: white;
+    border-radius: 4px;
+   }
+  </style>
+ </head>
+ <body class="bg-black text-white min-h-screen w-full flex items-center justify-center p-2 sm:p-4">
+
+  <!-- メインゲーム画面枠 -->
+  <div id="game-container"
+   class="relative w-full max-w-3xl bg-black border-4 border-gray-300 rounded-lg flex flex-col overflow-hidden shadow-[0_0_20px_rgba(255,255,255,0.2)]">
+
+   <!-- 戦闘画面上部 -->
+   <div class="relative w-full aspect-[4/3] sm:aspect-video battle-bg flex items-center justify-center overflow-hidden">
+
+    <!-- 魔法フラッシュ用レイヤー -->
+    <div id="flash-layer" class="absolute inset-0 pointer-events-none z-40 hidden"></div>
+
+    <!-- ボスキャラエリア -->
+    <div class="relative animate-float z-10 mt-10">
+
+     <!-- たたかう時の吹き出し -->
+     <div id="speech-bubble"
+      class="hidden absolute -top-20 sm:-top-24 left-1/2 speech-tail bg-white text-black px-4 py-2 rounded border-4 border-gray-800 font-bold whitespace-pre text-sm sm:text-base z-20 text-center shadow-lg w-max">
+     </div>
+
+     <!-- どうぐ（きゅうり）時の回復ポップアップ -->
+     <div id="heal-pop"
+      class="hidden absolute -top-10 left-1/2 text-green-400 font-bold text-3xl sm:text-4xl z-20 shadow-black drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)]">
+      999
+     </div>
+
+     <!-- キャラクター描画エリア -->
+     <div class="transform scale-125 sm:scale-150" id="pixel-art-container"></div>
+    </div>
+
+    <!-- ひらめき（電球）エフェクト -->
+    <div id="bulb-effect" class="hidden absolute bottom-1/4 left-1/2 z-30 flex flex-col items-center">
+     <div class="text-5xl sm:text-6xl">💡</div>
+     <div class="text-yellow-300 text-sm sm:text-base font-bold mt-2 drop-shadow-[0_2px_2px_rgba(0,0,0,1)]">ピコーン！</div>
+    </div>
+
+    <!-- スキル（じゅもん）モーダル -->
+    <div id="skills-modal" class="hidden absolute inset-0 flex items-center justify-center z-50 bg-black/60 p-2 sm:p-4">
+     <div
+      class="bg-blue-900 border-4 border-white p-4 sm:p-6 rounded-lg shadow-[0_0_20px_rgba(255,255,255,0.8)] w-full max-w-md animate-modal max-h-[90%] flex flex-col">
+      <h2
+       class="text-xl sm:text-2xl text-yellow-300 text-center mb-4 sm:mb-6 drop-shadow-[0_2px_2px_rgba(0,0,0,1)] shrink-0">
+       ✨ しゅうとく スキル ✨</h2>
+      <div class="overflow-y-auto pr-2 custom-scrollbar">
+       <ul class="space-y-3 sm:space-y-4 text-sm sm:text-base px-2">
+        <li><a href="#" class="block hover:text-yellow-400 hover:translate-x-2 transition-transform">▶ ポートフォリオサイト
+          リンク</a></li>
+        <li><a href="#" class="block hover:text-yellow-400 hover:translate-x-2 transition-transform">▶
+          自己紹介動画（YouTube）</a></li>
+        <li><a href="#" class="block hover:text-yellow-400 hover:translate-x-2 transition-transform">▶ GitHub リポジトリ</a>
+        </li>
+        <li><a href="#" class="block hover:text-yellow-400 hover:translate-x-2 transition-transform">▶ X (旧Twitter)
+          アカウント</a></li>
+       </ul>
+      </div>
+      <div class="mt-4 sm:mt-6 text-center shrink-0">
+       <button onclick="closeSkills()"
+        class="px-6 py-2 border-2 border-white hover:bg-white hover:text-blue-900 transition-colors focus:outline-none text-sm sm:text-base">
+        とじる
+       </button>
+      </div>
+     </div>
+    </div>
+   </div>
+
+   <!-- UI下部：メッセージ＆コマンドウィンドウ -->
+   <div class="border-t-4 border-gray-300 flex flex-col sm:flex-row h-48 sm:h-40 bg-black">
+
+    <!-- メッセージウィンドウ -->
+    <div
+     class="flex-1 p-4 border-b-4 sm:border-b-0 sm:border-r-4 border-gray-300 text-base sm:text-lg leading-relaxed whitespace-pre-wrap"
+     id="message-box"></div>
+
+    <!-- コマンドウィンドウ -->
+    <div
+     class="w-full sm:w-56 p-4 flex flex-wrap sm:flex-col gap-2 sm:gap-4 justify-center sm:justify-start items-start text-base sm:text-lg">
+     <button onclick="handleCommand('attack')"
+      class="cmd-btn relative group w-[45%] sm:w-full text-left focus:outline-none hover:text-yellow-300 transition-colors">
+      <span class="absolute -left-4 opacity-0 group-hover:opacity-100 transition-opacity">▶</span>
+      ⚔️ たたかう
+     </button>
+     <button onclick="handleCommand('magic')"
+      class="cmd-btn relative group w-[45%] sm:w-full text-left focus:outline-none hover:text-yellow-300 transition-colors">
+      <span class="absolute -left-4 opacity-0 group-hover:opacity-100 transition-opacity">▶</span>
+      ✨ じゅもん
+     </button>
+     <button onclick="handleCommand('item')"
+      class="cmd-btn relative group w-[45%] sm:w-full text-left focus:outline-none hover:text-yellow-300 transition-colors">
+      <span class="absolute -left-4 opacity-0 group-hover:opacity-100 transition-opacity">▶</span>
+      🎒 どうぐ
+     </button>
+     <button onclick="handleCommand('run')"
+      class="cmd-btn relative group w-[45%] sm:w-full text-left focus:outline-none hover:text-yellow-300 transition-colors">
+      <span class="absolute -left-4 opacity-0 group-hover:opacity-100 transition-opacity">▶</span>
+      🏃 にげる
+     </button>
+    </div>
+
+   </div>
+  </div>
+
+  <script>
+   // === データ定義 ===
+   const palette = {
+    '_': 'transparent',
+    'B': '#222222', 'W': '#FFFFFF', 'S': '#FFCC99', 'C': '#4169E1',
+    'P': '#2F4F4F', 'R': '#E74C3C', 'G': '#32CD32', 'D': '#228B22',
+    'Y': '#FFD700', 'O': '#FFA500', 'E': '#8B4513'
+   };
+
+   const humanSprite = [
+    "______BBBB______", "_____BBBBBB_____", "____SSSSSSSS____", "____S_B__B_S____",
+    "____SSSSSSSS____", "_____S_RR_S_____", "______SSSS______", "____CCCCCCCC____",
+    "___CC_CCCC_CC___", "__CC__CCCC__CC__", "__C___CCCC___C__", "______PPPP______",
+    "_____PP__PP_____", "____PP____PP____", "___EE______EE___", "___EE______EE___"
+   ];
+
+   const kappaSprite = [
+    "______YYYY______", "_____Y_GG_Y_____", "____GGGGGGGG____", "____G_B__B_G____",
+    "____GGGGGGGG____", "_____G_OO_G_____", "______GGGG______", "____DGGGGGGD____",
+    "___DG_YGGY_GD___", "__DG__YYYY__GD__", "__D___YYYY___D__", "______GGGG______",
+    "_____GG__GG_____", "____GG____GG____", "___EE______EE___", "___EE______EE___"
+   ];
+
+   const intros = [
+    "得意な言語はPythonだ！\n機械学習もいけるぞ！",
+    "フロントエンドも書ける！\nReactとTailwindが大好きだ！",
+    "休日はひたすら\n個人開発をしているぞ！",
+    "コーヒーより紅茶派だ！\n（どうでもいい情報）",
+    "実はサウナに週3で\n通っているぞ！"
+   ];
+
+   // === 状態管理 ===
+   let isKappa = false;
+   let isActionRunning = false;
+   let typeWriterTimer = null;
+
+   // === DOM要素の取得 ===
+   const messageBox = document.getElementById('message-box');
+   const pixelArtContainer = document.getElementById('pixel-art-container');
+   const speechBubble = document.getElementById('speech-bubble');
+   const healPop = document.getElementById('heal-pop');
+   const bulbEffect = document.getElementById('bulb-effect');
+   const skillsModal = document.getElementById('skills-modal');
+   const flashLayer = document.getElementById('flash-layer');
+   const gameContainer = document.getElementById('game-container');
+   const cmdButtons = document.querySelectorAll('.cmd-btn');
+
+   // === 関数定義 ===
+
+   // ドット絵の描画
+   function renderPixelArt(sprite, scale = 10) {
+    pixelArtContainer.innerHTML = '';
+    pixelArtContainer.style.display = 'grid';
+    pixelArtContainer.style.gridTemplateColumns = `repeat(${sprite[0].length}, ${scale}px)`;
+    pixelArtContainer.style.gridTemplateRows = `repeat(${sprite.length}, ${scale}px)`;
+
+    for (let y = 0; y < sprite.length; y++) {
+     for (let x = 0; x < sprite[y].length; x++) {
+      const char = sprite[y][x];
+      const div = document.createElement('div');
+      div.style.backgroundColor = palette[char];
+      div.style.width = `${scale}px`;
+      div.style.height = `${scale}px`;
+      pixelArtContainer.appendChild(div);
+     }
+    }
+   }
+
+   // タイピング風テキスト表示
+   function typeText(text) {
+    if (typeWriterTimer) clearInterval(typeWriterTimer);
+    messageBox.textContent = '';
+    let i = 0;
+    typeWriterTimer = setInterval(() => {
+     messageBox.textContent += text.charAt(i);
+     i++;
+     if (i >= text.length) clearInterval(typeWriterTimer);
+    }, 30);
+   }
+
+   // ボタンの有効/無効化
+   function setButtonsDisabled(disabled) {
+    isActionRunning = disabled;
+    cmdButtons.forEach(btn => {
+     btn.disabled = disabled;
+     if (disabled) {
+      btn.classList.add('opacity-50', 'cursor-not-allowed');
+     } else {
+      btn.classList.remove('opacity-50', 'cursor-not-allowed');
+     }
+    });
+   }
+
+   // アニメーションのリセットと再生
+   function playAnimation(element, animationClass) {
+    element.classList.remove('hidden', animationClass);
+    void element.offsetWidth; // リフローを強制してアニメーションをリセット
+    element.classList.add(animationClass);
+   }
+
+   // コマンド選択時の処理（ひらめき）
+   function handleCommand(type) {
+    if (isActionRunning || !skillsModal.classList.contains('hidden')) return;
+    setButtonsDisabled(true);
+
+    playAnimation(bulbEffect, 'animate-bulb');
+
+    setTimeout(() => {
+     bulbEffect.classList.add('hidden');
+     executeAction(type);
+    }, 800);
+   }
+
+   // アクションの実行
+   function executeAction(type) {
+    switch (type) {
+     case 'attack':
+      typeText("ほうもんしゃ の こうげき！\nしかし ボス には きかなかった！");
+      const randomIntro = intros[Math.floor(Math.random() * intros.length)];
+      speechBubble.textContent = randomIntro;
+      playAnimation(speechBubble, 'animate-pop');
+
+      setTimeout(() => {
+       speechBubble.classList.add('hidden');
+       setButtonsDisabled(false);
+      }, 3500);
+      break;
+
+     case 'magic':
+      typeText("ほうもんしゃ は じゅもん を となえた！\nボス の スキル が あらわになった！");
+
+      playAnimation(flashLayer, 'animate-flash');
+      playAnimation(gameContainer, 'animate-shake');
+
+      setTimeout(() => {
+       flashLayer.classList.add('hidden');
+       gameContainer.classList.remove('animate-shake');
+       skillsModal.classList.remove('hidden');
+       setButtonsDisabled(false);
+      }, 500);
+      break;
+
+     case 'item':
+      if (isKappa) {
+       typeText("ほうもんしゃ は きゅうり を なげた！\nボス は さらに よろこんでいる！");
+      } else {
+       typeText("ほうもんしゃ は きゅうり を なげた！\nボス は カッパモード になった！");
+      }
+
+      setTimeout(() => {
+       isKappa = true;
+       renderPixelArt(kappaSprite);
+       playAnimation(healPop, 'animate-heal');
+
+       // 既存のテキストの末尾に追加するタイピング
+       const additionalText = "\nボス の HP が かいふくした！";
+       let currentText = messageBox.textContent;
+       let i = 0;
+       if (typeWriterTimer) clearInterval(typeWriterTimer);
+       typeWriterTimer = setInterval(() => {
+        messageBox.textContent = currentText + additionalText.substring(0, i + 1);
+        i++;
+        if (i >= additionalText.length) clearInterval(typeWriterTimer);
+       }, 30);
+
+       setTimeout(() => {
+        healPop.classList.add('hidden');
+        setButtonsDisabled(false);
+       }, 2000);
+      }, 1000);
+      break;
+
+     case 'run':
+      typeText("ほうもんしゃ は にげだした！\nしかし にげられない！\nまだ 自己紹介 は 終わっていない！");
+      setTimeout(() => {
+       setButtonsDisabled(false);
+      }, 3000);
+      break;
+    }
+   }
+
+   // スキル画面を閉じる
+   function closeSkills() {
+    skillsModal.classList.add('hidden');
+   }
+
+   // === 初期化処理 ===
+   window.onload = () => {
+    renderPixelArt(humanSprite);
+    typeText("野生の ボスキャラ が あらわれた！\nコマンド を えらんで ください。");
+   };
+  </script>
+ </body>
+</html>

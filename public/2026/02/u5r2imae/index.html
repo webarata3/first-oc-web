@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="ja">
+ <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RPG風ポートフォリオ - 第一 太郎</title>
+  <!-- Tailwind CSS をCDNから読み込み -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts（レトロゲーム風フォント）を読み込み -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DotGothic16&display=swap" rel="stylesheet">
+
+  <style>
+   /* 全体のフォント設定 */
+   body {
+    font-family: 'DotGothic16', sans-serif;
+   }
+
+   /* レトロな点滅アニメーション用のクラス */
+   @keyframes blink {
+
+    0%,
+    100% {
+     opacity: 1;
+    }
+
+    50% {
+     opacity: 0;
+    }
+   }
+
+   .cursor-blink {
+    animation: blink 1s step-end infinite;
+   }
+
+   /* コンテンツ切り替え時のフェードイン効果 */
+   @keyframes fadeIn {
+    from {
+     opacity: 0;
+    }
+
+    to {
+     opacity: 1;
+    }
+   }
+
+   .animate-fade-in {
+    animation: fadeIn 0.3s ease-in-out;
+   }
+
+   /* 非表示用クラス（Tailwindのhiddenと競合しないよう独自定義） */
+   .hidden-tab {
+    display: none;
+   }
+  </style>
+ </head>
+ <body class="min-h-screen bg-black text-white p-4 md:p-8 flex items-center justify-center selection:bg-gray-600">
+
+  <div class="w-full max-w-2xl">
+   <h1 class="text-3xl md:text-4xl text-center mb-8 tracking-widest text-yellow-300">
+    ▶ プレイヤー ステータス
+   </h1>
+
+   <!-- タブナビゲーション -->
+   <div class="flex flex-wrap gap-2 md:gap-4 mb-4" id="tabs-container">
+    <button class="tab-btn px-4 py-2 text-lg border-2 transition-all border-white bg-gray-800"
+     data-target="profile">自己紹介</button>
+    <button
+     class="tab-btn px-4 py-2 text-lg border-2 transition-all border-transparent text-gray-400 hover:border-gray-600 hover:text-white"
+     data-target="skills">スキル</button>
+    <button
+     class="tab-btn px-4 py-2 text-lg border-2 transition-all border-transparent text-gray-400 hover:border-gray-600 hover:text-white"
+     data-target="products">プロダクト</button>
+    <button
+     class="tab-btn px-4 py-2 text-lg border-2 transition-all border-transparent text-gray-400 hover:border-gray-600 hover:text-white"
+     data-target="contact">コンタクト</button>
+   </div>
+
+   <!-- メインウィンドウ（白枠・黒背景） -->
+   <div
+    class="border-[3px] border-white rounded-sm bg-black p-6 md:p-8 min-h-[350px] shadow-[0_0_10px_rgba(255,255,255,0.2)]">
+
+    <!-- 【1】自己紹介タブ -->
+    <div id="profile" class="tab-content animate-fade-in space-y-6 text-lg md:text-xl leading-relaxed">
+     <div class="flex flex-col md:flex-row border-b border-gray-700 border-dashed pb-3">
+      <span class="w-40 text-gray-400">なまえ</span>
+      <span>第一 太郎</span>
+     </div>
+     <div class="flex flex-col md:flex-row border-b border-gray-700 border-dashed pb-3">
+      <span class="w-40 text-gray-400">しょぞく</span>
+      <span class="flex-1">専門学校ファースト学園<br>金沢校 情報システム科</span>
+     </div>
+     <div class="flex flex-col md:flex-row border-b border-gray-700 border-dashed pb-3">
+      <span class="w-40 text-gray-400">すきなこと</span>
+      <span>ゲーム（ポケモン）、プログラミング</span>
+     </div>
+     <div class="flex flex-col md:flex-row border-b border-gray-700 border-dashed pb-3">
+      <span class="w-40 text-gray-400">すきなポケモン</span>
+      <span class="text-yellow-300">ミルホッグ</span>
+     </div>
+    </div>
+
+    <!-- 【2】スキルタブ -->
+    <div id="skills" class="tab-content hidden-tab animate-fade-in space-y-6">
+     <h2 class="text-xl mb-6 text-yellow-300 border-b border-white pb-2 inline-block">
+      ▶ とくぎ・まほう
+     </h2>
+
+     <div class="space-y-5">
+      <!-- Java -->
+      <div class="flex flex-col md:flex-row md:items-center gap-2">
+       <div class="w-32 text-lg">Java</div>
+       <div class="flex-1 flex items-center gap-4">
+        <div class="h-5 flex-1 bg-gray-900 border border-gray-500 relative overflow-hidden">
+         <div class="skill-bar h-full bg-blue-500 transition-all duration-1000 ease-out" style="width: 0%;"
+          data-score="80"></div>
+        </div>
+        <div class="w-16 text-right text-lg">8/10</div>
+       </div>
+      </div>
+      <!-- HTML/CSS -->
+      <div class="flex flex-col md:flex-row md:items-center gap-2">
+       <div class="w-32 text-lg">HTML/CSS</div>
+       <div class="flex-1 flex items-center gap-4">
+        <div class="h-5 flex-1 bg-gray-900 border border-gray-500 relative overflow-hidden">
+         <div class="skill-bar h-full bg-blue-500 transition-all duration-1000 ease-out" style="width: 0%;"
+          data-score="100"></div>
+        </div>
+        <div class="w-16 text-right text-lg">10/10</div>
+       </div>
+      </div>
+      <!-- JavaScript -->
+      <div class="flex flex-col md:flex-row md:items-center gap-2">
+       <div class="w-32 text-lg">JavaScript</div>
+       <div class="flex-1 flex items-center gap-4">
+        <div class="h-5 flex-1 bg-gray-900 border border-gray-500 relative overflow-hidden">
+         <div class="skill-bar h-full bg-blue-500 transition-all duration-1000 ease-out" style="width: 0%;"
+          data-score="50"></div>
+        </div>
+        <div class="w-16 text-right text-lg">5/10</div>
+       </div>
+      </div>
+      <!-- Python -->
+      <div class="flex flex-col md:flex-row md:items-center gap-2">
+       <div class="w-32 text-lg">Python</div>
+       <div class="flex-1 flex items-center gap-4">
+        <div class="h-5 flex-1 bg-gray-900 border border-gray-500 relative overflow-hidden">
+         <div class="skill-bar h-full bg-blue-500 transition-all duration-1000 ease-out" style="width: 0%;"
+          data-score="70"></div>
+        </div>
+        <div class="w-16 text-right text-lg">7/10</div>
+       </div>
+      </div>
+     </div>
+    </div>
+
+    <!-- 【3】プロダクトタブ -->
+    <div id="products" class="tab-content hidden-tab animate-fade-in space-y-6">
+     <h2 class="text-xl mb-6 text-yellow-300 border-b border-white pb-2 inline-block">
+      ▶ もちもの（プロダクト）
+     </h2>
+
+     <ul class="space-y-6 text-lg">
+      <li class="flex gap-4">
+       <span class="text-white mt-1">＊</span>
+       <div>
+        <div class="text-green-400">どうぐぶくろ アプリ</div>
+        <div class="text-base text-gray-400 mt-1">
+         Javaで作った在庫管理システム。<br>回復アイテムから武器まで何でも管理できる。
+        </div>
+       </div>
+      </li>
+      <li class="flex gap-4">
+       <span class="text-white mt-1">＊</span>
+       <div>
+        <div class="text-green-400">モンスターずかん Web</div>
+        <div class="text-base text-gray-400 mt-1">
+         Pythonでスクレイピングしてデータを収集。<br>HTML/CSSで図鑑のように表示するサイト。
+        </div>
+       </div>
+      </li>
+     </ul>
+    </div>
+
+    <!-- 【4】コンタクトタブ -->
+    <div id="contact" class="tab-content hidden-tab animate-fade-in space-y-6">
+     <h2 class="text-xl mb-6 text-yellow-300 border-b border-white pb-2 inline-block">
+      ▶ なかまに する
+     </h2>
+
+     <div class="p-4 border border-gray-600 bg-gray-900 mb-6">
+      <p class="text-lg leading-relaxed">
+       「第一 太郎」 が なかまに なりたそうに<br>
+       こちらを みている！<br>
+       なかまに くわえますか？ <span class="cursor-blink">▼</span>
+      </p>
+     </div>
+
+     <div class="flex flex-col gap-4 text-lg ml-2 md:ml-6">
+      <a href="#" class="flex items-center gap-3 text-white hover:text-yellow-300 transition-colors">
+       <span>▶</span>
+       <span>X (Twitter): <span class="underline decoration-gray-500 underline-offset-4">@dummy_taro</span></span>
+      </a>
+      <a href="#" class="flex items-center gap-3 text-white hover:text-yellow-300 transition-colors">
+       <span>▶</span>
+       <span>GitHub: <span class="underline decoration-gray-500 underline-offset-4">/dummy-taro-first</span></span>
+      </a>
+     </div>
+    </div>
+
+   </div>
+  </div>
+
+  <!-- タブ切り替えとアニメーション用のJavaScript -->
+  <script>
+   document.addEventListener('DOMContentLoaded', () => {
+    const tabBtns = document.querySelectorAll('.tab-btn');
+    const tabContents = document.querySelectorAll('.tab-content');
+    const skillBars = document.querySelectorAll('.skill-bar');
+
+    tabBtns.forEach(btn => {
+     btn.addEventListener('click', () => {
+      // 1. 全てのタブボタンの見た目を「非アクティブ」にする
+      tabBtns.forEach(b => {
+       b.classList.remove('border-white', 'bg-gray-800');
+       b.classList.add('border-transparent', 'text-gray-400');
+      });
+
+      // 2. 全てのコンテンツを隠す
+      tabContents.forEach(c => c.classList.add('hidden-tab'));
+
+      // 3. スキルバーの長さを一旦0%にリセット（再度開いたときのアニメーション用）
+      skillBars.forEach(bar => {
+       bar.style.width = '0%';
+      });
+
+      // 4. クリックされたタブボタンを「アクティブ」な見た目にする
+      btn.classList.remove('border-transparent', 'text-gray-400');
+      btn.classList.add('border-white', 'bg-gray-800');
+
+      // 5. 対応するコンテンツを表示する
+      const targetId = btn.getAttribute('data-target');
+      const targetContent = document.getElementById(targetId);
+      targetContent.classList.remove('hidden-tab');
+
+      // 6. 「スキル」タブが開かれた場合は、少し遅らせてからバーを伸ばす
+      if (targetId === 'skills') {
+       setTimeout(() => {
+        skillBars.forEach(bar => {
+         const score = bar.getAttribute('data-score');
+         bar.style.width = score + '%';
+        });
+       }, 50);
+      }
+     });
+    });
+   });
+  </script>
+ </body>
+</html>

@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="ja">
+ <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CYBER RPG STATUS</title>
+
+  <!-- Tailwind CSS (スタイリング用) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Chart.js (レーダーチャート用) -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- Google Fonts: DotGothic16 -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DotGothic16&display=swap" rel="stylesheet">
+
+  <style>
+   /* 全体の基本設定 */
+   body {
+    font-family: 'DotGothic16', monospace;
+    background-color: #050505;
+    color: #39ff14;
+    /* ネオングリーン */
+    /* CRTモニター風の微かな背景テクスチャ */
+    background-image: radial-gradient(circle, #111 10%, transparent 10%), radial-gradient(circle, #111 10%, transparent 10%);
+    background-size: 4px 4px;
+    background-position: 0 0, 2px 2px;
+   }
+
+   /* ネオン発光エフェクト */
+   .neon-text-green {
+    text-shadow: 0 0 5px #39ff14, 0 0 10px #39ff14, 0 0 20px rgba(57, 255, 20, 0.5);
+   }
+
+   .neon-text-cyan {
+    color: #0ff;
+    text-shadow: 0 0 5px #0ff, 0 0 10px #0ff, 0 0 20px rgba(0, 255, 255, 0.5);
+   }
+
+   /* サイバー風パネル装飾 */
+   .cyber-panel {
+    border: 2px solid #0ff;
+    box-shadow: 0 0 10px rgba(0, 255, 255, 0.3), inset 0 0 15px rgba(0, 255, 255, 0.1);
+    background-color: rgba(0, 15, 15, 0.85);
+    position: relative;
+   }
+
+   /* パネル四隅のアクセント装飾 */
+   .cyber-panel::before,
+   .cyber-panel::after {
+    content: '';
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    border: 3px solid #39ff14;
+    box-shadow: 0 0 5px #39ff14;
+   }
+
+   .cyber-panel::before {
+    top: -3px;
+    left: -3px;
+    border-right: none;
+    border-bottom: none;
+   }
+
+   .cyber-panel::after {
+    bottom: -3px;
+    right: -3px;
+    border-left: none;
+    border-top: none;
+   }
+
+   /* プログレスバー（枠組み） */
+   .bar-container {
+    background-color: #1a1a1a;
+    border: 2px solid #333;
+    box-shadow: inset 0 0 5px #000;
+   }
+
+   /* Stamina(HP) バーの設定 */
+   .bar-stamina {
+    background-color: #39ff14;
+    box-shadow: 0 0 10px #39ff14, inset 0 0 5px rgba(255, 255, 255, 0.5);
+    width: 0%;
+    /* 初期値は0（JSでアニメーション） */
+    transition: width 1.5s cubic-bezier(0.1, 0.7, 0.1, 1);
+   }
+
+   /* Creativity(MP) バーの設定 */
+   .bar-creativity {
+    background-color: #0ff;
+    box-shadow: 0 0 10px #0ff, inset 0 0 5px rgba(255, 255, 255, 0.5);
+    width: 0%;
+    /* 初期値は0（JSでアニメーション） */
+    transition: width 1.5s cubic-bezier(0.1, 0.7, 0.1, 1);
+    transition-delay: 0.3s;
+    /* スタミナより少し遅れて伸びる */
+   }
+
+   /* スキャンライン（走査線）エフェクト */
+   .scanlines {
+    background: linear-gradient(to bottom, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0) 50%, rgba(0, 0, 0, 0.25) 50%, rgba(0, 0, 0, 0.25));
+    background-size: 100% 4px;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    pointer-events: none;
+    /* クリックを阻害しない */
+    z-index: 50;
+   }
+
+   /* アイコンボックスの装飾 */
+   .icon-box {
+    background-color: rgba(0, 0, 0, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+   }
+  </style>
+ </head>
+ <body class="min-h-screen p-4 md:p-8 relative selection:bg-[#39ff14] selection:text-black">
+
+  <!-- CRTスキャンライン -->
+  <div class="scanlines"></div>
+
+  <!-- メインコンテンツ -->
+  <div class="max-w-5xl mx-auto z-10 relative">
+
+   <!-- ヘッダーセクション -->
+   <header class="text-center mb-8 cyber-panel p-4 md:p-6">
+    <h1 class="text-4xl md:text-6xl mb-3 neon-text-cyan tracking-widest">STATUS</h1>
+    <div class="flex flex-wrap justify-center gap-4 md:gap-10 text-lg md:text-2xl border-t border-[#0ff] pt-3 mt-2"
+     style="border-top-style: dashed;">
+     <span>NAME: PLAYER_01</span>
+     <span>LV: 28</span>
+     <span>CLASS: FULL-STACK CREATOR</span>
+    </div>
+   </header>
+
+   <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
+
+    <!-- 左カラム: ゲージとパラメータ -->
+    <div class="space-y-6 lg:space-y-8">
+
+     <!-- 1. メインゲージセクション -->
+     <div class="cyber-panel p-6">
+      <h2 class="text-2xl mb-5 neon-text-green border-b-2 border-[#39ff14] pb-2 inline-block">Vitality</h2>
+
+      <!-- Stamina (HP) -->
+      <div class="mb-6">
+       <div class="flex justify-between items-end mb-1">
+        <span class="text-xl">Stamina <span class="text-sm text-gray-400 ml-1">(体力)</span></span>
+        <span class="text-xl">800 / 1000</span>
+       </div>
+       <div class="bar-container h-5 w-full rounded-sm overflow-hidden">
+        <div id="stamina-bar" class="bar-stamina h-full" data-target="80%"></div>
+       </div>
+       <p class="text-sm mt-2 text-gray-400">▶ 徹夜でコーディングできる残り体力</p>
+      </div>
+
+      <!-- Creativity (MP) -->
+      <div>
+       <div class="flex justify-between items-end mb-1">
+        <span class="text-xl text-[#0ff]">Creativity <span class="text-sm text-gray-400 ml-1">(創造力)</span></span>
+        <span class="text-xl text-[#0ff]">65 / 100</span>
+       </div>
+       <div class="bar-container h-5 w-full rounded-sm overflow-hidden">
+        <div id="creativity-bar" class="bar-creativity h-full" data-target="65%"></div>
+       </div>
+       <p class="text-sm mt-2 text-gray-400">▶ アイデアを生み出すためのエネルギー</p>
+      </div>
+     </div>
+
+     <!-- 2. パラメータセクション (レーダーチャート) -->
+     <div class="cyber-panel p-6">
+      <h2 class="text-2xl mb-4 neon-text-green border-b-2 border-[#39ff14] pb-2 inline-block">Parameters</h2>
+      <div class="relative h-64 md:h-72 w-full flex justify-center mt-2">
+       <canvas id="radarChart"></canvas>
+      </div>
+     </div>
+    </div>
+
+    <!-- 右カラム: 装備・スキルリスト -->
+    <div class="cyber-panel p-6 h-full">
+     <h2 class="text-2xl mb-6 neon-text-cyan border-b-2 border-[#0ff] pb-2 inline-block">Equip & Skills</h2>
+
+     <ul class="space-y-6">
+      <!-- Main Weapon -->
+      <li class="flex items-start gap-4 p-3 hover:bg-[rgba(0,255,255,0.1)] transition-colors rounded">
+       <div class="w-12 h-12 border-2 border-[#39ff14] icon-box shadow-[0_0_8px_#39ff14] shrink-0">
+        💻
+       </div>
+       <div>
+        <div class="text-sm text-gray-400 mb-1">=== Main Weapon ===</div>
+        <div class="text-xl neon-text-green mb-1">Visual Studio Code</div>
+        <div class="text-sm text-gray-300 leading-relaxed">拡張機能でカスタマイズされた万能の剣。あらゆる言語の障壁を切り裂く。</div>
+       </div>
+      </li>
+
+      <!-- Sub Weapon -->
+      <li class="flex items-start gap-4 p-3 hover:bg-[rgba(0,255,255,0.1)] transition-colors rounded">
+       <div class="w-12 h-12 border-2 border-[#0ff] icon-box shadow-[0_0_8px_#0ff] shrink-0">
+        ⛏️
+       </div>
+       <div>
+        <div class="text-sm text-gray-400 mb-1">=== Sub Weapon ===</div>
+        <div class="text-xl neon-text-cyan mb-1">Minecraft</div>
+        <div class="text-sm text-gray-300 leading-relaxed">レッドストーン回路やコマンドブロックによる論理回路構築・空間把握能力の源。</div>
+       </div>
+      </li>
+
+      <!-- Passive Skill -->
+      <li class="flex items-start gap-4 p-3 hover:bg-[rgba(0,255,255,0.1)] transition-colors rounded">
+       <div class="w-12 h-12 border-2 border-[#ff00ff] icon-box shadow-[0_0_8px_#ff00ff] shrink-0">
+        🛡️
+       </div>
+       <div>
+        <div class="text-sm text-gray-400 mb-1">=== Passive Skill ===</div>
+        <div class="text-xl text-[#ff00ff] mb-1" style="text-shadow: 0 0 8px #ff00ff;">バグ修正（諦めない心）</div>
+        <div class="text-sm text-gray-300 leading-relaxed">真っ赤なエラーログに直面しても、Staminaの継続減少を無効化する強靭な精神。</div>
+       </div>
+      </li>
+
+      <!-- Active Skill -->
+      <li class="flex items-start gap-4 p-3 hover:bg-[rgba(0,255,255,0.1)] transition-colors rounded">
+       <div class="w-12 h-12 border-2 border-[#ffff00] icon-box shadow-[0_0_8px_#ffff00] shrink-0">
+        🎬
+       </div>
+       <div>
+        <div class="text-sm text-gray-400 mb-1">=== Active Skill ===</div>
+        <div class="text-xl text-[#ffff00] mb-1" style="text-shadow: 0 0 8px #ffff00;">動画編集</div>
+        <div class="text-sm text-gray-300 leading-relaxed">Creativityを消費して発動。情報を視覚的に整理し、対象に大きなインパクトを与える。</div>
+       </div>
+      </li>
+     </ul>
+    </div>
+   </div>
+  </div>
+
+  <script>
+   window.addEventListener('load', () => {
+    // 1. ゲージのアニメーション処理
+    // ページ読み込み完了後、少し遅らせてバーを伸ばす
+    setTimeout(() => {
+     const staminaBar = document.getElementById('stamina-bar');
+     const creativityBar = document.getElementById('creativity-bar');
+
+     // data-target属性から目的の幅を取得して設定
+     staminaBar.style.width = staminaBar.getAttribute('data-target');
+     creativityBar.style.width = creativityBar.getAttribute('data-target');
+    }, 300);
+
+    // 2. レーダーチャートの描画処理 (Chart.js)
+    // グラフの生成自体を遅らせることで、確実にアニメーションを発動させる
+    setTimeout(() => {
+     const ctx = document.getElementById('radarChart').getContext('2d');
+
+     // Chart.js の全体フォント設定をドット絵フォントに
+     Chart.defaults.font.family = "'DotGothic16', monospace";
+     Chart.defaults.color = '#39ff14';
+
+     new Chart(ctx, {
+      type: 'radar',
+      data: {
+       labels: ['Programming', 'Design', 'Sound', 'Logic', 'English'],
+       datasets: [{
+        label: 'Parameter',
+        data: [85, 60, 75, 90, 55], // パラメータの数値
+        backgroundColor: 'rgba(0, 255, 255, 0.2)', // 塗りつぶし色(シアン半透明)
+        borderColor: 'rgba(0, 255, 255, 1)',       // 線の色(シアン)
+        pointBackgroundColor: 'rgba(57, 255, 20, 1)', // 点の色(ネオングリーン)
+        pointBorderColor: '#000',
+        pointHoverBackgroundColor: '#fff',
+        pointHoverBorderColor: 'rgba(57, 255, 20, 1)',
+        borderWidth: 2,
+       }]
+      },
+      options: {
+       animation: {
+        duration: 2000, // 2秒かけてアニメーション
+        easing: 'easeOutElastic' // 最後に少し弾むようなサイバー/RPG感のある動き
+       },
+       responsive: true,
+       maintainAspectRatio: false,
+       scales: {
+        r: { // <--- 修正ポイント: Chart.js v3以降、レーダーチャートの設定は r の中に記述する必要があります
+         min: 0,
+         max: 100,
+         angleLines: {
+          color: 'rgba(57, 255, 20, 0.3)' // 放射状の線の色
+         },
+         grid: {
+          color: 'rgba(57, 255, 20, 0.3)' // 同心円の線の色
+         },
+         pointLabels: {
+          color: '#39ff14', // ラベル（Programming等）の色
+          font: {
+           size: 14,
+           family: "'DotGothic16', monospace"
+          },
+          padding: 10
+         },
+         ticks: {
+          display: false // メモリの数字（0, 20, 40...）を隠す
+         }
+        }
+       },
+       plugins: {
+        legend: {
+         display: false // 凡例を隠す
+        },
+        tooltip: {
+         backgroundColor: 'rgba(0, 15, 15, 0.9)',
+         titleFont: { family: "'DotGothic16', monospace", size: 14 },
+         bodyFont: { family: "'DotGothic16', monospace", size: 16 },
+         borderColor: '#0ff',
+         borderWidth: 1,
+         displayColors: false
+        }
+       }
+      }
+     });
+    }, 800); // ゲージが伸び始める(300ms)よりさらに後(800ms)に描画スタート
+   });
+  </script>
+ </body>
+</html>

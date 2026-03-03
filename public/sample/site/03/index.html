@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="ja">
+ <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>その視線、24時間、君を守る。 | WATCHOG</title>
+  <!-- Tailwind CSS (CDN) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&display=swap" rel="stylesheet">
+
+  <script>
+   tailwind.config = {
+    theme: {
+     extend: {
+      fontFamily: {
+       sans: ['"Noto Sans JP"', 'sans-serif'],
+      },
+      colors: {
+       maroon: '#A62C2C',
+       caution: '#F2C94C',
+       fur: '#8D6E63',
+       cream: '#FFF8E1'
+      }
+     }
+    }
+   }
+  </script>
+
+  <style>
+   /* 警戒色（トラテープ）のパターン */
+   .caution-tape {
+    background: repeating-linear-gradient(-45deg,
+      #F2C94C,
+      #F2C94C 20px,
+      #111111 20px,
+      #111111 40px);
+   }
+
+   /* 瞬きアニメーション */
+   @keyframes blink {
+
+    0%,
+    96%,
+    98%,
+    100% {
+     transform: scaleY(1);
+    }
+
+    97%,
+    99% {
+     transform: scaleY(0.1);
+    }
+   }
+
+   .eye-blink {
+    animation: blink 4s infinite;
+    transform-origin: center;
+   }
+
+   /* ふわっと表示するアニメーション用の初期状態 */
+   .reveal {
+    opacity: 0;
+    transform: translateY(30px);
+    transition: all 0.8s ease-out;
+   }
+
+   .reveal.active {
+    opacity: 1;
+    transform: translateY(0);
+   }
+
+   /* 目が光るエフェクト */
+   .glow-eye {
+    box-shadow: 0 0 15px 5px rgba(242, 201, 76, 0.6);
+   }
+  </style>
+ </head>
+ <body class="bg-cream text-fur font-sans antialiased overflow-x-hidden">
+
+  <!-- 監視員（右下固定ギミック） -->
+  <div id="watcher"
+   class="fixed bottom-0 right-4 md:right-10 w-20 h-24 bg-maroon rounded-t-full border-4 border-b-0 border-black z-50 flex items-start justify-center pt-4 transition-transform duration-300 translate-y-4 hover:translate-y-0 cursor-pointer shadow-xl"
+   title="あなたを監視中...">
+   <div class="flex space-x-2">
+    <!-- 左目 -->
+    <div class="w-6 h-6 bg-caution rounded-full border-2 border-black relative overflow-hidden glow-eye eye-blink">
+     <div class="w-1.5 h-4 bg-black absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 rounded-full">
+     </div>
+    </div>
+    <!-- 右目 -->
+    <div class="w-6 h-6 bg-caution rounded-full border-2 border-black relative overflow-hidden glow-eye eye-blink">
+     <div class="w-1.5 h-4 bg-black absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 rounded-full">
+     </div>
+    </div>
+   </div>
+  </div>
+
+  <!-- Section 1: ヒーローエリア -->
+  <header
+   class="relative w-full min-h-screen flex flex-col items-center justify-center overflow-hidden bg-maroon text-cream">
+   <!-- 上部のトラテープ -->
+   <div class="absolute top-0 left-0 w-full h-4 caution-tape shadow-md"></div>
+
+   <div class="z-10 text-center px-6">
+    <!-- 巨大な目の演出 -->
+    <div class="flex justify-center space-x-6 md:space-x-12 mb-10">
+     <div
+      class="w-24 h-24 md:w-32 md:h-32 bg-caution rounded-full border-4 md:border-8 border-black relative overflow-hidden glow-eye eye-blink shadow-2xl">
+      <div
+       class="w-4 h-12 md:w-6 md:h-16 bg-black absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 rounded-full">
+      </div>
+     </div>
+     <div
+      class="w-24 h-24 md:w-32 md:h-32 bg-caution rounded-full border-4 md:border-8 border-black relative overflow-hidden glow-eye eye-blink shadow-2xl">
+      <div
+       class="w-4 h-12 md:w-6 md:h-16 bg-black absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 rounded-full">
+      </div>
+     </div>
+    </div>
+
+    <h1 class="text-4xl md:text-6xl lg:text-7xl font-black mb-6 tracking-widest leading-tight drop-shadow-lg">
+     その視線、<br class="md:hidden">24時間、君を守る。
+    </h1>
+    <p class="text-lg md:text-2xl font-bold opacity-90 mb-12">イッシュ地方が生んだ、究極のホームセキュリティ・パートナー</p>
+
+    <div class="animate-bounce">
+     <span class="text-caution text-3xl font-bold">↓</span>
+    </div>
+   </div>
+
+   <!-- 下部のトラテープ -->
+   <div class="absolute bottom-0 left-0 w-full h-4 caution-tape shadow-md"></div>
+  </header>
+
+  <!-- Section 2: プロフィール -->
+  <section class="max-w-5xl mx-auto py-24 px-6 reveal">
+   <h2 class="text-4xl font-black text-maroon mb-12 text-center uppercase tracking-wider">Who is WATCHOG?</h2>
+
+   <div
+    class="flex flex-col md:flex-row gap-12 items-center bg-white p-8 md:p-12 rounded-3xl shadow-xl border-t-8 border-caution">
+    <!-- 画像エリア -->
+    <div
+     class="w-full md:w-5/12 aspect-[3/4] bg-cream rounded-2xl flex items-center justify-center border-4 border-fur border-dashed relative overflow-hidden group">
+     <div class="absolute inset-0 bg-maroon opacity-0 group-hover:opacity-10 transition-opacity duration-300"></div>
+     <span class="text-fur font-bold text-center px-4">
+      <br>
+      <span class="text-xs font-normal mt-2 block">（腕組みをして真っ直ぐ立っている姿）</span>
+     </span>
+    </div>
+
+    <!-- テキストエリア -->
+    <div class="w-full md:w-7/12">
+     <div class="inline-block bg-maroon text-cream px-4 py-1 rounded-full text-sm font-bold mb-4">No.0505</div>
+     <h3 class="text-4xl font-black mb-2 text-gray-900">ミルホッグ</h3>
+     <p class="text-lg font-bold text-caution bg-gray-900 inline-block px-3 py-1 rounded mb-6">けいかいポケモン</p>
+
+     <ul class="mb-6 space-y-2 text-gray-700 font-medium">
+      <li class="flex items-center"><span class="w-20 font-bold text-maroon">高さ</span> 1.1 m</li>
+      <li class="flex items-center"><span class="w-20 font-bold text-maroon">重さ</span> 27.0 kg</li>
+      <li class="flex items-center"><span class="w-20 font-bold text-maroon">タイプ</span> ノーマル</li>
+     </ul>
+
+     <p class="leading-relaxed text-lg text-gray-800 border-l-4 border-caution pl-4">
+      ただ睨んでいるわけではありません。<br>
+      体内の発光物質で光り、敵を威嚇し、仲間を守る。<br>
+      そのピンと伸びた直立姿勢は、真面目さと健気さの証なのです。
+     </p>
+    </div>
+   </div>
+  </section>
+
+  <!-- Section 3: 推しポイント -->
+  <section class="bg-gray-100 py-24 px-6 border-y border-gray-200">
+   <div class="max-w-6xl mx-auto">
+    <h2 class="text-4xl font-black text-maroon mb-16 text-center tracking-wider">3つの「推し」ポイント</h2>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+     <!-- Point 01 -->
+     <div
+      class="bg-white rounded-2xl p-6 shadow-lg hover:-translate-y-2 transition-transform duration-300 border-b-8 border-maroon reveal">
+      <div class="h-48 bg-cream rounded-xl mb-6 flex items-center justify-center border-2 border-dashed border-maroon">
+       <span class="text-maroon font-bold text-center px-2"></span>
+      </div>
+      <h4 class="text-2xl font-black text-gray-900 mb-2">01. 圧倒的な「目力」</h4>
+      <p class="font-bold text-maroon mb-4 text-sm bg-red-50 inline-block px-2 py-1 rounded">狂気？ いいえ、本気です。</p>
+      <p class="text-gray-700 leading-relaxed">デスクに置けば、サボろうとするあなたを監視してくれる…かも。その強烈な眼差しは、見慣れると不思議な安心感に変わります。</p>
+     </div>
+
+     <!-- Point 02 -->
+     <div
+      class="bg-white rounded-2xl p-6 shadow-lg hover:-translate-y-2 transition-transform duration-300 border-b-8 border-caution reveal"
+      style="transition-delay: 100ms;">
+      <div class="h-48 bg-cream rounded-xl mb-6 flex items-center justify-center border-2 border-dashed border-caution">
+       <span class="text-yellow-700 font-bold text-center px-2"></span>
+      </div>
+      <h4 class="text-2xl font-black text-gray-900 mb-2">02. 完璧な「姿勢」</h4>
+      <p class="font-bold text-yellow-700 mb-4 text-sm bg-yellow-50 inline-block px-2 py-1 rounded">どんな隙間にもフィット。</p>
+      <p class="text-gray-700 leading-relaxed">シュッとした立ち姿は、本棚の隙間やPCの横にシンデレラフィット。場所を取らずに見守ります。ぬいぐるみの自立性の高さも魅力です。</p>
+     </div>
+
+     <!-- Point 03 -->
+     <div
+      class="bg-white rounded-2xl p-6 shadow-lg hover:-translate-y-2 transition-transform duration-300 border-b-8 border-fur reveal"
+      style="transition-delay: 200ms;">
+      <div class="h-48 bg-cream rounded-xl mb-6 flex items-center justify-center border-2 border-dashed border-fur">
+       <span class="text-fur font-bold text-center px-2"></span>
+      </div>
+      <h4 class="text-2xl font-black text-gray-900 mb-2">03. 意外な「ギャップ」</h4>
+      <p class="font-bold text-fur mb-4 text-sm bg-stone-100 inline-block px-2 py-1 rounded">実はとっても家族思い。</p>
+      <p class="text-gray-700 leading-relaxed">仲間を守るために必死に警戒しているだけ。本当は木の実をほっぺに溜め込む食いしん坊。このギャップを知った時、あなたはもう彼を放っておけません。
+      </p>
+     </div>
+    </div>
+   </div>
+  </section>
+
+  <!-- Section 4: Call to Action (ぬいぐるみお迎え) -->
+  <section class="py-24 px-6 bg-maroon text-cream text-center relative overflow-hidden">
+   <!-- 背景の装飾 -->
+   <div class="absolute inset-0 opacity-10 pointer-events-none"
+    style="background-image: radial-gradient(#F2C94C 2px, transparent 2px); background-size: 30px 30px;"></div>
+
+   <div class="max-w-4xl mx-auto relative z-10 reveal">
+    <h2 class="text-3xl md:text-5xl font-black mb-10 leading-tight drop-shadow-md">
+     あなたの部屋にも、<br class="md:hidden">専属警備員を。
+    </h2>
+
+    <div
+     class="bg-white text-gray-900 rounded-3xl p-6 md:p-10 shadow-2xl mb-12 transform rotate-1 hover:rotate-0 transition-transform duration-300">
+     <div
+      class="aspect-video bg-gray-200 mb-8 rounded-xl flex items-center justify-center overflow-hidden relative group">
+      <span class="text-gray-500 font-bold z-10"></span>
+     </div>
+     <p class="text-lg md:text-xl font-bold mb-0 text-center leading-relaxed">
+      勉強、仕事、睡眠。<br class="md:hidden">ふと視線を感じると、そこには彼がいる。<br>
+      日々の生活に程よい緊張感と癒やしをプラスしませんか？
+     </p>
+    </div>
+
+    <!-- 購入検討用のアクション -->
+    <div class="flex flex-col sm:flex-row justify-center items-center gap-4">
+     <a
+      href="https://www.pokemoncenter-online.com/?s=search/keyword&search_query=%E3%83%9F%E3%83%AB%E3%83%9B%E3%83%83%E3%82%B0"
+      target="_blank" rel="noopener noreferrer"
+      class="bg-caution text-gray-900 font-black py-4 px-8 rounded-full text-lg hover:bg-white hover:scale-105 transition-all shadow-lg w-full sm:w-auto">
+      公式ストアで探す（外部サイト）
+     </a>
+     <p class="text-sm opacity-80 mt-2 sm:mt-0">※ポケモンセンターオンラインの検索結果へ遷移します</p>
+    </div>
+   </div>
+  </section>
+
+  <!-- Section 5: フッター (Zukan Link) -->
+  <footer class="bg-gray-900 text-white py-16 text-center px-6 relative">
+   <div class="absolute top-0 left-0 w-full h-4 caution-tape shadow-md"></div>
+
+   <div class="max-w-2xl mx-auto mt-8 reveal">
+    <p class="text-xl font-bold mb-6 text-caution">もっと詳しく生態を知る</p>
+
+    <!-- ポケモンずかんへのリンク -->
+    <a href="https://zukan.pokemon.co.jp/detail/0505" target="_blank" rel="noopener noreferrer"
+     class="group inline-flex items-center justify-center bg-transparent border-2 border-caution text-caution font-bold py-4 px-10 rounded-full text-lg hover:bg-caution hover:text-gray-900 transition-all duration-300 shadow-[0_0_15px_rgba(242,201,76,0.2)] hover:shadow-[0_0_20px_rgba(242,201,76,0.6)]">
+     <span>ポケモンずかん：ミルホッグ (No.0505)</span>
+     <svg class="w-5 h-5 ml-2 transform group-hover:translate-x-1 transition-transform" fill="none"
+      stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+       d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+     </svg>
+    </a>
+
+    <div class="mt-16 pt-8 border-t border-gray-800">
+     <p class="text-xs text-gray-500 leading-relaxed">
+      ※このサイトはミルホッグの魅力を伝えるために作成された非公式の布教用ページ（モックアップ）です。<br>
+      ポケットモンスター・ポケモン・Pokémonは任天堂・クリーチャーズ・ゲームフリークの登録商標です。
+     </p>
+    </div>
+   </div>
+  </footer>
+
+  <!-- スクロールアニメーション用JavaScript -->
+  <script>
+   document.addEventListener("DOMContentLoaded", () => {
+    // スクロール時のふわっと表示（Intersection Observer）
+    const observerOptions = {
+     root: null,
+     rootMargin: '0px',
+     threshold: 0.15
+    };
+
+    const observer = new IntersectionObserver((entries, observer) => {
+     entries.forEach(entry => {
+      if (entry.isIntersecting) {
+       entry.target.classList.add('active');
+       // 一度表示されたら監視を解除する（お好みで）
+       observer.unobserve(entry.target);
+      }
+     });
+    }, observerOptions);
+
+    const reveals = document.querySelectorAll('.reveal');
+    reveals.forEach(reveal => {
+     observer.observe(reveal);
+    });
+
+    // 右下の監視員ミルホッグをクリックしたときのちょっとしたお遊び
+    const watcher = document.getElementById('watcher');
+    watcher.addEventListener('click', () => {
+     const eyes = watcher.querySelectorAll('.glow-eye');
+     eyes.forEach(eye => {
+      eye.classList.remove('bg-caution');
+      eye.classList.add('bg-red-500'); // 怒りモード？
+      eye.style.boxShadow = '0 0 20px 10px rgba(239, 68, 68, 0.8)';
+     });
+
+     setTimeout(() => {
+      eyes.forEach(eye => {
+       eye.classList.remove('bg-red-500');
+       eye.classList.add('bg-caution');
+       eye.style.boxShadow = '';
+      });
+     }, 1000);
+    });
+   });
+  </script>
+ </body>
+</html>

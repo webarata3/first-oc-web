@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="ja">
+ <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>2D Air Hockey</title>
+  <style>
+   /* 画面全体をリセットし、キャンバスを中央に配置 */
+   body {
+    margin: 0;
+    padding: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    background-color: #2c3e50;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    overflow: hidden;
+    /* スクロール防止 */
+   }
+
+   /* ゲームキャンバスのスタイル */
+   #gameCanvas {
+    background-color: #1a5276;
+    /* フィールドの青色 */
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    border: 8px solid #bdc3c7;
+    /* テーブルの枠 */
+    border-radius: 10px;
+    /* 画面サイズに合わせて縮小するが、アスペクト比は維持 */
+    max-width: 100%;
+    max-height: 100vh;
+    touch-action: none;
+    /* スマホでのスワイプによる画面スクロールを無効化 */
+   }
+  </style>
+ </head>
+ <body>
+
+  <canvas id="gameCanvas" width="400" height="600"></canvas>
+
+  <script>
+   /**
+    * 2D エアホッケーゲーム
+    * オブジェクト指向で構造化し、後から拡張しやすいように設計しています。
+    */
+
+   const canvas = document.getElementById('gameCanvas');
+   const ctx = canvas.getContext('2d');
+
+   // ゲームの定数
+   const WINNING_SCORE = 5;
+   const GOAL_WIDTH = 140;
+   const FRICTION = 0.99; // 空気抵抗（摩擦係数）
+   const MAX_PUCK_SPEED = 12; // 20から12に下げてスピードを抑える
+
+   // --- クラス定義 ---
+
+   // パック（ボール）クラス
+   class Puck {
+    constructor(x, y, radius) {
+     this.x = x;
+     this.y = y;
+     this.radius = radius;
+     this.vx = 0; // X方向の速度
+     this.vy = 0; // Y方向の速度
+     this.color = '#ecf0f1';
+    }
+
+    draw(ctx) {
+     ctx.beginPath();
+     ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+     ctx.fillStyle = this.color;
+     ctx.fill();
+     ctx.closePath();
+    }
+
+    update() {
+     // 摩擦による減速
+     this.vx *= FRICTION;
+     this.vy *= FRICTION;
+
+     // 速度制限
+     let speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
+     if (speed > MAX_PUCK_SPEED) {
+      this.vx = (this.vx / speed) * MAX_PUCK_SPEED;
+      this.vy = (this.vy / speed) * MAX_PUCK_SPEED;
+     }
+
+     // --- スタック防止（四隅で止まるのを防ぐ） ---
+     // スピードが極端に遅く、かつ角付近にいる場合は中心に向けて自動で転がり出す
+     if (speed < 0.2) {
+      let margin = this.radius + 15; // 角の判定エリア
+      let pushSpeed = 1.5; // 脱出スピード
+
+      if (this.x < margin && this.y < margin) {
+       this.vx = pushSpeed; this.vy = pushSpeed; // 左上から右下へ
+      } else if (this.x > canvas.width - margin && this.y < margin) {
+       this.vx = -pushSpeed; this.vy = pushSpeed; // 右上から左下へ
+      } else if (this.x < margin && this.y > canvas.height - margin) {
+       this.vx = pushSpeed; this.vy = -pushSpeed; // 左下から右上へ
+      } else if (this.x > canvas.width - margin && this.y > canvas.height - margin) {
+       this.vx = -pushSpeed; this.vy = -pushSpeed; // 右下から左上へ
+      }
+     }
+
+     this.x += this.vx;
+     this.y += this.vy;
+    }
+   }
+
+   // マレット（プレイヤー/CPUが操作する円盤）クラス
+   class Mallet {
+    constructor(x, y, radius, color, isPlayer) {
+     this.x = x;
+     this.y = y;
+     this.lastX = x;
+     this.lastY = y;
+     this.vx = 0;
+     this.vy = 0;
+     this.radius = radius;
+     this.color = color;
+     this.isPlayer = isPlayer;
+     this.maxSpeed = 3.8; // ★ CPUの最高速度を6から3.8に下げて弱体化（数値を上げると強くなります）
+    }
+
+    draw(ctx) {
+     // 外側の円
+     ctx.beginPath();
+     ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+     ctx.fillStyle = this.color;
+     ctx.fill();
+     ctx.closePath();
+
+     // 内側の円（立体感を出すための装飾）
+     ctx.beginPath();
+     ctx.arc(this.x, this.y, this.radius * 0.6, 0, Math.PI * 2);
+     ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+     ctx.fill();
+     ctx.closePath();
+    }
+
+    // マレットの速度を計算（衝突時の反発力に影響）
+    updateVelocity() {
+     this.vx = this.x - this.lastX;
+     this.vy = this.y - this.lastY;
+     this.lastX = this.x;
+     this.lastY = this.y;
+    }
+   }
+
+   // ゲーム全体を管理するクラス
+   class Game {
+    constructor() {
+     this.puck = new Puck(canvas.width / 2, canvas.height / 2, 15);
+     this.player = new Mallet(canvas.width / 2, canvas.height - 50, 30, '#e74c3c', true); // 赤
+     this.cpu = new Mallet(canvas.width / 2, 50, 30, '#3498db', false); // 青
+
+     this.playerScore = 0;
+     this.cpuScore = 0;
+
+     // 状態管理: 'START', 'PLAYING', 'SCORED', 'GAMEOVER'
+     this.state = 'START';
+     this.message = 'Click to Start (5 Points Win)'; // 5点先取であることを明記
+
+     this.mouseX = canvas.width / 2;
+     this.mouseY = canvas.height - 50;
+
+     this.bindEvents();
+    }
+
+    // イベントリスナーの登録
+    bindEvents() {
+     const getMousePos = (evt) => {
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+      let clientX = evt.clientX;
+      let clientY = evt.clientY;
+
+      if (evt.touches && evt.touches.length > 0) {
+       clientX = evt.touches[0].clientX;
+       clientY = evt.touches[0].clientY;
+      }
+
+      return {
+       x: (clientX - rect.left) * scaleX,
+       y: (clientY - rect.top) * scaleY
+      };
+     };
+
+     const handleMove = (e) => {
+      e.preventDefault(); // スクロール防止
+      if (this.state !== 'PLAYING') return;
+      const pos = getMousePos(e);
+      this.mouseX = pos.x;
+      this.mouseY = pos.y;
+     };
+
+     const handleClick = () => {
+      if (this.state === 'START') {
+       this.state = 'PLAYING';
+      } else if (this.state === 'GAMEOVER') {
+       this.resetGame();
+      }
+     };
+
+     canvas.addEventListener('mousemove', handleMove);
+     canvas.addEventListener('touchmove', handleMove, { passive: false });
+     canvas.addEventListener('mousedown', handleClick);
+     canvas.addEventListener('touchstart', handleClick, { passive: false });
+    }
+
+    // プレイヤーの操作を反映
+    updatePlayer() {
+     // X軸の制限（壁からはみ出さない）
+     this.player.x = Math.max(this.player.radius, Math.min(this.mouseX, canvas.width - this.player.radius));
+     // Y軸の制限（自陣の下半分のみ、かつ壁からはみ出さない）
+     this.player.y = Math.max(canvas.height / 2 + this.player.radius, Math.min(this.mouseY, canvas.height - this.player.radius));
+
+     this.player.updateVelocity();
+    }
+
+    // CPU（敵AI）の挙動
+    updateCPU() {
+     // パックのX座標を追いかける（速度制限があるため、速い斜めの球には追いつけなくなる）
+     let targetX = this.puck.x;
+     // 基本的には自陣のゴール前（以前より少し深め）に陣取り、横を抜かれやすくする
+     let targetY = 70;
+
+     // パックが敵陣（上半分）にある場合は少し前へ出る
+     if (this.puck.y < canvas.height / 2) {
+      // ★スタック回避: パックが上部壁際に張り付いている場合
+      // CPUマレットの半径(30)よりパックが壁に近いと、下から押し潰してしまいスタックする
+      if (this.puck.y < this.cpu.radius + 5) {
+       // パックが角付近にいる場合は、押し潰さないように一旦中央に引いて待機する
+       if (this.puck.x < 50 || this.puck.x > canvas.width - 50) {
+        targetX = canvas.width / 2;
+        targetY = 100;
+       } else {
+        // 角でなければ、真横からつつくようにアプローチ
+        targetY = this.puck.y;
+       }
+      } else {
+       // 通常はパックの少し後ろ（上）から打ち返すために回り込む
+       targetY = Math.max(this.cpu.radius, Math.min(this.puck.y - 20, canvas.height / 2 - this.cpu.radius));
+      }
+     }
+
+     // ターゲットに向けて移動（速度制限あり）
+     let dx = targetX - this.cpu.x;
+     let dy = targetY - this.cpu.y;
+     let dist = Math.sqrt(dx * dx + dy * dy);
+
+     if (dist > 0) {
+      let speed = Math.min(dist, this.cpu.maxSpeed);
+      this.cpu.x += (dx / dist) * speed;
+      this.cpu.y += (dy / dist) * speed;
+     }
+
+     // 領域制限
+     this.cpu.x = Math.max(this.cpu.radius, Math.min(this.cpu.x, canvas.width - this.cpu.radius));
+     this.cpu.y = Math.max(this.cpu.radius, Math.min(this.cpu.y, canvas.height / 2 - this.cpu.radius));
+
+     this.cpu.updateVelocity();
+    }
+
+    // 円と円の衝突判定と反発処理
+    resolveCollision(puck, mallet) {
+     let dx = puck.x - mallet.x;
+     let dy = puck.y - mallet.y;
+     let distance = Math.sqrt(dx * dx + dy * dy);
+
+     // 衝突しているか？
+     if (distance < puck.radius + mallet.radius) {
+      // 1. 位置の補正（めり込み防止）
+      let overlap = (puck.radius + mallet.radius) - distance;
+      let nx = dx / distance; // 法線ベクトルX
+      let ny = dy / distance; // 法線ベクトルY
+
+      puck.x += nx * overlap;
+      puck.y += ny * overlap;
+
+      // 2. 速度の計算（物理演算的な反発）
+      // マレットの速度に対する相対速度
+      let relVx = puck.vx - mallet.vx;
+      let relVy = puck.vy - mallet.vy;
+
+      // 法線方向の速度
+      let normalVel = relVx * nx + relVy * ny;
+
+      // すでに離れようとしている場合は処理しない
+      if (normalVel > 0) return;
+
+      // 反発係数（1.0で完全弾性、それより大きいと弾き飛ばす力が強くなる）
+      let restitution = 0.5; // 0.8から0.5に下げて反発を抑える
+
+      // インパルス（衝撃量）の計算
+      // マレットは重いため、一方的にパックを弾くように簡易化
+      let impulse = -(1 + restitution) * normalVel;
+
+      puck.vx += impulse * nx;
+      puck.vy += impulse * ny;
+
+      // マレットが動いている場合は、最低限の弾き速度を保証する
+      // マウスの超高速移動によるバグを防ぐため、マレットからの影響速度に上限(15)を設ける
+      let malletSpeed = Math.min(Math.sqrt(mallet.vx * mallet.vx + mallet.vy * mallet.vy), 15);
+      if (malletSpeed > 1) {
+       puck.vx += nx * malletSpeed * 0.4;
+       puck.vy += ny * malletSpeed * 0.4;
+      }
+     }
+    }
+
+    // 壁との衝突判定とゴール判定
+    checkBounds() {
+     const goalLeft = (canvas.width - GOAL_WIDTH) / 2;
+     const goalRight = goalLeft + GOAL_WIDTH;
+
+     // 左右の壁
+     if (this.puck.x - this.puck.radius < 0) {
+      this.puck.x = this.puck.radius;
+      this.puck.vx *= -1;
+     } else if (this.puck.x + this.puck.radius > canvas.width) {
+      this.puck.x = canvas.width - this.puck.radius;
+      this.puck.vx *= -1;
+     }
+
+     // 上の壁とCPUゴール
+     if (this.puck.y - this.puck.radius < 0) {
+      if (this.puck.x > goalLeft && this.puck.x < goalRight) {
+       this.scorePoint('PLAYER');
+      } else {
+       this.puck.y = this.puck.radius;
+       this.puck.vy *= -1;
+      }
+     }
+
+     // 下の壁とプレイヤーゴール
+     if (this.puck.y + this.puck.radius > canvas.height) {
+      if (this.puck.x > goalLeft && this.puck.x < goalRight) {
+       this.scorePoint('CPU');
+      } else {
+       this.puck.y = canvas.height - this.puck.radius;
+       this.puck.vy *= -1;
+      }
+     }
+    }
+
+    // 得点処理
+    scorePoint(scorer) {
+     this.state = 'SCORED';
+     if (scorer === 'PLAYER') {
+      this.playerScore++;
+      this.message = 'Goal!';
+     } else {
+      this.cpuScore++;
+      this.message = 'CPU Goal...';
+     }
+
+     if (this.playerScore >= WINNING_SCORE) {
+      this.state = 'GAMEOVER';
+      this.message = 'You Win!';
+     } else if (this.cpuScore >= WINNING_SCORE) {
+      this.state = 'GAMEOVER';
+      this.message = 'You Lose...';
+     } else {
+      // 1秒後にパックをリセットして再開 (2秒から1秒に変更してテンポアップ)
+      setTimeout(() => this.resetPuck(scorer), 1000);
+     }
+    }
+
+    // パックの再配置
+    resetPuck(scorer) {
+     if (this.state === 'GAMEOVER') return;
+
+     this.puck.vx = 0;
+     this.puck.vy = 0;
+     this.puck.x = canvas.width / 2;
+     // 失点した側の中央位置に配置
+     this.puck.y = scorer === 'PLAYER' ? canvas.height / 4 : canvas.height * 3 / 4;
+
+     this.state = 'PLAYING';
+    }
+
+    // ゲーム全体の初期化
+    resetGame() {
+     this.playerScore = 0;
+     this.cpuScore = 0;
+     this.player.x = canvas.width / 2;
+     this.player.y = canvas.height - 50;
+     this.cpu.x = canvas.width / 2;
+     this.cpu.y = 50;
+     this.resetPuck('CPU'); // 最初は真ん中付近から
+     this.puck.y = canvas.height / 2;
+     this.state = 'PLAYING';
+    }
+
+    // --- 描画系処理 ---
+
+    drawField() {
+     // センターライン
+     ctx.beginPath();
+     ctx.moveTo(0, canvas.height / 2);
+     ctx.lineTo(canvas.width, canvas.height / 2);
+     ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+     ctx.lineWidth = 4;
+     ctx.stroke();
+
+     // センターサークル
+     ctx.beginPath();
+     ctx.arc(canvas.width / 2, canvas.height / 2, 60, 0, Math.PI * 2);
+     ctx.stroke();
+     ctx.beginPath();
+     ctx.arc(canvas.width / 2, canvas.height / 2, 5, 0, Math.PI * 2);
+     ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+     ctx.fill();
+
+     // ゴールエリアの描画（上）
+     ctx.fillStyle = 'rgba(231, 76, 60, 0.3)'; // プレイヤーが狙うゴールは赤っぽく
+     ctx.fillRect((canvas.width - GOAL_WIDTH) / 2, 0, GOAL_WIDTH, 10);
+
+     // ゴールエリアの描画（下）
+     ctx.fillStyle = 'rgba(52, 152, 219, 0.3)'; // CPUが狙うゴールは青っぽく
+     ctx.fillRect((canvas.width - GOAL_WIDTH) / 2, canvas.height - 10, GOAL_WIDTH, 10);
+    }
+
+    drawScores() {
+     ctx.font = '80px Arial';
+     ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
+     ctx.textAlign = 'center';
+     ctx.textBaseline = 'middle';
+
+     // CPUスコア（上半分）
+     ctx.fillText(this.cpuScore, canvas.width / 2, canvas.height / 4);
+     // プレイヤースコア（下半分）
+     ctx.fillText(this.playerScore, canvas.width / 2, canvas.height * 3 / 4);
+    }
+
+    drawMessage() {
+     if (this.state === 'START' || this.state === 'SCORED' || this.state === 'GAMEOVER') {
+      // 半透明のオーバーレイ
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // メッセージテキスト
+      ctx.font = 'bold 36px Arial';
+      ctx.fillStyle = '#fff';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(this.message, canvas.width / 2, canvas.height / 2);
+
+      if (this.state === 'GAMEOVER') {
+       ctx.font = '20px Arial';
+       ctx.fillText('Click to Restart', canvas.width / 2, canvas.height / 2 + 40);
+      }
+     }
+    }
+
+    // メインループ
+    loop() {
+     // 1. 画面のクリア
+     ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+     // 2. 状態の更新
+     if (this.state === 'PLAYING') {
+      this.updatePlayer();
+      this.updateCPU();
+      this.puck.update();
+
+      this.checkBounds();
+      this.resolveCollision(this.puck, this.player);
+      this.resolveCollision(this.puck, this.cpu);
+     }
+
+     // 3. 描画
+     this.drawField();
+     this.drawScores();
+
+     // パックがゴールに入った瞬間など、消えないように描画する
+     if (this.state !== 'START') {
+      this.puck.draw(ctx);
+      this.player.draw(ctx);
+      this.cpu.draw(ctx);
+     }
+
+     this.drawMessage();
+
+     // 次のフレームを要求
+     requestAnimationFrame(() => this.loop());
+    }
+   }
+
+   // ゲームの起動
+   const game = new Game();
+   game.loop();
+
+  </script>
+ </body>
+</html>
