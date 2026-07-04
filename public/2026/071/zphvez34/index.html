@@ -1,10 +1,874 @@
 <!DOCTYPE html>
-<html lang="ja">
- <head>
-  <meta charset="UTF-8">
-  <title>サイト</title>
- </head>
- <body>
-  <h1>zphvez34</h1>
- </body>
+<html lang="ja" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SAKURA_NEO.SYS // FUTURE_CAREER_MAP</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Orbitron & Noto Sans JP -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;700;900&family=Orbitron:wght@400;600;800;900&display=swap" rel="stylesheet">
+    <!-- FontAwesome for Cyberpunk/Cute Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        sakurapink: {
+                            50: '#fff0f5',
+                            100: '#ffe1ec',
+                            200: '#ffc4db',
+                            300: '#ff99c0',
+                            400: '#ff619b',
+                            500: '#ff3377',
+                            600: '#e61254',
+                            glow: '#ffb7d5',
+                            melty: '#ff8da1'
+                        },
+                        cyberdark: {
+                            950: '#080309',
+                            900: '#0f0714',
+                            800: '#190d21',
+                            700: '#281534',
+                            600: '#3c204e',
+                        },
+                        cyberneon: {
+                            cyan: '#00f0ff',
+                            purple: '#bd00ff',
+                        }
+                    },
+                    fontFamily: {
+                        orbitron: ['Orbitron', 'sans-serif'],
+                        sans: ['Noto Sans JP', 'Inter', 'sans-serif'],
+                    },
+                    animation: {
+                        'pulse-fast': 'pulse 1.2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                        'float': 'float 4s ease-in-out infinite',
+                        'scanline': 'scanline 8s linear infinite',
+                        'neon-glow': 'neonGlow 2s ease-in-out infinite alternate',
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Cyberpunk Custom styles & glow effects */
+        .neon-text-sakura {
+            color: #fff0f5;
+            text-shadow: 0 0 5px #ffb7d5, 0 0 15px #ff619b, 0 0 30px #ff3377;
+        }
+        .neon-text-cyan {
+            color: #e0faff;
+            text-shadow: 0 0 5px #00f0ff, 0 0 15px #00c0d8;
+        }
+        .neon-border-sakura {
+            box-shadow: 0 0 8px rgba(255, 183, 213, 0.4), inset 0 0 8px rgba(255, 183, 213, 0.2);
+            border: 1px solid rgba(255, 153, 192, 0.6);
+        }
+        .neon-border-cyan {
+            box-shadow: 0 0 8px rgba(0, 240, 255, 0.4), inset 0 0 8px rgba(0, 240, 255, 0.2);
+            border: 1px solid rgba(0, 240, 255, 0.6);
+        }
+        .cyber-grid {
+            background-size: 40px 40px;
+            background-image: 
+                linear-gradient(to right, rgba(255, 141, 161, 0.05) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(255, 141, 161, 0.05) 1px, transparent 1px);
+        }
+        .scanline::before {
+            content: " ";
+            display: block;
+            position: fixed;
+            top: 0; left: 0; bottom: 0; right: 0;
+            background: linear-gradient(rgba(18, 10, 20, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+            z-index: 999;
+            background-size: 100% 4px, 6px 100%;
+            pointer-events: none;
+        }
+        .cyber-panel {
+            background: rgba(15, 7, 20, 0.75);
+            border: 1px solid rgba(255, 141, 161, 0.3);
+            box-shadow: 0 0 20px rgba(255, 97, 155, 0.1), inset 0 0 15px rgba(255, 141, 161, 0.05);
+            backdrop-filter: blur(12px);
+        }
+        .cyber-panel:hover {
+            border-color: rgba(255, 141, 161, 0.8);
+            box-shadow: 0 0 25px rgba(255, 97, 155, 0.25), inset 0 0 20px rgba(255, 141, 161, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        /* Diagonal Demo Ribbon styling */
+        .demo-ribbon {
+            width: 250px;
+            background: linear-gradient(45deg, #e61254, #ff3377);
+            color: #ffffff;
+            text-align: center;
+            line-height: 40px;
+            transform: rotate(45deg);
+            position: fixed;
+            top: 40px;
+            right: -60px;
+            z-index: 1000;
+            box-shadow: 0 0 15px rgba(230, 18, 84, 0.7);
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 800;
+            letter-spacing: 2px;
+            font-size: 0.85rem;
+            border: 1px solid rgba(255, 240, 245, 0.5);
+            pointer-events: none;
+        }
+
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+            100% { transform: translateY(0px); }
+        }
+
+        /* Scrollbar customizing */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0f0714;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #ff619b;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #ff99c0;
+        }
+    </style>
+</head>
+
+<body class="bg-cyberdark-950 text-gray-100 font-sans min-h-screen cyber-grid scanline overflow-x-hidden relative">
+
+    <!-- Diagonal Ribbon -->
+    <div class="demo-ribbon">DEMO / DUMMY</div>
+
+    <!-- Floating Cyber Header -->
+    <header class="sticky top-0 z-40 w-full border-b border-sakurapink-400/20 bg-cyberdark-950/80 backdrop-blur-md px-4 py-3">
+        <div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+            <!-- Brand Logo -->
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-lg bg-gradient-to-tr from-sakurapink-500 to-cyberneon-purple p-[2px] animate-pulse">
+                    <div class="w-full h-full bg-cyberdark-900 rounded-lg flex items-center justify-center">
+                        <i class="fa-solid fa-seedling text-sakurapink-glow text-xl"></i>
+                    </div>
+                </div>
+                <div>
+                    <h1 class="font-orbitron font-extrabold tracking-widest text-lg sm:text-xl text-white flex items-center gap-2">
+                        SAKURA_NEO<span class="text-sakurapink-400 text-xs px-1.5 py-0.5 rounded border border-sakurapink-500/50 bg-sakurapink-500/10">v4.06</span>
+                    </h1>
+                    <p class="text-[10px] text-sakurapink-300 font-mono tracking-wide">SYSTEM INTEGRITY: OPTIMAL</p>
+                </div>
+            </div>
+
+            <!-- Quick Stats & Interactive Links -->
+            <nav class="flex items-center gap-6 font-orbitron text-xs sm:text-sm">
+                <a href="#profile" class="text-sakurapink-100 hover:text-sakurapink-400 transition-colors flex items-center gap-1.5">
+                    <span class="text-sakurapink-400 text-[10px]">01 //</span> PROFILE
+                </a>
+                <a href="#skills" class="text-sakurapink-100 hover:text-sakurapink-400 transition-colors flex items-center gap-1.5">
+                    <span class="text-sakurapink-400 text-[10px]">02 //</span> SKILLS
+                </a>
+                <a href="#timeline" class="text-sakurapink-100 hover:text-sakurapink-400 transition-colors flex items-center gap-1.5">
+                    <span class="text-sakurapink-400 text-[10px]">03 //</span> TIMELINE
+                </a>
+                <a href="#reactor" class="text-sakurapink-100 hover:text-sakurapink-400 transition-colors flex items-center gap-1.5">
+                    <span class="text-sakurapink-400 text-[10px]">04 //</span> REACTOR
+                </a>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Hero / Profile Section -->
+    <main class="max-w-7xl mx-auto px-4 py-8 relative">
+        <section id="profile" class="mb-16 scroll-mt-24">
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
+                
+                <!-- Left Block: Avatar & Status (Col Span 5) -->
+                <div class="lg:col-span-5 flex flex-col justify-between cyber-panel rounded-2xl p-6 relative overflow-hidden group">
+                    <!-- Corner Deco Lines -->
+                    <div class="absolute top-0 left-0 w-8 h-8 border-t-2 border-l-2 border-sakurapink-400"></div>
+                    <div class="absolute bottom-0 right-0 w-8 h-8 border-b-2 border-r-2 border-sakurapink-400"></div>
+                    
+                    <div class="space-y-6">
+                        <!-- Holographic Avatar Frame -->
+                        <div class="relative w-48 h-48 mx-auto rounded-full overflow-hidden border-4 border-sakurapink-400/50 p-1 group-hover:border-sakurapink-glow transition-all duration-500">
+                            <div class="w-full h-full rounded-full overflow-hidden bg-cyberdark-800 relative">
+                                <img src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&q=80&w=400&h=400" 
+                                     alt="Future Avatar Profile" 
+                                     class="w-full h-full object-cover filter brightness-90 saturate-150 contrast-105"
+                                     onerror="this.src='https://placehold.co/400x400/1e0f24/ffb7d5?text=NEO_PROFILE'">
+                                <!-- Tech HUD Overlay on Avatar -->
+                                <div class="absolute inset-0 bg-gradient-to-t from-sakurapink-900/40 via-transparent to-transparent"></div>
+                                <div class="absolute inset-0 border-2 border-dashed border-sakurapink-400/20 rounded-full animate-spin-slow"></div>
+                            </div>
+                        </div>
+
+                        <!-- User Meta Details -->
+                        <div class="text-center space-y-2">
+                            <span class="inline-block px-3 py-1 bg-sakurapink-500/10 border border-sakurapink-400/30 text-sakurapink-300 font-orbitron text-xs tracking-wider rounded-full">
+                                <i class="fa-solid fa-fingerprint mr-1.5 animate-pulse text-sakurapink-400"></i> NEO_ID: #8809-SKR
+                            </span>
+                            <h2 class="text-3xl font-black tracking-wide font-orbitron text-transparent bg-clip-text bg-gradient-to-r from-sakurapink-200 via-sakurapink-400 to-sakurapink-600 neon-text-sakura">
+                                咲良 ネオ
+                            </h2>
+                            <p class="text-sm text-cyberneon-cyan font-mono tracking-widest uppercase">
+                                Neural UI/UX Architect
+                            </p>
+                        </div>
+
+                        <!-- System Vital Display -->
+                        <div class="border-t border-sakurapink-500/20 pt-4 space-y-2 font-mono text-xs text-sakurapink-200/80">
+                            <div class="flex justify-between items-center">
+                                <span class="flex items-center gap-1.5"><i class="fa-solid fa-heart-pulse text-sakurapink-400"></i> SYNAPSE SPEED:</span>
+                                <span class="text-white font-orbitron">140 ms</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="flex items-center gap-1.5"><i class="fa-solid fa-bolt text-amber-400"></i> CREATIVE DRIVE:</span>
+                                <span class="text-white font-orbitron">MAX CAPACITY</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="flex items-center gap-1.5"><i class="fa-solid fa-location-dot text-cyberneon-cyan"></i> BASE REGION:</span>
+                                <span class="text-cyberneon-cyan font-orbitron">NEO_TOKYO_03</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Glowing interactive micro-quote -->
+                    <div class="mt-8 p-3 rounded-lg bg-cyberdark-900/50 border border-sakurapink-400/10 text-center text-xs italic text-sakurapink-100">
+                        "テクノロジーがどれだけ進化しても、生命と感情に最も寄り添うメルティ・ピンクの温もりをデジタルに実装したい。"
+                    </div>
+                </div>
+
+                <!-- Right Block: Futuristic Bio & Interactive Core Mission (Col Span 7) -->
+                <div class="lg:col-span-7 flex flex-col justify-between cyber-panel rounded-2xl p-6 md:p-8 relative">
+                    <!-- Tech background gridlines -->
+                    <div class="absolute inset-0 bg-cover bg-center mix-blend-overlay opacity-5 pointer-events-none" style="background-image: url('https://images.unsplash.com/photo-1579546929518-9e396f3cc809?q=80&w=1000');"></div>
+                    
+                    <div>
+                        <!-- Header inside Panel -->
+                        <div class="flex items-center justify-between border-b border-sakurapink-500/20 pb-4 mb-6">
+                            <h3 class="font-orbitron font-bold text-lg text-white flex items-center gap-2">
+                                <span class="inline-block w-2.5 h-2.5 rounded-full bg-sakurapink-500 animate-ping"></span>
+                                MISSION_STATEMENT // 未来への誓約
+                            </h3>
+                            <i class="fa-solid fa-terminal text-sakurapink-400"></i>
+                        </div>
+
+                        <!-- Extensive Bio Narrative -->
+                        <div class="space-y-4 text-sm md:text-base leading-relaxed text-sakurapink-100">
+                            <p>
+                                私は2030年代のデジタル社会において、人間と機械、そしてメタバースアバターが心地よく接続できる <strong class="text-sakurapink-300">「感情共感型インターフェース」</strong> を設計するUI/UXアーキテクトを目指しています。
+                            </p>
+                            <p>
+                                従来の冷徹で鋭利なサイバーパンクではなく、さくらの花びらが蕩ける（メルティ）ような優しさと、ネオンの持つ強烈なエネルギーを組み合わせた、<strong class="text-cyberneon-cyan">「メルティ・サイバー」</strong> という新しい美的価値観を提唱しています。
+                            </p>
+                            <p>
+                                これから身につける量子デザインシステムや生体同調プログラミングのスキルを活かし、情報過多で疲れ切った未来の人類へ、心休まるサイバーオアシスを提供することが私のミッションです。
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Interactive HUD Quick Links -->
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-8">
+                        <div class="p-4 rounded-xl bg-cyberdark-900 border border-sakurapink-400/20 flex flex-col items-center justify-center text-center">
+                            <i class="fa-solid fa-palette text-2xl text-sakurapink-400 mb-2"></i>
+                            <h4 class="text-xs font-bold font-orbitron text-white">ESTHETIC</h4>
+                            <p class="text-[10px] text-sakurapink-300 mt-1">極彩色ネオン / メルティ</p>
+                        </div>
+                        <div class="p-4 rounded-xl bg-cyberdark-900 border border-sakurapink-400/20 flex flex-col items-center justify-center text-center">
+                            <i class="fa-solid fa-atom text-2xl text-cyberneon-cyan mb-2 animate-spin-slow"></i>
+                            <h4 class="text-xs font-bold font-orbitron text-white">ENGINEERING</h4>
+                            <p class="text-[10px] text-cyberneon-cyan mt-1">量子界面設計 / 生体同調</p>
+                        </div>
+                        <div class="p-4 rounded-xl bg-cyberdark-900 border border-sakurapink-400/20 flex flex-col items-center justify-center text-center">
+                            <i class="fa-solid fa-brain text-2xl text-cyberneon-purple mb-2"></i>
+                            <h4 class="text-xs font-bold font-orbitron text-white">EMPATHY</h4>
+                            <p class="text-[10px] text-cyberneon-purple mt-1">脳波UX / 感覚同期</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Future Skills Node -->
+        <section id="skills" class="mb-16 scroll-mt-24">
+            <div class="text-center mb-10">
+                <h3 class="font-orbitron font-extrabold text-2xl md:text-3xl text-white tracking-widest flex items-center justify-center gap-3">
+                    <i class="fa-solid fa-square-poll-vertical text-sakurapink-400"></i>
+                    FUTURE_SKILL_NODES // 習得スキル
+                </h3>
+                <div class="h-[2px] w-24 bg-gradient-to-r from-transparent via-sakurapink-400 to-transparent mx-auto mt-2"></div>
+                <p class="text-xs text-sakurapink-300 font-mono mt-2 uppercase tracking-widest">現在から未来に向けて磨き上げるサイバー能力</p>
+            </div>
+
+            <!-- Skill Cards Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                
+                <!-- Skill 1 -->
+                <div class="cyber-panel rounded-xl p-5 flex flex-col justify-between space-y-4 relative group">
+                    <div class="flex items-center justify-between">
+                        <div class="p-2.5 rounded-lg bg-sakurapink-500/10 border border-sakurapink-500/30">
+                            <i class="fa-solid fa-signature text-xl text-sakurapink-400"></i>
+                        </div>
+                        <span class="font-orbitron text-xs text-sakurapink-300">CORE LEVEL: 92%</span>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-white mb-1 group-hover:text-sakurapink-glow transition-colors">ホログラフィックUI/UX</h4>
+                        <p class="text-xs text-sakurapink-200/80 leading-relaxed">
+                            空中に投影される3Dインターフェースの動的遷移、視覚疲労を蓄積させない「さくらカラー」波長設計。
+                        </p>
+                    </div>
+                    <!-- Skill Bar -->
+                    <div class="space-y-1">
+                        <div class="w-full bg-cyberdark-900 h-2 rounded-full overflow-hidden border border-sakurapink-400/20">
+                            <div class="bg-gradient-to-r from-sakurapink-500 to-sakurapink-200 h-full w-[92%] rounded-full shadow-[0_0_10px_rgba(255,97,155,0.7)]"></div>
+                        </div>
+                        <div class="flex justify-between text-[10px] font-mono text-sakurapink-300">
+                            <span>CURRENT: PROFICIENT</span>
+                            <span>92/100</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Skill 2 -->
+                <div class="cyber-panel rounded-xl p-5 flex flex-col justify-between space-y-4 relative group">
+                    <div class="flex items-center justify-between">
+                        <div class="p-2.5 rounded-lg bg-cyberneon-cyan/10 border border-cyberneon-cyan/30">
+                            <i class="fa-solid fa-dna text-xl text-cyberneon-cyan"></i>
+                        </div>
+                        <span class="font-orbitron text-xs text-cyberneon-cyan">LEARNING: 78%</span>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-white mb-1 group-hover:text-cyberneon-cyan transition-colors">義体サイバー感覚同調</h4>
+                        <p class="text-xs text-sakurapink-200/80 leading-relaxed">
+                            サイバー義体（ハードウェア）からの感覚フィードバックを神経へ心地よく伝達する同調制御技術。
+                        </p>
+                    </div>
+                    <!-- Skill Bar -->
+                    <div class="space-y-1">
+                        <div class="w-full bg-cyberdark-900 h-2 rounded-full overflow-hidden border border-cyberneon-cyan/20">
+                            <div class="bg-gradient-to-r from-cyberneon-cyan to-cyan-200 h-full w-[78%] rounded-full shadow-[0_0_10px_rgba(0,240,255,0.7)]"></div>
+                        </div>
+                        <div class="flex justify-between text-[10px] font-mono text-cyberneon-cyan">
+                            <span>TARGETING_2028</span>
+                            <span>78/100</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Skill 3 -->
+                <div class="cyber-panel rounded-xl p-5 flex flex-col justify-between space-y-4 relative group">
+                    <div class="flex items-center justify-between">
+                        <div class="p-2.5 rounded-lg bg-cyberneon-purple/10 border border-cyberneon-purple/30">
+                            <i class="fa-solid fa-brain text-xl text-cyberneon-purple"></i>
+                        </div>
+                        <span class="font-orbitron text-xs text-cyberneon-purple">RESEARCH: 85%</span>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-white mb-1 group-hover:text-cyberneon-purple transition-colors">量子感情共感プログラム</h4>
+                        <p class="text-xs text-sakurapink-200/80 leading-relaxed">
+                            脳波測定データから利用者の微細な感情の揺らぎをキャッチし、ネオンピンクの輝度や音色を自己組織化するAI。
+                        </p>
+                    </div>
+                    <!-- Skill Bar -->
+                    <div class="space-y-1">
+                        <div class="w-full bg-cyberdark-900 h-2 rounded-full overflow-hidden border border-cyberneon-purple/20">
+                            <div class="bg-gradient-to-r from-cyberneon-purple to-purple-200 h-full w-[85%] rounded-full shadow-[0_0_10px_rgba(189,0,255,0.7)]"></div>
+                        </div>
+                        <div class="flex justify-between text-[10px] font-mono text-cyberneon-purple">
+                            <span>DEVELOPING</span>
+                            <span>85/100</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Skill 4 -->
+                <div class="cyber-panel rounded-xl p-5 flex flex-col justify-between space-y-4 relative group">
+                    <div class="flex items-center justify-between">
+                        <div class="p-2.5 rounded-lg bg-sakurapink-500/10 border border-sakurapink-500/30">
+                            <i class="fa-solid fa-wand-magic-sparkles text-xl text-sakurapink-glow"></i>
+                        </div>
+                        <span class="font-orbitron text-xs text-sakurapink-glow">EXPERTISE: 95%</span>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-white mb-1 group-hover:text-sakurapink-glow transition-colors">メルティ・ネオンデザイン</h4>
+                        <p class="text-xs text-sakurapink-200/80 leading-relaxed">
+                            冷たい機械世界を愛くるしい「メルティピンク」に染め上げ、ユーザーに最高度の心の安らぎを与える独自デザイン。
+                        </p>
+                    </div>
+                    <!-- Skill Bar -->
+                    <div class="space-y-1">
+                        <div class="w-full bg-cyberdark-900 h-2 rounded-full overflow-hidden border border-sakurapink-400/20">
+                            <div class="bg-gradient-to-r from-sakurapink-300 to-white h-full w-[95%] rounded-full shadow-[0_0_10px_rgba(255,183,213,0.7)]"></div>
+                        </div>
+                        <div class="flex justify-between text-[10px] font-mono text-sakurapink-300">
+                            <span>SIGNATURE_SKILL</span>
+                            <span>95/100</span>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- Future Career Timeline Map -->
+        <section id="timeline" class="mb-16 scroll-mt-24">
+            <div class="text-center mb-10">
+                <h3 class="font-orbitron font-extrabold text-2xl md:text-3xl text-white tracking-widest flex items-center justify-center gap-3">
+                    <i class="fa-solid fa-map-location-dot text-sakurapink-400"></i>
+                    FUTURE_CAREER_MAP // キャリアマップ
+                </h3>
+                <div class="h-[2px] w-24 bg-gradient-to-r from-transparent via-sakurapink-400 to-transparent mx-auto mt-2"></div>
+                <p class="text-xs text-sakurapink-300 font-mono mt-2 uppercase tracking-widest">現在から2035年に向けて切り拓くさくら色ネオンの航路</p>
+            </div>
+
+            <!-- Timeline Structure -->
+            <div class="relative max-w-4xl mx-auto">
+                <!-- Vertical Line -->
+                <div class="absolute left-1/2 -translate-x-1/2 top-0 bottom-0 w-[2px] bg-gradient-to-b from-sakurapink-400/50 via-cyberneon-cyan/50 to-sakurapink-500 shadow-[0_0_10px_rgba(255,97,155,0.3)]"></div>
+
+                <!-- Timeline Items -->
+                <div class="space-y-12">
+
+                    <!-- Node 1: Present/Near Future (2027) -->
+                    <div class="relative flex flex-col md:flex-row items-center justify-between group">
+                        <div class="w-full md:w-[45%] text-right pr-0 md:pr-8 order-2 md:order-1 mb-4 md:mb-0">
+                            <div class="cyber-panel p-6 rounded-2xl inline-block text-left border-r-4 border-r-sakurapink-400 hover:scale-[1.02] transition-transform duration-300">
+                                <span class="font-orbitron font-extrabold text-sakurapink-400 text-2xl">2027</span>
+                                <span class="block text-xs font-bold text-cyberneon-cyan uppercase mt-1">SAKURA NEO-ART UNIVERSITY // 卒業</span>
+                                <h4 class="text-base font-bold text-white mt-1">脳波連動型ペイントシステムの研究開発</h4>
+                                <p class="text-xs text-sakurapink-100 mt-2 leading-relaxed">
+                                    感情の動き（喜怒哀楽）に連動してリアルタイムに空間ペイントを描き出すアルゴリズムの研究。卒業制作でネオ・デザイン・グランプリ優秀賞受賞。
+                                </p>
+                            </div>
+                        </div>
+                        <!-- Center Node Indicator -->
+                        <div class="absolute left-1/2 -translate-x-1/2 w-6 h-6 rounded-full bg-cyberdark-950 border-4 border-sakurapink-400 z-10 flex items-center justify-center shadow-[0_0_12px_#ffb7d5]">
+                            <div class="w-2.5 h-2.5 rounded-full bg-sakurapink-400 animate-ping"></div>
+                        </div>
+                        <div class="w-full md:w-[45%] order-1 md:order-2"></div>
+                    </div>
+
+                    <!-- Node 2: Entry to Industry (2029) -->
+                    <div class="relative flex flex-col md:flex-row items-center justify-between group">
+                        <div class="w-full md:w-[45%] order-1"></div>
+                        <!-- Center Node Indicator -->
+                        <div class="absolute left-1/2 -translate-x-1/2 w-6 h-6 rounded-full bg-cyberdark-950 border-4 border-cyberneon-cyan z-10 flex items-center justify-center shadow-[0_0_12px_#00f0ff]">
+                            <div class="w-2.5 h-2.5 rounded-full bg-cyberneon-cyan"></div>
+                        </div>
+                        <div class="w-full md:w-[45%] text-left pl-0 md:pl-8 order-2">
+                            <div class="cyber-panel p-6 rounded-2xl inline-block border-l-4 border-l-cyberneon-cyan hover:scale-[1.02] transition-transform duration-300">
+                                <span class="font-orbitron font-extrabold text-cyberneon-cyan text-2xl">2029</span>
+                                <span class="block text-xs font-bold text-sakurapink-300 uppercase mt-1">NEO MELTY SYSTEMS CO. // 入社</span>
+                                <h4 class="text-base font-bold text-white mt-1">アソシエイト・バーチャルスペースデザイナー</h4>
+                                <p class="text-xs text-sakurapink-100 mt-2 leading-relaxed">
+                                    バーチャル・ネオシティ内のリラクゼーションゾーンの空間・UI構築を担当。ユーザーのメンタル疲労を50%軽減する「蕩けるネオン色彩理論」を提唱。
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Node 3: Independence / Breakthrough (2031) -->
+                    <div class="relative flex flex-col md:flex-row items-center justify-between group">
+                        <div class="w-full md:w-[45%] text-right pr-0 md:pr-8 order-2 md:order-1 mb-4 md:mb-0">
+                            <div class="cyber-panel p-6 rounded-2xl inline-block text-left border-r-4 border-r-sakurapink-500 hover:scale-[1.02] transition-transform duration-300">
+                                <span class="font-orbitron font-extrabold text-sakurapink-400 text-2xl">2031</span>
+                                <span class="block text-xs font-bold text-cyberneon-cyan uppercase mt-1">INDIE LAB: 『SAKURA-LINK』// 設立</span>
+                                <h4 class="text-base font-bold text-white mt-1">義体向けエモーショナル皮膚UIの開発</h4>
+                                <p class="text-xs text-sakurapink-100 mt-2 leading-relaxed">
+                                    独立して個人設計事務所を起動。サイバー義体の表面スキンに直接美しいピンクの光を灯し、ユーザー自身の脈拍をデジタルアート化するスキンモジュールをローンチ。
+                                </p>
+                            </div>
+                        </div>
+                        <!-- Center Node Indicator -->
+                        <div class="absolute left-1/2 -translate-x-1/2 w-6 h-6 rounded-full bg-cyberdark-950 border-4 border-sakurapink-500 z-10 flex items-center justify-center shadow-[0_0_12px_#ff3377]">
+                            <div class="w-2.5 h-2.5 rounded-full bg-sakurapink-500 animate-ping"></div>
+                        </div>
+                        <div class="w-full md:w-[45%] order-1 md:order-2"></div>
+                    </div>
+
+                    <!-- Node 4: Future Vision Milestone (2035) -->
+                    <div class="relative flex flex-col md:flex-row items-center justify-between group">
+                        <div class="w-full md:w-[45%] order-1"></div>
+                        <!-- Center Node Indicator -->
+                        <div class="absolute left-1/2 -translate-x-1/2 w-6 h-6 rounded-full bg-cyberdark-950 border-4 border-sakurapink-200 z-10 flex items-center justify-center shadow-[0_0_15px_#ffffff]">
+                            <div class="w-2.5 h-2.5 rounded-full bg-sakurapink-200"></div>
+                        </div>
+                        <div class="w-full md:w-[45%] text-left pl-0 md:pl-8 order-2">
+                            <div class="cyber-panel p-6 rounded-2xl inline-block border-l-4 border-l-sakurapink-200 hover:scale-[1.02] transition-transform duration-300 bg-gradient-to-br from-cyberdark-900 via-sakurapink-950 to-cyberdark-950">
+                                <span class="font-orbitron font-extrabold text-white text-2xl neon-text-sakura">2035</span>
+                                <span class="block text-xs font-bold text-cyberneon-cyan uppercase mt-1">MARS TERRAFORM PROJECT // VCO就任</span>
+                                <h4 class="text-base font-bold text-white mt-1">火星テラフォーミング計画・視覚快適化最高責任者</h4>
+                                <p class="text-xs text-sakurapink-100 mt-2 leading-relaxed">
+                                    人類のフロンティアである赤茶けた砂漠の惑星。その大気ホログラムドーム全域に、さくらを模した優しく煌びやかなネオンを投影し、開拓者たちのメンタルウェルネスを支える巨大システムを構築する。
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </section>
+
+        <!-- Special Interactive Gimmick: Like Reactor -->
+        <section id="reactor" class="mb-16 scroll-mt-24">
+            <div class="cyber-panel rounded-2xl p-6 md:p-8 relative overflow-hidden">
+                <!-- Glowing Particle Containment Box -->
+                <div class="absolute inset-0 bg-gradient-to-r from-sakurapink-900/10 via-transparent to-cyberneon-cyan/50 pointer-events-none opacity-30"></div>
+                <div class="absolute top-0 right-0 w-32 h-32 bg-sakurapink-500/10 rounded-full filter blur-2xl pointer-events-none"></div>
+
+                <div class="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+                    
+                    <!-- Left: Description and Core Controls -->
+                    <div class="lg:col-span-5 space-y-4">
+                        <span class="inline-block px-3 py-1 bg-sakurapink-500/20 border border-sakurapink-400 text-sakurapink-300 font-orbitron text-xs tracking-wider rounded-full uppercase">
+                            <i class="fa-solid fa-atom mr-1 text-sakurapink-400 animate-spin-slow"></i> EMOTION REACTOR
+                        </span>
+                        <h3 class="text-2xl md:text-3xl font-black font-orbitron text-white">
+                            リアルタイム<br>共鳴「いいね！」
+                        </h3>
+                        <p class="text-xs md:text-sm text-sakurapink-200/90 leading-relaxed">
+                            お好みの共感デバイスを選んでボタンをクリックしてください。数字がパッと跳ね上がると同時に、可愛いホログラフィック・シグナルがシステム上に放出され、デジタルオーディオ音響が起動します。
+                        </p>
+                        <!-- LocalStorage status info -->
+                        <p class="text-[10px] text-cyberneon-cyan font-mono flex items-center gap-1">
+                            <i class="fa-solid fa-cloud-arrow-up"></i> STATUS: REALTIME AUTO-SAVING TO LOCAL_NODE
+                        </p>
+                    </div>
+
+                    <!-- Right: Counters Interaction Grid -->
+                    <div class="lg:col-span-7">
+                        <div id="particle-canvas" class="relative w-full h-48 bg-cyberdark-950/80 rounded-xl border border-sakurapink-500/20 overflow-hidden mb-6 flex items-center justify-center">
+                            <!-- Visual cue in the reactor screen -->
+                            <div class="absolute inset-0 flex flex-col items-center justify-center text-center p-4">
+                                <div class="w-full h-full flex items-center justify-center relative" id="particle-container">
+                                    <!-- Dynamic elements float inside here via JS -->
+                                    <div class="text-center">
+                                        <p class="font-orbitron text-xs text-sakurapink-300 tracking-wider">REACTION FIELD ACTIVE</p>
+                                        <p class="text-[10px] text-sakurapink-200/50 mt-1">タップして波形とエモートを生成してください</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="absolute bottom-2 left-4 right-4 flex justify-between font-mono text-[9px] text-sakurapink-400/60">
+                                <span>GRID_COORD: 104.99 // 35.65</span>
+                                <span class="animate-pulse">● FEEDBACK LOOP: LIVE</span>
+                            </div>
+                        </div>
+
+                        <!-- 3 Buttons Interface -->
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                            
+                            <!-- Heart Like Button -->
+                            <button onclick="triggerLike('heart')" class="group relative flex flex-col items-center justify-center p-4 rounded-xl bg-cyberdark-900 border border-sakurapink-400/30 hover:border-sakurapink-glow hover:bg-sakurapink-500/10 active:scale-95 transition-all duration-150 shadow-[0_4px_10px_rgba(0,0,0,0.3)]">
+                                <span class="absolute top-1 right-2 text-[9px] font-mono text-sakurapink-400/70 font-bold">TYPE_01</span>
+                                <div class="w-12 h-12 rounded-full bg-sakurapink-500/10 border border-sakurapink-500/30 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
+                                    <i class="fa-solid fa-heart text-2xl text-sakurapink-400 group-hover:text-sakurapink-glow"></i>
+                                </div>
+                                <span class="text-xs font-bold text-sakurapink-200">MELTY_HEART</span>
+                                <div class="mt-1 font-orbitron font-extrabold text-lg text-white" id="count-heart">0</div>
+                            </button>
+
+                            <!-- Paw Like Button -->
+                            <button onclick="triggerLike('paw')" class="group relative flex flex-col items-center justify-center p-4 rounded-xl bg-cyberdark-900 border border-sakurapink-400/30 hover:border-sakurapink-glow hover:bg-sakurapink-500/10 active:scale-95 transition-all duration-150 shadow-[0_4px_10px_rgba(0,0,0,0.3)]">
+                                <span class="absolute top-1 right-2 text-[9px] font-mono text-sakurapink-400/70 font-bold">TYPE_02</span>
+                                <div class="w-12 h-12 rounded-full bg-sakurapink-500/10 border border-sakurapink-500/30 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
+                                    <i class="fa-solid fa-paw text-2xl text-sakurapink-400 group-hover:text-sakurapink-glow"></i>
+                                </div>
+                                <span class="text-xs font-bold text-sakurapink-200">CYBER_PAW</span>
+                                <div class="mt-1 font-orbitron font-extrabold text-lg text-white" id="count-paw">0</div>
+                            </button>
+
+                            <!-- Star Like Button -->
+                            <button onclick="triggerLike('star')" class="group relative flex flex-col items-center justify-center p-4 rounded-xl bg-cyberdark-900 border border-sakurapink-400/30 hover:border-sakurapink-glow hover:bg-sakurapink-500/10 active:scale-95 transition-all duration-150 shadow-[0_4px_10px_rgba(0,0,0,0.3)]">
+                                <span class="absolute top-1 right-2 text-[9px] font-mono text-sakurapink-400/70 font-bold">TYPE_03</span>
+                                <div class="w-12 h-12 rounded-full bg-sakurapink-500/10 border border-sakurapink-500/30 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
+                                    <i class="fa-solid fa-star text-2xl text-sakurapink-400 group-hover:text-sakurapink-glow"></i>
+                                </div>
+                                <span class="text-xs font-bold text-sakurapink-200">ASTRO_STAR</span>
+                                <div class="mt-1 font-orbitron font-extrabold text-lg text-white" id="count-star">0</div>
+                            </button>
+
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </section>
+
+        <!-- Future Gallery / Concept Art Mockup -->
+        <section class="mb-16">
+            <div class="text-center mb-10">
+                <h3 class="font-orbitron font-extrabold text-2xl md:text-3xl text-white tracking-widest flex items-center justify-center gap-3">
+                    <i class="fa-solid fa-compass-drafting text-sakurapink-400"></i>
+                    CONCEPT_SCHEMATICS // 概念設計集
+                </h3>
+                <div class="h-[2px] w-24 bg-gradient-to-r from-transparent via-sakurapink-400 to-transparent mx-auto mt-2"></div>
+                <p class="text-xs text-sakurapink-300 font-mono mt-2 uppercase tracking-widest">構想中のプロジェクト・未来スケッチ</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <!-- Concept 1 -->
+                <div class="cyber-panel rounded-xl overflow-hidden relative group">
+                    <div class="relative h-48 w-full bg-cyberdark-900 overflow-hidden">
+                        <img src="https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=600&h=400" 
+                             alt="Concept Image 1" 
+                             class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110 filter brightness-75 contrast-110"
+                             onerror="this.src='https://placehold.co/600x400/1e0f24/ffb7d5?text=NEO_CONCEPT'">
+                        <div class="absolute inset-0 bg-gradient-to-t from-cyberdark-950 via-transparent to-transparent"></div>
+                        <span class="absolute top-2 left-2 px-2.5 py-0.5 bg-cyberdark-950/80 border border-sakurapink-500/50 text-[10px] text-sakurapink-300 font-mono rounded">
+                            PROJECT_01
+                        </span>
+                    </div>
+                    <div class="p-4 space-y-2">
+                        <h4 class="font-bold text-white text-sm">脳内色彩マッピングシステム</h4>
+                        <p class="text-xs text-sakurapink-200/80 leading-relaxed">
+                            ヘッドセットにより得られた脳波パルスデータを、さくらピンクをベースにしたヒーリング・テクスチャとしてキャンバスに描画する技術。
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Concept 2 -->
+                <div class="cyber-panel rounded-xl overflow-hidden relative group">
+                    <div class="relative h-48 w-full bg-cyberdark-900 overflow-hidden">
+                        <img src="https://images.unsplash.com/photo-1504051771394-dd2e66b2e08f?auto=format&fit=crop&q=80&w=600&h=400" 
+                             alt="Concept Image 2" 
+                             class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110 filter brightness-75 contrast-110"
+                             onerror="this.src='https://placehold.co/600x400/1e0f24/ffb7d5?text=NEO_CONCEPT'">
+                        <div class="absolute inset-0 bg-gradient-to-t from-cyberdark-950 via-transparent to-transparent"></div>
+                        <span class="absolute top-2 left-2 px-2.5 py-0.5 bg-cyberdark-950/80 border border-cyberneon-cyan/50 text-[10px] text-cyberneon-cyan font-mono rounded">
+                            PROJECT_02
+                        </span>
+                    </div>
+                    <div class="p-4 space-y-2">
+                        <h4 class="font-bold text-white text-sm">ホログラフィック・桜の植樹計画</h4>
+                        <p class="text-xs text-sakurapink-200/80 leading-relaxed">
+                            温室ドームや地下シリンダーシティにおいて、仮想の季節「常春」をもたらす。立体ネオン光散乱式プロジェクター。
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Concept 3 -->
+                <div class="cyber-panel rounded-xl overflow-hidden relative group">
+                    <div class="relative h-48 w-full bg-cyberdark-900 overflow-hidden">
+                        <img src="https://images.unsplash.com/photo-1550751827-4bd374c3f58b?auto=format&fit=crop&q=80&w=600&h=400" 
+                             alt="Concept Image 3" 
+                             class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110 filter brightness-75 contrast-110"
+                             onerror="this.src='https://placehold.co/600x400/1e0f24/ffb7d5?text=NEO_CONCEPT'">
+                        <div class="absolute inset-0 bg-gradient-to-t from-cyberdark-950 via-transparent to-transparent"></div>
+                        <span class="absolute top-2 left-2 px-2.5 py-0.5 bg-cyberdark-950/80 border border-cyberneon-purple/50 text-[10px] text-cyberneon-purple font-mono rounded">
+                            PROJECT_03
+                        </span>
+                    </div>
+                    <div class="p-4 space-y-2">
+                        <h4 class="font-bold text-white text-sm">感情連動型ネオンウェア「MeltSkin」</h4>
+                        <p class="text-xs text-sakurapink-200/80 leading-relaxed">
+                            生体センシングにより、着用者の心が「安らいだ」時に、優しくとろけるような桃色に発光するナノファイバー素材のアパレル。
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- System Footer -->
+    <footer class="bg-cyberdark-950 border-t border-sakurapink-500/20 py-10 px-4 mt-20 relative overflow-hidden">
+        <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6 relative z-10">
+            <!-- Footer Identity -->
+            <div class="space-y-1 text-center md:text-left">
+                <p class="font-orbitron font-extrabold text-white text-lg tracking-wider">SAKURA_NEO.SYS // TERMINAL</p>
+                <p class="text-xs text-sakurapink-400 font-mono">COPYRIGHT © 2026 - 2035 SAKURA NEO. ALL RIGHTS RESERVED.</p>
+            </div>
+
+            <!-- Decorative System Messages -->
+            <div class="flex items-center gap-4 text-xs font-mono text-sakurapink-200/60">
+                <div class="flex items-center gap-1.5">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
+                    <span>ONLINE: NODE_SAKURA_MAIN</span>
+                </div>
+                <span>|</span>
+                <span>LATENCY: 12ms</span>
+                <span>|</span>
+                <span class="text-cyberneon-cyan">PORT: 8080 // WS</span>
+            </div>
+        </div>
+        <!-- Cyber scanline line and ambient bottom glow -->
+        <div class="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-sakurapink-500 via-cyberneon-cyan to-cyberneon-purple"></div>
+    </footer>
+
+    <!-- Script Logic: Interactive Gimmicks -->
+    <script>
+        // Store counters locally so they persist
+        let reactionCounts = {
+            heart: 0,
+            paw: 0,
+            star: 0
+        };
+
+        // Initialize Web Audio Context for cute neon synthesizer sound effects
+        let audioCtx = null;
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
+
+        // Web Audio Synthesizer to play retro digital sounds on click
+        function playCuteSynth(type) {
+            initAudio();
+            if (!audioCtx) return;
+
+            // Simple synthesizer patch: Cute bubble/cyber chirp
+            let osc = audioCtx.createOscillator();
+            let gain = audioCtx.createGain();
+
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            let now = audioCtx.currentTime;
+
+            if (type === 'heart') {
+                // Heart sound: High bubbly sweet pitch rise
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(600, now);
+                osc.frequency.exponentialRampToValueAtTime(1200, now + 0.15);
+                gain.gain.setValueAtTime(0.15, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+                osc.start(now);
+                osc.stop(now + 0.15);
+            } else if (type === 'paw') {
+                // Paw sound: Soft cute double bounce
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(440, now);
+                osc.frequency.setValueAtTime(520, now + 0.05);
+                gain.gain.setValueAtTime(0.12, now);
+                gain.gain.setValueAtTime(0.12, now + 0.05);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+                osc.start(now);
+                osc.stop(now + 0.15);
+            } else if (type === 'star') {
+                // Star sound: Sparkly bell chime
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(880, now);
+                osc.frequency.exponentialRampToValueAtTime(1500, now + 0.25);
+                gain.gain.setValueAtTime(0.1, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+                osc.start(now);
+                osc.stop(now + 0.25);
+            }
+        }
+
+        // Load stats from localStorage on page load
+        window.addEventListener('load', () => {
+            const savedCounts = localStorage.getItem('sakura_neo_likes');
+            if (savedCounts) {
+                try {
+                    reactionCounts = JSON.parse(savedCounts);
+                } catch (e) {
+                    console.error("Failed to parse saved reaction metrics.", e);
+                }
+            } else {
+                // Initialize with cool realistic seed data
+                reactionCounts = {
+                    heart: 128,
+                    paw: 96,
+                    star: 64
+                };
+            }
+            updateCountersInDOM();
+        });
+
+        // Update counts shown in UI
+        function updateCountersInDOM() {
+            document.getElementById('count-heart').textContent = reactionCounts.heart;
+            document.getElementById('count-paw').textContent = reactionCounts.paw;
+            document.getElementById('count-star').textContent = reactionCounts.star;
+        }
+
+        // Floating elements creation inside the Reactor Box
+        function spawnFloatingIcon(type) {
+            const container = document.getElementById('particle-container');
+            if (!container) return;
+
+            // Remove temporary instructional placeholder on first click
+            const placeholder = container.querySelector('.text-center');
+            if (placeholder) {
+                placeholder.style.display = 'none';
+            }
+
+            // Create floating node
+            const iconNode = document.createElement('div');
+            iconNode.className = 'absolute select-none pointer-events-none text-2xl transition-all ease-out duration-[1500ms]';
+            
+            // Set corresponding icon content
+            if (type === 'heart') {
+                iconNode.innerHTML = '🌸';
+                iconNode.style.color = '#ff99c0';
+            } else if (type === 'paw') {
+                iconNode.innerHTML = '🐾';
+                iconNode.style.color = '#ffb7d5';
+            } else if (type === 'star') {
+                iconNode.innerHTML = '✨';
+                iconNode.style.color = '#00f0ff';
+            }
+
+            // Set random starting coordinates inside the container
+            const containerWidth = container.clientWidth;
+            const containerHeight = container.clientHeight;
+
+            const startX = Math.random() * (containerWidth - 40) + 20;
+            const startY = containerHeight - 40;
+
+            iconNode.style.left = `${startX}px`;
+            iconNode.style.top = `${startY}px`;
+            iconNode.style.transform = 'scale(0.5) rotate(0deg)';
+            iconNode.style.opacity = '1';
+
+            container.appendChild(iconNode);
+
+            // Animate upwards, expand, spin, and fade
+            setTimeout(() => {
+                const destinationX = startX + (Math.random() * 80 - 40); // slightly drifting left/right
+                const destinationY = Math.random() * 30 + 10; // drift to near the top
+                const rotateDeg = Math.random() * 180 - 90;
+
+                iconNode.style.left = `${destinationX}px`;
+                iconNode.style.top = `${destinationY}px`;
+                iconNode.style.transform = `scale(1.5) rotate(${rotateDeg}deg)`;
+                iconNode.style.opacity = '0';
+            }, 50);
+
+            // Clean up node after animation ends
+            setTimeout(() => {
+                iconNode.remove();
+            }, 1600);
+        }
+
+        // Trigger reactive Click action
+        function triggerLike(type) {
+            // Increment logic
+            reactionCounts[type]++;
+            updateCountersInDOM();
+
+            // Persist
+            localStorage.setItem('sakura_neo_likes', JSON.stringify(reactionCounts));
+
+            // Visual particle spawn
+            spawnFloatingIcon(type);
+
+            // Synthesize Audio Chime
+            playCuteSynth(type);
+        }
+    </script>
+</body>
 </html>
