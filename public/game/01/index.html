@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="ja">
+ <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Web Othello</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+   body {
+    font-family: 'Inter', sans-serif;
+    background-color: #0f172a;
+    /* slate-900 */
+    color: #f8fafc;
+    /* slate-50 */
+    touch-action: manipulation;
+    /* ダブルタップズーム防止 */
+    -webkit-tap-highlight-color: transparent;
+   }
+
+   .board-container {
+    background-color: #064e3b;
+    /* green-900 */
+    padding: 8px;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.7);
+    width: 100%;
+    max-width: 450px;
+    margin: 0 auto;
+   }
+
+   .grid-board {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 2px;
+    background-color: #111;
+    /* グリッドの線になる背景 */
+    border: 2px solid #111;
+   }
+
+   .cell {
+    background-color: #15803d;
+    /* green-700 */
+    aspect-ratio: 1;
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    transition: background-color 0.2s;
+   }
+
+   @media (hover: hover) {
+    .cell:hover {
+     background-color: #16a34a;
+     /* green-600 */
+    }
+   }
+
+   .disc-container {
+    width: 85%;
+    height: 85%;
+    position: relative;
+    perspective: 1000px;
+    /* 3D回転用 */
+   }
+
+   .disc {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    transform-style: preserve-3d;
+    transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s;
+    border-radius: 50%;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.5);
+    opacity: 0;
+    pointer-events: none;
+   }
+
+   /* 表面 (黒) */
+   .disc .front {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    backface-visibility: hidden;
+    border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, #4b5563, #000000);
+   }
+
+   /* 裏面 (白) */
+   .disc .back {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    backface-visibility: hidden;
+    border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, #ffffff, #9ca3af);
+    transform: rotateY(180deg);
+   }
+
+   /* 状態によるクラス */
+   .disc.state-black {
+    transform: rotateY(0deg);
+    opacity: 1;
+   }
+
+   .disc.state-white {
+    transform: rotateY(180deg);
+    opacity: 1;
+   }
+
+   /* 置ける場所のヒント表示 */
+   .hint {
+    width: 25%;
+    height: 25%;
+    border-radius: 50%;
+    background-color: rgba(0, 0, 0, 0.25);
+    position: absolute;
+    opacity: 0;
+    transition: opacity 0.2s;
+    pointer-events: none;
+   }
+
+   .cell.valid .hint {
+    opacity: 1;
+   }
+
+   /* カスタムセレクトボックスなどのスタイル調整 */
+   select {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%239ca3af' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+    background-position: right 0.5rem center;
+    background-repeat: no-repeat;
+    background-size: 1.5em 1.5em;
+   }
+  </style>
+ </head>
+ <body class="min-h-screen flex flex-col items-center py-6 px-4">
+
+  <header class="w-full max-w-md text-center mb-6">
+   <h1 class="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-blue-500 mb-2">
+    Web Othello</h1>
+   <p class="text-slate-400 text-sm">Play against the AI CPU</p>
+  </header>
+
+  <div
+   class="w-full max-w-md flex justify-between items-center bg-slate-800 p-4 rounded-xl shadow-lg mb-6 border border-slate-700">
+   <div class="flex flex-col items-center">
+    <div class="w-8 h-8 rounded-full bg-gradient-to-br from-gray-600 to-black shadow-md mb-1"></div>
+    <span class="text-sm font-semibold text-slate-300">Black</span>
+    <span id="score-black" class="text-2xl font-bold">2</span>
+   </div>
+
+   <div class="flex flex-col items-center px-4">
+    <div id="turn-indicator"
+     class="text-sm font-bold tracking-wider uppercase px-3 py-1 rounded-full bg-green-500/20 text-green-400 border border-green-500/30 mb-1">
+     Your Turn
+    </div>
+    <div id="game-status" class="text-xs text-slate-400">Game in progress</div>
+   </div>
+
+   <div class="flex flex-col items-center">
+    <div class="w-8 h-8 rounded-full bg-gradient-to-br from-white to-gray-400 shadow-md mb-1"></div>
+    <span class="text-sm font-semibold text-slate-300">White</span>
+    <span id="score-white" class="text-2xl font-bold">2</span>
+   </div>
+  </div>
+
+  <main class="w-full flex-1 flex flex-col items-center">
+   <div class="board-container">
+    <div id="board" class="grid-board rounded-lg overflow-hidden">
+     <!-- 盤面はJSで生成されます -->
+    </div>
+   </div>
+
+   <div class="w-full max-w-md mt-8 bg-slate-800 p-5 rounded-xl shadow-lg border border-slate-700">
+    <h2 class="text-lg font-bold mb-4 text-slate-200 border-b border-slate-700 pb-2">Game Settings</h2>
+
+    <div class="grid grid-cols-2 gap-4 mb-5">
+     <div>
+      <label class="block text-xs text-slate-400 mb-1 font-semibold uppercase">Difficulty</label>
+      <select id="difficulty"
+       class="w-full bg-slate-900 border border-slate-600 text-slate-200 text-sm rounded-lg focus:ring-green-500 focus:border-green-500 block p-2.5 appearance-none">
+       <option value="easy">Easy (Random)</option>
+       <option value="normal" selected>Normal</option>
+       <option value="hard">Hard (Minimax)</option>
+      </select>
+     </div>
+     <div>
+      <label class="block text-xs text-slate-400 mb-1 font-semibold uppercase">Your Color</label>
+      <select id="player-color"
+       class="w-full bg-slate-900 border border-slate-600 text-slate-200 text-sm rounded-lg focus:ring-green-500 focus:border-green-500 block p-2.5 appearance-none">
+       <option value="1">Black (1st)</option>
+       <option value="-1">White (2nd)</option>
+      </select>
+     </div>
+    </div>
+
+    <button id="btn-restart"
+     class="w-full py-3 px-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold rounded-lg shadow-md transition-all active:scale-95 focus:outline-none focus:ring-2 focus:ring-blue-400">
+     Restart Game
+    </button>
+   </div>
+  </main>
+
+  <!-- トースト通知 -->
+  <div id="toast"
+   class="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-slate-900/95 border border-slate-700 text-white px-8 py-4 rounded-xl shadow-2xl opacity-0 pointer-events-none transition-opacity duration-300 z-50 text-xl font-bold backdrop-blur-sm flex flex-col items-center">
+   <span id="toast-message">Message</span>
+   <button id="toast-btn"
+    class="mt-4 text-sm bg-green-600 hover:bg-green-500 px-4 py-2 rounded-lg hidden transition-colors">Play
+    Again</button>
+  </div>
+
+  <script>
+   // 定数
+   const BLACK = 1;
+   const WHITE = -1;
+   const EMPTY = 0;
+
+   // 方向 (上、右上、右、右下、下、左下、左、左上)
+   const DIRS = [
+    [-1, 0], [-1, 1], [0, 1], [1, 1],
+    [1, 0], [1, -1], [0, -1], [-1, -1]
+   ];
+
+   // 盤面の評価値 (Normal難易度やHard難易度の評価に使用)
+   const WEIGHTS = [
+    [120, -20, 20, 5, 5, 20, -20, 120],
+    [-20, -40, -5, -5, -5, -5, -40, -20],
+    [20, -5, 15, 3, 3, 15, -5, 20],
+    [5, -5, 3, 3, 3, 3, -5, 5],
+    [5, -5, 3, 3, 3, 3, -5, 5],
+    [20, -5, 15, 3, 3, 15, -5, 20],
+    [-20, -40, -5, -5, -5, -5, -40, -20],
+    [120, -20, 20, 5, 5, 20, -20, 120]
+   ];
+
+   // 状態変数
+   let board = [];
+   let domCells = []; // UI更新用のDOM参照
+   let currentPlayer = BLACK;
+   let humanPlayer = BLACK;
+   let cpuPlayer = WHITE;
+   let isProcessing = false;
+   let isGameOver = false;
+
+   // UI要素
+   const boardEl = document.getElementById('board');
+   const scoreBlackEl = document.getElementById('score-black');
+   const scoreWhiteEl = document.getElementById('score-white');
+   const turnIndicatorEl = document.getElementById('turn-indicator');
+   const gameStatusEl = document.getElementById('game-status');
+   const difficultySelect = document.getElementById('difficulty');
+   const colorSelect = document.getElementById('player-color');
+   const restartBtn = document.getElementById('btn-restart');
+   const toastEl = document.getElementById('toast');
+   const toastMessageEl = document.getElementById('toast-message');
+   const toastBtnEl = document.getElementById('toast-btn');
+
+   // 盤面を初期化してDOMを生成
+   function initGame() {
+    board = Array.from({ length: 8 }, () => Array(8).fill(EMPTY));
+    board[3][3] = WHITE;
+    board[3][4] = BLACK;
+    board[4][3] = BLACK;
+    board[4][4] = WHITE;
+
+    humanPlayer = parseInt(colorSelect.value);
+    cpuPlayer = -humanPlayer;
+    currentPlayer = BLACK;
+    isProcessing = false;
+    isGameOver = false;
+
+    createBoardDOM();
+    updateUI();
+    hideToast();
+
+    // もしCPUが先手なら、少し待ってから打たせる
+    if (currentPlayer === cpuPlayer) {
+     isProcessing = true;
+     setTimeout(doCpuTurn, 800);
+    }
+   }
+
+   // DOM構築
+   function createBoardDOM() {
+    boardEl.innerHTML = '';
+    domCells = [];
+
+    for (let r = 0; r < 8; r++) {
+     let rowDom = [];
+     for (let c = 0; c < 8; c++) {
+      const cell = document.createElement('div');
+      cell.className = 'cell';
+      cell.dataset.row = r;
+      cell.dataset.col = c;
+
+      // クリックイベント
+      cell.addEventListener('click', () => handleCellClick(r, c));
+
+      const hint = document.createElement('div');
+      hint.className = 'hint';
+      cell.appendChild(hint);
+
+      const discContainer = document.createElement('div');
+      discContainer.className = 'disc-container';
+
+      const disc = document.createElement('div');
+      disc.className = 'disc';
+
+      const front = document.createElement('div');
+      front.className = 'front'; // Black
+      const back = document.createElement('div');
+      back.className = 'back'; // White
+
+      disc.appendChild(front);
+      disc.appendChild(back);
+      discContainer.appendChild(disc);
+      cell.appendChild(discContainer);
+
+      boardEl.appendChild(cell);
+      rowDom.push({ cell, disc });
+     }
+     domCells.push(rowDom);
+    }
+   }
+
+   // 指定したマスに置いた時、裏返せる石のリストを取得
+   function getFlippableDiscs(targetBoard, r, c, player) {
+    if (targetBoard[r][c] !== EMPTY) return [];
+
+    let flippable = [];
+    for (let dir of DIRS) {
+     let nr = r + dir[0];
+     let nc = c + dir[1];
+     let temp = [];
+
+     // 相手の石が続く限り進む
+     while (nr >= 0 && nr < 8 && nc >= 0 && nc < 8 && targetBoard[nr][nc] === -player) {
+      temp.push({ r: nr, c: nc });
+      nr += dir[0];
+      nc += dir[1];
+     }
+
+     // その先に自分の石があれば、挟んでいるので確定
+     if (nr >= 0 && nr < 8 && nc >= 0 && nc < 8 && targetBoard[nr][nc] === player) {
+      flippable.push(...temp);
+     }
+    }
+    return flippable;
+   }
+
+   // 現在のプレイヤーが置けるマスのリストを取得
+   function getValidMoves(targetBoard, player) {
+    let moves = [];
+    for (let r = 0; r < 8; r++) {
+     for (let c = 0; c < 8; c++) {
+      if (targetBoard[r][c] === EMPTY) {
+       const flippable = getFlippableDiscs(targetBoard, r, c, player);
+       if (flippable.length > 0) {
+        moves.push({ r, c, flippable });
+       }
+      }
+     }
+    }
+    return moves;
+   }
+
+   // セルのクリック処理
+   function handleCellClick(r, c) {
+    if (isProcessing || isGameOver || currentPlayer !== humanPlayer) return;
+
+    const flippable = getFlippableDiscs(board, r, c, currentPlayer);
+    if (flippable.length > 0) {
+     executeMove(r, c, flippable, currentPlayer);
+    }
+   }
+
+   // 石を置いて反転させる
+   function executeMove(r, c, flippable, player) {
+    isProcessing = true;
+    board[r][c] = player;
+
+    // DOM更新 (置いた石)
+    updateDiscDOM(r, c, player);
+
+    // 反転処理
+    flippable.forEach((pos, index) => {
+     board[pos.r][pos.c] = player;
+     // アニメーションを少しずつずらす
+     setTimeout(() => {
+      updateDiscDOM(pos.r, pos.c, player);
+     }, index * 50 + 50);
+    });
+
+    // 反転アニメーションを待ってからターン終了処理へ
+    setTimeout(() => {
+     updateScore();
+     currentPlayer = -currentPlayer;
+     checkNextTurn();
+    }, flippable.length * 50 + 300);
+   }
+
+   // 個別のDOM更新
+   function updateDiscDOM(r, c, val) {
+    const disc = domCells[r][c].disc;
+    disc.classList.remove('state-black', 'state-white');
+    if (val === BLACK) {
+     disc.classList.add('state-black');
+    } else if (val === WHITE) {
+     disc.classList.add('state-white');
+    }
+   }
+
+   // UI全体(ヒント、スコア、表示)の更新
+   function updateUI() {
+    updateScore();
+    updateHints();
+    updateStatusText();
+   }
+
+   function updateScore() {
+    let blackCount = 0;
+    let whiteCount = 0;
+    for (let r = 0; r < 8; r++) {
+     for (let c = 0; c < 8; c++) {
+      if (board[r][c] === BLACK) blackCount++;
+      else if (board[r][c] === WHITE) whiteCount++;
+
+      // DOMのクラスも一応同期
+      updateDiscDOM(r, c, board[r][c]);
+     }
+    }
+    scoreBlackEl.textContent = blackCount;
+    scoreWhiteEl.textContent = whiteCount;
+    return { blackCount, whiteCount };
+   }
+
+   function updateHints() {
+    // 全てのヒントをクリア
+    for (let r = 0; r < 8; r++) {
+     for (let c = 0; c < 8; c++) {
+      domCells[r][c].cell.classList.remove('valid');
+     }
+    }
+    // 人間のターンの場合のみ表示
+    if (currentPlayer === humanPlayer && !isGameOver) {
+     const moves = getValidMoves(board, currentPlayer);
+     moves.forEach(m => {
+      domCells[m.r][m.c].cell.classList.add('valid');
+     });
+    }
+   }
+
+   function updateStatusText() {
+    if (isGameOver) {
+     turnIndicatorEl.textContent = "Game Over";
+     turnIndicatorEl.className = "text-sm font-bold tracking-wider uppercase px-3 py-1 rounded-full bg-gray-500/20 text-gray-400 border border-gray-500/30 mb-1";
+     gameStatusEl.textContent = "Finished";
+    } else {
+     if (currentPlayer === humanPlayer) {
+      turnIndicatorEl.textContent = "Your Turn";
+      turnIndicatorEl.className = "text-sm font-bold tracking-wider uppercase px-3 py-1 rounded-full bg-green-500/20 text-green-400 border border-green-500/30 mb-1";
+      gameStatusEl.textContent = humanPlayer === BLACK ? "Black" : "White";
+     } else {
+      turnIndicatorEl.textContent = "CPU Thinking";
+      turnIndicatorEl.className = "text-sm font-bold tracking-wider uppercase px-3 py-1 rounded-full bg-orange-500/20 text-orange-400 border border-orange-500/30 mb-1 animate-pulse";
+      gameStatusEl.textContent = cpuPlayer === BLACK ? "Black" : "White";
+     }
+    }
+   }
+
+   // 次のターンの判定
+   function checkNextTurn() {
+    const moves = getValidMoves(board, currentPlayer);
+
+    if (moves.length > 0) {
+     // 打てる場所がある
+     updateUI();
+     if (currentPlayer === cpuPlayer) {
+      isProcessing = true;
+      setTimeout(doCpuTurn, 800); // 思考時間演出
+     } else {
+      isProcessing = false;
+     }
+    } else {
+     // 打てないのでパスか終了判定
+     const opponentMoves = getValidMoves(board, -currentPlayer);
+     if (opponentMoves.length > 0) {
+      // 相手は打てる -> パス
+      const passPlayerName = currentPlayer === humanPlayer ? "You" : "CPU";
+      showToast(`${passPlayerName} Passed`, 1500);
+
+      currentPlayer = -currentPlayer;
+      setTimeout(checkNextTurn, 1600); // メッセージ後に次へ
+     } else {
+      // 双方打てない -> ゲームオーバー
+      handleGameOver();
+     }
+    }
+   }
+
+   function handleGameOver() {
+    isGameOver = true;
+    isProcessing = true;
+    updateUI();
+
+    const { blackCount, whiteCount } = updateScore();
+    let msg = "";
+    if (blackCount > whiteCount) {
+     msg = humanPlayer === BLACK ? "You Win! 🎉" : "CPU Wins! 🤖";
+    } else if (whiteCount > blackCount) {
+     msg = humanPlayer === WHITE ? "You Win! 🎉" : "CPU Wins! 🤖";
+    } else {
+     msg = "Draw! 🤝";
+    }
+
+    setTimeout(() => {
+     showToast(msg, 0, true); // 0は自動で消えない設定
+    }, 500);
+   }
+
+   // 盤面をコピーするユーティリティ
+   function cloneBoard(b) {
+    return b.map(row => [...row]);
+   }
+
+   // CPUのターン
+   function doCpuTurn() {
+    const difficulty = difficultySelect.value;
+    const moves = getValidMoves(board, cpuPlayer);
+
+    if (moves.length === 0) return; // セーフティネット
+
+    let selectedMove = null;
+
+    if (difficulty === 'easy') {
+     // ランダム
+     selectedMove = moves[Math.floor(Math.random() * moves.length)];
+    } else if (difficulty === 'normal') {
+     // 場所の評価値 (Greedy)
+     let bestScore = -Infinity;
+     for (let move of moves) {
+      let tempBoard = cloneBoard(board);
+      // 仮に置く
+      tempBoard[move.r][move.c] = cpuPlayer;
+      move.flippable.forEach(p => tempBoard[p.r][p.c] = cpuPlayer);
+
+      let score = evaluateBoard(tempBoard, cpuPlayer);
+      // 少しランダム性を混ぜて同じ動きを防ぐ
+      score += Math.random() * 5;
+
+      if (score > bestScore) {
+       bestScore = score;
+       selectedMove = move;
+      }
+     }
+    } else {
+     // Hard: Minimax (NegaMax) + AlphaBeta
+     let bestScore = -Infinity;
+     // 同スコアの場合にランダムに選ぶためシャッフル
+     moves.sort(() => Math.random() - 0.5);
+
+     // 深さは4手読みに設定 (ブラウザで固まらない程度)
+     const MAX_DEPTH = 4;
+
+     for (let move of moves) {
+      let tempBoard = cloneBoard(board);
+      tempBoard[move.r][move.c] = cpuPlayer;
+      move.flippable.forEach(p => tempBoard[p.r][p.c] = cpuPlayer);
+
+      // 自分が打った後なので次は相手の番。スコアは反転する。
+      let score = -negamax(tempBoard, MAX_DEPTH, -Infinity, Infinity, -cpuPlayer, 0);
+
+      if (score > bestScore) {
+       bestScore = score;
+       selectedMove = move;
+      }
+     }
+    }
+
+    if (selectedMove) {
+     executeMove(selectedMove.r, selectedMove.c, selectedMove.flippable, cpuPlayer);
+    }
+   }
+
+   // 盤面評価関数
+   function evaluateBoard(b, player) {
+    let score = 0;
+    let emptyCount = 0;
+    let pieceCount = 0;
+
+    for (let r = 0; r < 8; r++) {
+     for (let c = 0; c < 8; c++) {
+      if (b[r][c] !== EMPTY) {
+       // 自石ならプラス、敵石ならマイナスの重み
+       score += (b[r][c] === player ? 1 : -1) * WEIGHTS[r][c];
+       pieceCount += (b[r][c] === player ? 1 : -1);
+      } else {
+       emptyCount++;
+      }
+     }
+    }
+
+    // 終盤 (空きマスが少ない場合) は石数を重視
+    if (emptyCount <= 12) {
+     score += pieceCount * 1000;
+    }
+
+    // 打てる場所の数 (モビリティ) を評価に加える
+    const myMoves = getValidMoves(b, player).length;
+    const oppMoves = getValidMoves(b, -player).length;
+    score += (myMoves - oppMoves) * 10;
+
+    return score;
+   }
+
+   // NegaMax + AlphaBeta 探索
+   function negamax(b, depth, alpha, beta, player, passCount) {
+    if (passCount === 2 || depth === 0) {
+     return evaluateBoard(b, player);
+    }
+
+    const moves = getValidMoves(b, player);
+
+    if (moves.length === 0) {
+     // パス
+     return -negamax(b, depth - 1, -beta, -alpha, -player, passCount + 1);
+    }
+
+    let maxVal = -Infinity;
+    for (let move of moves) {
+     let tempBoard = cloneBoard(b);
+     tempBoard[move.r][move.c] = player;
+     move.flippable.forEach(p => tempBoard[p.r][p.c] = player);
+
+     let val = -negamax(tempBoard, depth - 1, -beta, -alpha, -player, 0);
+     if (val > maxVal) {
+      maxVal = val;
+     }
+     alpha = Math.max(alpha, val);
+     if (alpha >= beta) {
+      break; // Alpha-Beta枝刈り
+     }
+    }
+    return maxVal;
+   }
+
+   // メッセージ表示処理
+   let toastTimeout;
+   function showToast(message, duration = 2000, showButton = false) {
+    clearTimeout(toastTimeout);
+    toastMessageEl.textContent = message;
+    toastEl.classList.remove('opacity-0', 'pointer-events-none');
+
+    if (showButton) {
+     toastBtnEl.classList.remove('hidden');
+    } else {
+     toastBtnEl.classList.add('hidden');
+    }
+
+    if (duration > 0) {
+     toastTimeout = setTimeout(hideToast, duration);
+    }
+   }
+
+   function hideToast() {
+    toastEl.classList.add('opacity-0', 'pointer-events-none');
+   }
+
+   // イベントリスナー
+   restartBtn.addEventListener('click', initGame);
+   toastBtnEl.addEventListener('click', initGame);
+
+   // 設定変更時に即座にリスタートするかは要検討。今回はボタン押下で反映とする。
+   // colorSelect.addEventListener('change', initGame);
+
+   // 初期ロード時にゲーム開始
+   window.addEventListener('DOMContentLoaded', () => {
+    initGame();
+   });
+
+  </script>
+ </body>
+</html>

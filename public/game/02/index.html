@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="ja">
+ <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Web Chess</title>
+  <!-- Tailwind CSS for styling -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome for chess piece icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Chess.js for game logic -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
+  <style>
+   body {
+    background-color: #1a202c;
+    /* Tailwind gray-900 */
+    color: #e2e8f0;
+    /* Tailwind gray-200 */
+    font-family: 'Inter', sans-serif;
+    touch-action: manipulation;
+    /* スマホでのダブルタップズーム防止 */
+   }
+
+   .board-container {
+    width: 100%;
+    max-width: 450px;
+    aspect-ratio: 1 / 1;
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    grid-template-rows: repeat(8, 1fr);
+    border: 4px solid #2d3748;
+    border-radius: 0.5rem;
+    overflow: hidden;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+    position: relative;
+   }
+
+   .square {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    cursor: pointer;
+    user-select: none;
+   }
+
+   .square.light {
+    background-color: #f0d9b5;
+   }
+
+   .square.dark {
+    background-color: #b58863;
+   }
+
+   .square.selected {
+    background-color: #f6f669;
+   }
+
+   .square.last-move {
+    background-color: #cdd26a;
+   }
+
+   .piece {
+    font-size: 2.5rem;
+    /* デフォルトサイズ。JSで調整 */
+    filter: drop-shadow(0px 2px 3px rgba(0, 0, 0, 0.4));
+    z-index: 10;
+   }
+
+   /* 画面サイズに応じた駒のサイズ調整 */
+   @media (max-width: 480px) {
+    .piece {
+     font-size: 1.8rem;
+    }
+   }
+
+   .white-piece {
+    color: #ffffff;
+    text-shadow: 0 0 2px #000;
+   }
+
+   .black-piece {
+    color: #222222;
+    text-shadow: 0 0 2px #fff;
+   }
+
+   /* 移動可能なマスを示すドット */
+   .move-hint::after {
+    content: '';
+    position: absolute;
+    width: 25%;
+    height: 25%;
+    background-color: rgba(0, 0, 0, 0.2);
+    border-radius: 50%;
+    z-index: 5;
+   }
+
+   .move-hint.capture-hint::after {
+    width: 80%;
+    height: 80%;
+    background-color: transparent;
+    border: 4px solid rgba(0, 0, 0, 0.2);
+   }
+
+   /* プロモーションやゲームオーバーのモーダル */
+   .modal-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 50;
+    backdrop-filter: blur(2px);
+   }
+
+   .hidden {
+    display: none !important;
+   }
+  </style>
+ </head>
+ <body class="min-h-screen flex flex-col items-center py-6 px-4">
+
+  <div class="w-full max-w-[450px] flex justify-between items-end mb-4">
+   <div>
+    <h1 class="text-3xl font-bold text-white tracking-tight">Web Chess</h1>
+    <p id="status-text" class="text-emerald-400 font-medium mt-1">あなたの番です (白)</p>
+   </div>
+   <div class="flex flex-col items-end gap-2">
+    <select id="difficulty-select"
+     class="bg-gray-800 border border-gray-700 text-white text-sm rounded-lg focus:ring-emerald-500 focus:border-emerald-500 block p-2">
+     <option value="1">CPU: 簡単</option>
+     <option value="2" selected>CPU: 普通</option>
+     <option value="3">CPU: 難しい</option>
+    </select>
+    <button id="reset-btn"
+     class="bg-gray-700 hover:bg-gray-600 text-white text-sm py-1 px-3 rounded shadow transition-colors">
+     <i class="fa-solid fa-rotate-right mr-1"></i> リセット
+    </button>
+   </div>
+  </div>
+
+  <div id="board" class="board-container">
+   <!-- JSでマス目を生成します -->
+
+   <!-- プロモーションモーダル -->
+   <div id="promotion-modal" class="modal-overlay hidden rounded-lg">
+    <div class="bg-white p-4 rounded-xl shadow-2xl flex gap-4 text-4xl">
+     <button class="promo-btn hover:scale-110 transition-transform" data-piece="q"><i
+       class="fa-solid fa-chess-queen text-gray-800"></i></button>
+     <button class="promo-btn hover:scale-110 transition-transform" data-piece="r"><i
+       class="fa-solid fa-chess-rook text-gray-800"></i></button>
+     <button class="promo-btn hover:scale-110 transition-transform" data-piece="b"><i
+       class="fa-solid fa-chess-bishop text-gray-800"></i></button>
+     <button class="promo-btn hover:scale-110 transition-transform" data-piece="n"><i
+       class="fa-solid fa-chess-knight text-gray-800"></i></button>
+    </div>
+   </div>
+
+   <!-- ゲームオーバーモーダル -->
+   <div id="game-over-modal" class="modal-overlay hidden rounded-lg">
+    <div class="bg-gray-800 border border-gray-600 p-6 rounded-xl shadow-2xl text-center flex flex-col items-center">
+     <h2 id="game-over-title" class="text-2xl font-bold text-white mb-2">Game Over</h2>
+     <p id="game-over-msg" class="text-gray-300 mb-6">チェックメイト！</p>
+     <button id="play-again-btn"
+      class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 px-6 rounded-full shadow transition-colors">
+      もう一度プレイ
+     </button>
+    </div>
+   </div>
+  </div>
+
+  <div class="w-full max-w-[450px] mt-6 text-sm text-gray-400 bg-gray-800/50 p-4 rounded-lg">
+   <p><i class="fa-solid fa-circle-info mr-2"></i><strong>遊び方:</strong>
+    あなたは白（先手）です。自分の駒をタップして移動先を選んでください。CPUの強さは右上のメニューから変更できます。</p>
+  </div>
+
+  <script>
+   const game = new Chess();
+   const boardEl = document.getElementById('board');
+   const statusEl = document.getElementById('status-text');
+   const difficultySelect = document.getElementById('difficulty-select');
+   const promotionModal = document.getElementById('promotion-modal');
+   const gameOverModal = document.getElementById('game-over-modal');
+
+   let selectedSquare = null;
+   let validMoves = [];
+   let playerColor = 'w';
+   let isCpuThinking = false;
+   let pendingPromotionMove = null;
+   let lastMoveSquares = [];
+
+   // FontAwesomeのクラスマッピング
+   const pieceIcons = {
+    'p': 'fa-chess-pawn',
+    'n': 'fa-chess-knight',
+    'b': 'fa-chess-bishop',
+    'r': 'fa-chess-rook',
+    'q': 'fa-chess-queen',
+    'k': 'fa-chess-king'
+   };
+
+   function initBoard() {
+    boardEl.innerHTML = ''; // クリア
+    boardEl.appendChild(promotionModal); // モーダルを戻す
+    boardEl.appendChild(gameOverModal);
+
+    const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
+
+    for (let row = 0; row < 8; row++) {
+     for (let col = 0; col < 8; col++) {
+      const squareEl = document.createElement('div');
+      const isLight = (row + col) % 2 === 0;
+      squareEl.className = `square ${isLight ? 'light' : 'dark'}`;
+
+      // a8, b8 ... h1 の形式でIDをつける (row=0はRank8)
+      const rank = 8 - row;
+      const file = files[col];
+      const squareId = file + rank;
+      squareEl.id = squareId;
+      squareEl.dataset.square = squareId;
+
+      squareEl.addEventListener('click', () => handleSquareClick(squareId));
+      boardEl.appendChild(squareEl);
+     }
+    }
+    updateBoardRender();
+   }
+
+   function updateBoardRender() {
+    const board = game.board(); // 8x8の配列を取得
+    const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
+
+    // 全マスのクリアと状態リセット
+    document.querySelectorAll('.square').forEach(sq => {
+     sq.innerHTML = '';
+     sq.classList.remove('selected', 'move-hint', 'capture-hint', 'last-move');
+
+     // 最後の移動のハイライト
+     if (lastMoveSquares.includes(sq.id)) {
+      sq.classList.add('last-move');
+     }
+    });
+
+    // 駒の配置
+    for (let row = 0; row < 8; row++) {
+     for (let col = 0; col < 8; col++) {
+      const piece = board[row][col];
+      if (piece) {
+       const squareId = files[col] + (8 - row);
+       const squareEl = document.getElementById(squareId);
+
+       const iconEl = document.createElement('i');
+       const colorClass = piece.color === 'w' ? 'white-piece' : 'black-piece';
+       iconEl.className = `fa-solid ${pieceIcons[piece.type]} piece ${colorClass}`;
+       squareEl.appendChild(iconEl);
+      }
+     }
+    }
+
+    // 選択中のマスのハイライト
+    if (selectedSquare) {
+     document.getElementById(selectedSquare)?.classList.add('selected');
+    }
+
+    // 移動可能マスのハイライト
+    validMoves.forEach(move => {
+     const sq = document.getElementById(move.to);
+     if (sq) {
+      if (game.get(move.to)) {
+       sq.classList.add('capture-hint'); // 駒がある場合は枠線
+      } else {
+       sq.classList.add('move-hint'); // 空マスの場合はドット
+      }
+     }
+    });
+
+    updateStatus();
+   }
+
+   function handleSquareClick(squareId) {
+    if (game.game_over() || isCpuThinking || pendingPromotionMove) return;
+
+    // 自分の駒を選択
+    const piece = game.get(squareId);
+    if (piece && piece.color === playerColor && selectedSquare !== squareId) {
+     selectedSquare = squareId;
+     validMoves = game.moves({ square: squareId, verbose: true });
+     updateBoardRender();
+     return;
+    }
+
+    // 移動先を選択
+    if (selectedSquare) {
+     const move = validMoves.find(m => m.to === squareId);
+     if (move) {
+      // プロモーション判定
+      if (move.flags.includes('p') || move.flags.includes('np') || move.flags.includes('cp')) {
+       pendingPromotionMove = move;
+       promotionModal.classList.remove('hidden');
+       return; // モーダルからの入力を待つ
+      }
+      executeMove(move.san);
+     } else {
+      // 選択解除
+      selectedSquare = null;
+      validMoves = [];
+      updateBoardRender();
+     }
+    }
+   }
+
+   // プロモーションボタンのイベント
+   document.querySelectorAll('.promo-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+     const pieceType = e.currentTarget.dataset.piece;
+     promotionModal.classList.add('hidden');
+     if (pendingPromotionMove) {
+      executeMove({
+       from: pendingPromotionMove.from,
+       to: pendingPromotionMove.to,
+       promotion: pieceType
+      });
+      pendingPromotionMove = null;
+     }
+    });
+   });
+
+   function executeMove(moveObj) {
+    const move = game.move(moveObj);
+    if (move) {
+     lastMoveSquares = [move.from, move.to];
+     selectedSquare = null;
+     validMoves = [];
+     updateBoardRender();
+
+     if (!game.game_over()) {
+      isCpuThinking = true;
+      statusEl.textContent = "CPUが思考中...";
+      statusEl.className = "text-yellow-400 font-medium mt-1";
+
+      // UIの更新を待ってからAIを実行
+      setTimeout(makeCpuMove, 50);
+     }
+    }
+   }
+
+   function updateStatus() {
+    let status = '';
+    statusEl.className = "text-emerald-400 font-medium mt-1";
+
+    let moveColor = game.turn() === 'w' ? '白' : '黒';
+
+    if (game.in_checkmate()) {
+     status = `ゲームオーバー, ${moveColor}の負け（チェックメイト）`;
+     showGameOver("チェックメイト！", game.turn() === playerColor ? "あなたの負けです..." : "あなたの勝ちです！");
+    } else if (game.in_draw()) {
+     status = 'ゲームオーバー, 引き分け';
+     showGameOver("引き分け", "ドローになりました。");
+    } else {
+     if (game.turn() === playerColor) {
+      status = `あなたの番です (${moveColor})`;
+     } else {
+      status = `CPUの番です (${moveColor})`;
+     }
+     if (game.in_check()) {
+      status += ' - チェック！';
+      statusEl.className = "text-red-400 font-bold mt-1";
+     }
+    }
+
+    if (!isCpuThinking) {
+     statusEl.textContent = status;
+    }
+   }
+
+   function showGameOver(title, msg) {
+    document.getElementById('game-over-title').textContent = title;
+    document.getElementById('game-over-msg').textContent = msg;
+    gameOverModal.classList.remove('hidden');
+   }
+
+
+   // 駒の価値
+   const pieceValues = { p: 100, n: 320, b: 330, r: 500, q: 900, k: 20000 };
+
+   // 簡易的な位置評価テーブル (中央へのプレッシャー等を評価)
+   const pawnEvalWhite = [
+    [0, 0, 0, 0, 0, 0, 0, 0],
+    [50, 50, 50, 50, 50, 50, 50, 50],
+    [10, 10, 20, 30, 30, 20, 10, 10],
+    [5, 5, 10, 25, 25, 10, 5, 5],
+    [0, 0, 0, 20, 20, 0, 0, 0],
+    [5, -5, -10, 0, 0, -10, -5, 5],
+    [5, 10, 10, -20, -20, 10, 10, 5],
+    [0, 0, 0, 0, 0, 0, 0, 0]
+   ];
+   const knightEval = [
+    [-50, -40, -30, -30, -30, -30, -40, -50],
+    [-40, -20, 0, 0, 0, 0, -20, -40],
+    [-30, 0, 10, 15, 15, 10, 0, -30],
+    [-30, 5, 15, 20, 20, 15, 5, -30],
+    [-30, 0, 15, 20, 20, 15, 0, -30],
+    [-30, 5, 10, 15, 15, 10, 5, -30],
+    [-40, -20, 0, 5, 5, 0, -20, -40],
+    [-50, -40, -30, -30, -30, -30, -40, -50]
+   ];
+   // 黒用のPSTを生成
+   const pawnEvalBlack = [...pawnEvalWhite].reverse();
+
+   function evaluateBoard(gameObj) {
+    let totalEvaluation = 0;
+    const board = gameObj.board();
+
+    for (let i = 0; i < 8; i++) {
+     for (let j = 0; j < 8; j++) {
+      const piece = board[i][j];
+      if (piece) {
+       let val = pieceValues[piece.type];
+
+       // 簡易的な位置ボーナス
+       if (piece.type === 'p') {
+        val += piece.color === 'w' ? pawnEvalWhite[i][j] : pawnEvalBlack[i][j];
+       } else if (piece.type === 'n') {
+        val += knightEval[i][j];
+       } else {
+        // 他の駒は中央にいるほど微増
+        val += (3.5 - Math.abs(i - 3.5)) * 2 + (3.5 - Math.abs(j - 3.5)) * 2;
+       }
+
+       totalEvaluation += piece.color === 'w' ? val : -val;
+      }
+     }
+    }
+    return totalEvaluation;
+   }
+
+   function minimax(gameObj, depth, alpha, beta, isMaximizingPlayer) {
+    if (depth === 0 || gameObj.game_over()) {
+     return evaluateBoard(gameObj);
+    }
+
+    const moves = gameObj.moves();
+
+    if (isMaximizingPlayer) {
+     let bestVal = -Infinity;
+     for (let i = 0; i < moves.length; i++) {
+      gameObj.move(moves[i]);
+      bestVal = Math.max(bestVal, minimax(gameObj, depth - 1, alpha, beta, !isMaximizingPlayer));
+      gameObj.undo();
+      alpha = Math.max(alpha, bestVal);
+      if (beta <= alpha) break;
+     }
+     return bestVal;
+    } else {
+     let bestVal = Infinity;
+     for (let i = 0; i < moves.length; i++) {
+      gameObj.move(moves[i]);
+      bestVal = Math.min(bestVal, minimax(gameObj, depth - 1, alpha, beta, !isMaximizingPlayer));
+      gameObj.undo();
+      beta = Math.min(beta, bestVal);
+      if (beta <= alpha) break;
+     }
+     return bestVal;
+    }
+   }
+
+   function getBestMove(gameObj, depth) {
+    const moves = gameObj.moves({ verbose: true });
+
+    // 手をランダムにシャッフルして、同じ評価値でも毎回違う手を打つようにする
+    moves.sort(() => Math.random() - 0.5);
+
+    let bestMove = null;
+    // CPUは黒なので評価値を最小化したい
+    let bestValue = Infinity;
+
+    // 難易度「簡単」の場合は、少しノイズを入れて最適解を外す
+    const isEasy = depth === 1;
+
+    for (let i = 0; i < moves.length; i++) {
+     gameObj.move(moves[i]);
+     const boardValue = minimax(gameObj, depth - 1, -Infinity, Infinity, true); // 次は白(最大化)の番
+     gameObj.undo();
+
+     if (boardValue < bestValue) {
+      bestValue = boardValue;
+      bestMove = moves[i];
+     }
+
+     // 簡単モードの時は、そこそこ良い手が見つかったら妥協する確率を設ける
+     if (isEasy && boardValue < 0 && Math.random() > 0.6) {
+      break;
+     }
+    }
+
+    return bestMove || moves[0]; // フォールバック
+   }
+
+   function makeCpuMove() {
+    const difficulty = parseInt(difficultySelect.value);
+    // 難易度に応じた探索の深さ: 簡単=1, 普通=2, 難しい=3
+    let searchDepth = difficulty;
+
+    const bestMove = getBestMove(game, searchDepth);
+
+    if (bestMove) {
+     game.move(bestMove);
+     lastMoveSquares = [bestMove.from, bestMove.to];
+    }
+
+    isCpuThinking = false;
+    updateBoardRender();
+   }
+
+   document.getElementById('reset-btn').addEventListener('click', resetGame);
+   document.getElementById('play-again-btn').addEventListener('click', resetGame);
+
+   function resetGame() {
+    game.reset();
+    selectedSquare = null;
+    validMoves = [];
+    lastMoveSquares = [];
+    isCpuThinking = false;
+    pendingPromotionMove = null;
+    gameOverModal.classList.add('hidden');
+    promotionModal.classList.add('hidden');
+    updateBoardRender();
+   }
+
+   // 初期化実行
+   initBoard();
+
+  </script>
+ </body>
+</html>
