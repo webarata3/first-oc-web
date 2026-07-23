@@ -1,0 +1,919 @@
+<!DOCTYPE html>
+<html lang="ja" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>高田 陸斗 | クトゥルフ神話TRPG 探索者ポートフォリオ</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Horror and mystery stylized typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Creepster&family=Noto+Sans+JP:wght@300;400;700;900&family=Special+Elite&family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet">
+    <!-- Font Awesome Icons for glyphs -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Tone.js for high-fidelity browser-generated sound effects -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        cthulhu: ['Cinzel Decorative', 'serif'],
+                        horror: ['Creepster', 'cursive'],
+                        sans: ['Noto Sans JP', 'sans-serif'],
+                        mono: ['Courier Prime', 'monospace'],
+                        typewriter: ['Special Elite', 'cursive'],
+                    },
+                    colors: {
+                        coc: {
+                            deep: '#070a13', // Deep cosmic abyss
+                            card: '#0f1626', // Shadowy chamber atmosphere
+                            emerald: '#059669', // Tentacles and eldritch glow
+                            emeraldLight: '#34d399',
+                            gold: '#d97706', // Ancient arcane gold
+                            goldLight: '#fbbf24',
+                            border: '#1e293b',
+                            void: '#111827',
+                            insane: '#dc2626', // Crimson of madness
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <style>
+        .cthulhu-glow {
+            box-shadow: 0 0 15px rgba(5, 150, 105, 0.2);
+            border: 1px solid rgba(5, 150, 105, 0.4);
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .cthulhu-glow:hover {
+            box-shadow: 0 0 25px rgba(217, 119, 6, 0.4);
+            border-color: rgba(217, 119, 6, 0.7);
+        }
+        .text-glow-emerald {
+            text-shadow: 0 0 10px rgba(5, 150, 105, 0.6);
+        }
+        .text-glow-gold {
+            text-shadow: 0 0 10px rgba(217, 119, 6, 0.6);
+        }
+        .text-glow-insane {
+            text-shadow: 0 0 12px rgba(220, 38, 38, 0.8);
+        }
+        /* Custom scrollbar to match the cosmic gothic horror aesthetic */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #070a13;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #1e293b;
+            border-radius: 4px;
+            border: 1px solid rgba(5, 150, 105, 0.3);
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #059669;
+        }
+        /* 3D Dice styling utilities */
+        .dice-box {
+            perspective: 800px;
+        }
+        .dice-body {
+            transition: transform 1.2s cubic-bezier(0.25, 1, 0.5, 1.2);
+            transform-style: preserve-3d;
+        }
+        @keyframes blink {
+            50% { border-color: transparent }
+        }
+        .cursor-blink {
+            border-right: 2px solid #059669;
+            animation: blink 1s step-end infinite;
+        }
+    </style>
+</head>
+<body class="bg-coc-deep text-slate-200 font-sans min-h-screen relative overflow-x-hidden selection:bg-coc-emerald selection:text-white">
+
+    <!-- Cosmic grid backdrop -->
+    <div class="absolute inset-0 bg-[linear-gradient(to_right,#0f172a_1px,transparent_1px),linear-gradient(to_bottom,#0f172a_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_15%,#000_60%,transparent_100%)] z-0 pointer-events-none"></div>
+
+    <!-- Glowing eldritch dust container -->
+    <div id="cosmic-dust-container" class="absolute inset-0 overflow-hidden pointer-events-none z-0"></div>
+
+    <!-- Dynamic Toast system notifications -->
+    <div id="log-toast" class="fixed bottom-6 right-6 z-50 transform translate-y-24 opacity-0 transition-all duration-300 pointer-events-none">
+        <div class="bg-coc-card border-2 border-coc-gold text-slate-100 px-6 py-4 rounded-xl shadow-2xl flex items-center space-x-4 max-w-sm pointer-events-auto">
+            <span id="toast-icon-box" class="text-coc-emerald text-2xl animate-pulse">
+                <i class="fa-solid fa-skull"></i>
+            </span>
+            <div>
+                <h4 id="toast-title-text" class="font-mono font-bold text-xs text-coc-gold uppercase tracking-widest">SYSTEM ALERT</h4>
+                <p id="toast-desc-text" class="text-xs text-slate-300 mt-0.5">未知なる神話的ログが更新されました。</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Navigation Header -->
+    <header class="sticky top-0 z-40 bg-coc-deep/80 backdrop-blur-md border-b border-coc-border/60">
+        <div class="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
+            <a href="#" class="flex items-center space-x-2 font-cthulhu text-lg md:text-xl font-bold text-coc-gold tracking-widest text-glow-gold">
+                <i class="fa-solid fa-eye text-coc-emerald"></i>
+                <span class="ml-1 tracking-tighter">CoC.TAKADA</span>
+            </a>
+            <nav class="hidden md:flex items-center space-x-6 text-xs font-mono uppercase tracking-wider text-slate-400">
+                <a href="#hero" class="hover:text-coc-emerald transition-colors duration-200 flex items-center gap-1.5"><i class="fa-solid fa-door-open"></i> Session Open</a>
+                <a href="#about" class="hover:text-coc-emerald transition-colors duration-200 flex items-center gap-1.5"><i class="fa-solid fa-scroll"></i> Investigator</a>
+                <a href="#status" class="hover:text-coc-emerald transition-colors duration-200 flex items-center gap-1.5"><i class="fa-solid fa-dice-d20"></i> Attributes</a>
+                <a href="#hobbies" class="hover:text-coc-emerald transition-colors duration-200 flex items-center gap-1.5"><i class="fa-solid fa-brain"></i> Interests</a>
+            </nav>
+            <div class="flex items-center space-x-3">
+                <!-- Synthesizer switch for retro ambient sounds -->
+                <button id="bgm-switch" onclick="toggleAudioEngine()" class="px-3 py-1.5 bg-coc-void border border-coc-border hover:bg-coc-emerald/10 text-[10px] font-mono rounded-lg flex items-center space-x-1.5 transition-all text-slate-400 hover:text-white" title="サウンド切り替え">
+                    <i id="sound-speaker-icon" class="fa-solid fa-volume-high text-coc-emerald"></i>
+                    <span id="sound-status-label" class="hidden sm:inline">SOUND ON</span>
+                </button>
+                <a href="#status" class="px-4 py-2 bg-gradient-to-r from-coc-emerald to-emerald-700 hover:from-emerald-700 hover:to-coc-emerald text-white text-xs font-mono tracking-widest rounded-lg transition-all shadow-md hover:shadow-coc-emerald/20 border border-coc-emeraldLight/30 uppercase flex items-center gap-1">
+                    Dice Roll <i class="fa-solid fa-dice"></i>
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Hero / Main Portal Section -->
+    <section id="hero" class="relative min-h-[calc(100vh-4rem)] flex items-center justify-center px-4 py-12 z-10">
+        <div class="max-w-4xl w-full text-center relative z-10">
+            
+            <!-- Cthulhu Call Sign Accent -->
+            <div class="mb-4 flex justify-center items-center space-x-4">
+                <div class="h-[1px] w-12 bg-gradient-to-r from-transparent to-coc-emerald"></div>
+                <i class="fa-solid fa-tentacles text-coc-emerald text-2xl animate-pulse"></i>
+                <div class="h-[1px] w-12 bg-gradient-to-l from-transparent to-coc-emerald"></div>
+            </div>
+
+            <p class="font-mono text-coc-emeraldLight text-xs tracking-[0.25em] uppercase mb-4 text-glow-emerald">
+                STATUS: AWAKENING • INITIATING CHARACTER CREATION
+            </p>
+            
+            <!-- Major Name Header -->
+            <h1 class="font-cthulhu text-5xl md:text-8xl font-black text-transparent bg-clip-text bg-gradient-to-b from-white via-slate-100 to-slate-500 tracking-wider mb-6">
+                高田 陸斗
+            </h1>
+            
+            <!-- キャッチコピー: クトゥルフ神話trpgが大好きな高校生です -->
+            <p class="font-sans text-xl md:text-3xl text-slate-300 max-w-2xl mx-auto leading-relaxed font-light mb-10">
+                「<span class="text-coc-gold font-bold text-glow-gold">クトゥルフ神話TRPG</span>が大好きな高校生です。」
+            </p>
+
+            <!-- Interactive terminal display simulating player state -->
+            <div class="max-w-lg mx-auto mb-10 p-5 rounded-xl bg-coc-card/80 backdrop-blur border border-coc-emerald/30 text-left font-mono text-xs text-slate-300 shadow-2xl relative">
+                <!-- Glowing futuristic edge brackets -->
+                <div class="absolute top-0 left-0 w-3 h-3 border-t-2 border-l-2 border-coc-emerald"></div>
+                <div class="absolute top-0 right-0 w-3 h-3 border-t-2 border-r-2 border-coc-emerald"></div>
+                <div class="absolute bottom-0 left-0 w-3 h-3 border-b-2 border-l-2 border-coc-emerald"></div>
+                <div class="absolute bottom-0 right-0 w-3 h-3 border-b-2 border-r-2 border-coc-emerald"></div>
+
+                <div class="flex items-center justify-between border-b border-coc-border pb-2.5 mb-3">
+                    <div class="flex items-center space-x-1.5">
+                        <span class="w-2 h-2 rounded-full bg-coc-insane animate-ping"></span>
+                        <span class="text-[10px] text-coc-emeraldLight uppercase tracking-widest font-bold">SAN_CHECK_TERMINAL_v7</span>
+                    </div>
+                    <span class="text-[9px] text-coc-gold font-mono">PL: RIKUTO_T</span>
+                </div>
+                <div class="space-y-1.5 text-[11px] leading-relaxed text-slate-300">
+                    <p class="text-slate-500">> Loading Investigator Profile...</p>
+                    <p class="text-coc-emeraldLight">✓ Age / Class: High School Grade 3 (高校3年生)</p>
+                    <p class="text-cyan-400">✓ Dream: Start Coding / Create Custom RPG Utilities</p>
+                    <p class="text-coc-insane font-bold text-glow-insane">⚠ Warning: Highly curious mind detected. SAN: 100/100</p>
+                </div>
+            </div>
+
+            <!-- Action buttons to invite users deep into the portal -->
+            <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
+                <a href="#about" class="w-full sm:w-auto px-8 py-4 bg-gradient-to-r from-emerald-800 to-coc-emerald hover:brightness-110 text-white font-mono font-bold tracking-widest rounded-xl transition-all duration-300 shadow-lg shadow-coc-emerald/15 border border-coc-emeraldLight/30 flex items-center justify-center gap-2 group text-sm">
+                    <i class="fa-solid fa-scroll group-hover:rotate-6 transition-transform"></i> 探索者シートを見る
+                </a>
+                <a href="#status" class="w-full sm:w-auto px-8 py-4 bg-coc-void/90 hover:bg-coc-card border border-coc-border hover:border-coc-gold text-slate-200 font-mono font-bold tracking-widest rounded-xl transition-all duration-300 flex items-center justify-center gap-2 group text-sm">
+                    <i class="fa-solid fa-dice-d20 text-coc-gold group-hover:animate-spin"></i> 1D100判定ロールを行う
+                </a>
+            </div>
+        </div>
+
+        <!-- Animated bouncing mouse scroll indicator -->
+        <div class="absolute bottom-6 left-1/2 transform -translate-x-1/2 text-center animate-bounce opacity-60">
+            <span class="text-[9px] tracking-[0.2em] text-slate-500 uppercase font-mono block mb-1">PROCEED</span>
+            <i class="fa-solid fa-angles-down text-coc-emerald"></i>
+        </div>
+    </section>
+
+    <!-- About Me Section -->
+    <section id="about" class="py-24 px-4 relative z-10 border-t border-coc-border/40 bg-coc-card/30">
+        <div class="max-w-5xl mx-auto">
+            <!-- Section Header -->
+            <div class="text-center mb-16">
+                <span class="font-mono text-xs text-coc-emeraldLight tracking-[0.3em] uppercase block mb-2">CHARACTER SHEET</span>
+                <h2 class="font-cthulhu text-3xl md:text-5xl font-extrabold text-white tracking-widest flex items-center justify-center gap-3">
+                    <i class="fa-solid fa-scroll text-coc-gold"></i> ABOUT ME <span class="text-coc-emerald font-sans text-xl md:text-2xl font-light">自己紹介</span>
+                </h2>
+                <div class="h-1 w-20 bg-coc-emerald mx-auto mt-4 rounded-full"></div>
+            </div>
+
+            <!-- Profile Cards Layout Grid -->
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
+                <!-- Investigator Profile Sheet Panel -->
+                <div class="lg:col-span-5 flex flex-col justify-between p-6 rounded-2xl bg-coc-card border border-coc-border cthulhu-glow relative overflow-hidden">
+                    <div class="absolute -top-12 -right-12 w-48 h-48 bg-coc-emerald/5 rounded-full blur-3xl pointer-events-none"></div>
+                    
+                    <div class="space-y-6">
+                        <!-- Head Shot Badge -->
+                        <div class="flex items-center space-x-4">
+                            <div class="w-20 h-20 rounded-xl bg-gradient-to-br from-coc-void to-coc-deep border-2 border-coc-emerald flex items-center justify-center text-4xl text-coc-emerald shadow-inner relative group">
+                                <i class="fa-solid fa-mask animate-pulse"></i>
+                                <span class="absolute -bottom-1 -right-1 bg-coc-gold text-[9px] font-mono font-bold text-slate-100 px-1.5 py-0.5 rounded border border-coc-gold/60">PL_LEVEL</span>
+                            </div>
+                            <div>
+                                <h3 class="text-2xl font-bold text-white tracking-wider font-sans">高田 陸斗</h3>
+                                <p class="text-[10px] text-coc-gold font-mono tracking-widest mt-0.5">INVESTIGATOR OF MYSTERIES</p>
+                            </div>
+                        </div>
+
+                        <!-- Personal Parameters Table -->
+                        <div class="space-y-3 font-mono text-xs border-t border-b border-coc-border/50 py-4 text-slate-300">
+                            <div class="flex justify-between items-center">
+                                <span class="text-slate-400 uppercase tracking-wider"><i class="fa-solid fa-school text-coc-emerald mr-2"></i> 所属 / Class</span>
+                                <span class="text-slate-100 font-bold font-sans">高校3年生</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-slate-400 uppercase tracking-wider"><i class="fa-solid fa-flag text-coc-emerald mr-2"></i> 目標 / Ambition</span>
+                                <span class="text-coc-gold font-bold font-sans">プログラムを組んでみたい</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-slate-400 uppercase tracking-wider"><i class="fa-solid fa-dna text-coc-emerald mr-2"></i> 特異点 / Trait</span>
+                                <span class="text-slate-100 font-bold font-sans">秩序・まじめ</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- SAN (Sanity Points) visualization -->
+                    <div class="mt-6 pt-4 border-t border-coc-border/30">
+                        <div class="flex justify-between text-[10px] font-mono text-slate-400 mb-1.5">
+                            <span>SANITY (正気度)</span>
+                            <span class="text-coc-emerald font-bold">100 / 100</span>
+                        </div>
+                        <div class="w-full bg-coc-void h-2.5 rounded-full overflow-hidden border border-coc-border p-0.5">
+                            <div class="bg-gradient-to-r from-emerald-600 via-coc-emerald to-coc-emeraldLight h-full rounded-full" style="width: 100%"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sincerity Narrative Panel ("私は、まじめです") -->
+                <div class="lg:col-span-7 flex flex-col justify-between p-8 rounded-2xl bg-coc-card/50 border border-coc-border/80 backdrop-blur-sm relative">
+                    <div class="space-y-6">
+                        <div class="inline-flex items-center space-x-2 px-3 py-1 bg-coc-emerald/10 border border-coc-emerald/30 rounded-full">
+                            <span class="w-1.5 h-1.5 rounded-full bg-coc-emerald animate-ping"></span>
+                            <span class="text-[9px] font-mono text-coc-emeraldLight font-bold uppercase tracking-widest">Active Skill: 「私は、まじめです」</span>
+                        </div>
+
+                        <h3 class="text-xl md:text-2xl font-bold text-white leading-relaxed font-sans">
+                            不可解な謎や複雑なルールを、真摯に紐解く。<br>
+                            私の最大の武器は、徹底して最後までやり切る「まじめさ」です。
+                        </h3>
+
+                        <div class="space-y-4 text-slate-300 leading-relaxed text-xs md:text-sm">
+                            <p>
+                                私はどんな状況でも約束事や決まりを厳守し、コツコツとステップを積み上げていく「まじめ」な性格をしています。クトゥルフ神話TRPGで探索を有利に進めるには、狂気に満ちた不可解な手がかりやルールを正確に読み込み、論理的で緻密な推理を立てることが求められます。
+                            </p>
+                            <p>
+                                この「法則を読み解き、自分でロジックを設計する」というプロセスの面白さに気づいた私は、現在、次なる神話的挑戦として**「プログラムを自分で組んでみたい」**という目標を強く掲げています。
+                            </p>
+                            <p>
+                                プログラミングは、自分でルールを再構築して実行させる「現代の魔術」です。持ち前の「まじめさ」を活かして、難解な構文やエラーにも挫折せず立ち向かい、TRPGのセッションを便利にする自動ダイスボットやオリジナルの判定ツールなどを自らの手で書き上げていきたいと考えています！
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Showcase highlight feature cards -->
+                    <div class="grid grid-cols-2 gap-4 mt-8 pt-6 border-t border-coc-border/40">
+                        <div class="p-3 bg-coc-void/50 rounded-xl border border-coc-border/50 flex items-center space-x-3">
+                            <div class="text-xl text-coc-gold"><i class="fa-solid fa-scroll"></i></div>
+                            <div>
+                                <h4 class="text-xs font-bold text-slate-200 font-sans">ルール理解力</h4>
+                                <p class="text-[10px] text-slate-400 mt-0.5">システムを論理的に分析</p>
+                            </div>
+                        </div>
+                        <div class="p-3 bg-coc-void/50 rounded-xl border border-coc-border/50 flex items-center space-x-3">
+                            <div class="text-xl text-coc-emerald"><i class="fa-solid fa-code"></i></div>
+                            <div>
+                                <h4 class="text-xs font-bold text-slate-200 font-sans">修得への情熱</h4>
+                                <p class="text-[10px] text-slate-400 mt-0.5">プログラムをゼロから学ぶ</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Skills, Attributes & Interactive Dice Section -->
+    <section id="status" class="py-24 px-4 relative z-10 border-t border-coc-border/40 bg-coc-deep">
+        <div class="max-w-6xl mx-auto">
+            <!-- Section Header -->
+            <div class="text-center mb-16">
+                <span class="font-mono text-xs text-coc-gold tracking-[0.3em] uppercase block mb-2">CHARACTER ATTRIBUTES</span>
+                <h2 class="font-cthulhu text-3xl md:text-5xl font-extrabold text-white tracking-widest flex items-center justify-center gap-3">
+                    <i class="fa-solid fa-dice-d20 text-coc-emerald"></i> STATUS & DICE <span class="text-coc-gold font-sans text-xl md:text-2xl font-light">能力値判定とスキル</span>
+                </h2>
+                <div class="h-1 w-20 bg-coc-gold mx-auto mt-4 rounded-full"></div>
+            </div>
+
+            <!-- Two Column Interactive Panel -->
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+                
+                <!-- Status sheet display columns (CON and INT/Skills) -->
+                <div class="lg:col-span-6 space-y-6">
+                    <div class="p-6 rounded-2xl bg-coc-card border border-coc-border shadow-2xl relative overflow-hidden">
+                        <h3 class="font-cthulhu text-md text-coc-gold border-b border-coc-border pb-3 mb-6 flex items-center gap-2 text-glow-gold">
+                            <i class="fa-solid fa-chart-column text-coc-emerald"></i> CURRENT ATTRIBUTES
+                        </h3>
+
+                        <!-- Stat Row 1: 体力５０ -->
+                        <div class="mb-6">
+                            <div class="flex justify-between text-xs font-mono mb-2">
+                                <span class="text-slate-300 font-bold flex items-center gap-2">
+                                    <i class="fa-solid fa-heartbeat text-red-500"></i> 体力 (CON / HP)
+                                </span>
+                                <span class="text-red-400 font-bold">50 / 100</span>
+                            </div>
+                            <!-- CoC HP meter -->
+                            <div class="w-full bg-coc-void h-5 rounded-lg overflow-hidden border border-coc-border p-0.5 flex items-center relative">
+                                <div class="bg-gradient-to-r from-red-800 via-red-600 to-red-500 h-full rounded" style="width: 50%"></div>
+                                <span class="absolute inset-0 flex items-center justify-center text-[9px] font-mono font-black text-white/80 tracking-widest uppercase">CONSTITUTION: MEDIUM STAMINA</span>
+                            </div>
+                            <p class="text-slate-400 text-[11px] mt-1.5 font-light">
+                                クトゥルフ神話TRPGでの過酷な状況や徹夜のゲームセッション、長時間の学習を支える強固なベース健康力。
+                            </p>
+                        </div>
+
+                        <!-- Stat Row 2: プログラミングスキル：まだ -->
+                        <div class="mb-6">
+                            <div class="flex justify-between text-xs font-mono mb-2">
+                                <span class="text-slate-300 font-bold flex items-center gap-2">
+                                    <i class="fa-solid fa-code text-cyan-400"></i> プログラミングスキル (INT / 知識)
+                                </span>
+                                <span class="text-cyan-400 font-bold">Level 1 ( まだ / 経験値 0% )</span>
+                            </div>
+                            <!-- Experience progression meter -->
+                            <div class="w-full bg-coc-void h-5 rounded-lg overflow-hidden border border-coc-border p-0.5 flex items-center relative">
+                                <div class="bg-gradient-to-r from-cyan-800 to-cyan-500 h-full rounded" style="width: 3%"></div>
+                                <span class="absolute inset-0 flex items-center justify-center text-[9px] font-mono font-black text-slate-400 tracking-widest uppercase">STATUS: READY TO AWAKENING</span>
+                            </div>
+                            <p class="text-slate-400 text-[11px] mt-1.5 font-light">
+                                技術的には「まだ」未経験ですが、秘めたる知性は限界を突破する可能性に満ちています。自らプログラムを組んでみたいという熱意を燃料に、これから覚醒します。
+                            </p>
+                        </div>
+
+                        <!-- Stat Row 3: 人間性 / まじめさ 100% -->
+                        <div class="mb-4">
+                            <div class="flex justify-between text-xs font-mono mb-2">
+                                <span class="text-slate-300 font-bold flex items-center gap-2">
+                                    <i class="fa-solid fa-shield-halved text-emerald-400"></i> まじめさ (WIS / 精神力)
+                                </span>
+                                <span class="text-emerald-400 font-bold">100 / 100</span>
+                            </div>
+                            <!-- Styled maximum integrity bar -->
+                            <div class="w-full bg-coc-void h-5 rounded-lg overflow-hidden border border-coc-border p-0.5 flex items-center relative">
+                                <div class="bg-gradient-to-r from-emerald-800 to-emerald-500 h-full rounded animate-pulse" style="width: 100%"></div>
+                                <span class="absolute inset-0 flex items-center justify-center text-[9px] font-mono font-black text-white/95 tracking-widest uppercase">MAX VALUE: PERFECT INTEGRITY</span>
+                            </div>
+                            <p class="text-slate-400 text-[11px] mt-1.5 font-light">
+                                高田さんの最大の強み。約束を必ず守り、不具合が発生しても粘り強く「まじめに」解決方法を探す姿勢は、システム構築において最も重要な資質です。
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Personal Feats Sub-display -->
+                    <div class="p-6 rounded-2xl bg-coc-card/30 border border-coc-border">
+                        <h4 class="font-cthulhu text-xs text-coc-gold uppercase tracking-wider mb-4"><i class="fa-solid fa-award"></i> Investigator Feats (人間的特性)</h4>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                            <div class="p-3 bg-coc-void/50 rounded-xl border border-coc-border/40">
+                                <h5 class="font-bold text-slate-200 flex items-center gap-1.5"><i class="fa-solid fa-bolt-lightning text-coc-emerald"></i> 地道な反復処理</h5>
+                                <p class="text-slate-400 mt-1">途中で投げ出さず、バグやエラーを見破るまで粘り強く取り組みます。</p>
+                            </div>
+                            <div class="p-3 bg-coc-void/50 rounded-xl border border-coc-border/40">
+                                <h5 class="font-bold text-slate-200 flex items-center gap-1.5"><i class="fa-solid fa-users-viewfinder text-coc-emerald"></i> 協力的なチームワーク</h5>
+                                <p class="text-slate-400 mt-1">他者の意見を尊重し調和を維持する、TRPGのPLとして磨いた協調性。</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Interactive 1D100 Roller Panel -->
+                <div class="lg:col-span-6 p-8 rounded-2xl bg-coc-card border border-coc-border cthulhu-glow shadow-2xl relative overflow-hidden flex flex-col items-center">
+                    
+                    <!-- Top neon border gradient strip -->
+                    <div class="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-coc-emerald via-coc-gold to-coc-emerald"></div>
+                    
+                    <h3 class="font-cthulhu text-md text-coc-gold border-b border-coc-border pb-3 mb-6 w-full text-center flex items-center justify-center gap-2 text-glow-gold">
+                        <i class="fa-solid fa-dice-d20 text-coc-emerald animate-spin-slow"></i> INTERACTIVE 1D100 SYSTEM
+                    </h3>
+                    
+                    <p class="text-center text-xs text-slate-400 mb-6 leading-relaxed max-w-sm">
+                        クトゥルフ神話TRPGに準拠した「能力値判定（1D100）」を実行できます！目標値以下の数値が出れば、見事判定は成功となります。
+                    </p>
+
+                    <!-- Interactive Mode Select Buttons -->
+                    <div class="w-full mb-6">
+                        <label class="block text-center text-[10px] font-mono text-coc-gold uppercase tracking-widest mb-3">判定システムを選択</label>
+                        <div class="grid grid-cols-2 gap-3">
+                            <button id="btn-sanity-roll" onclick="switchCheckMode('sanity')" class="p-3 bg-coc-emerald/15 border-2 border-coc-emerald rounded-xl text-center transition-all duration-300 flex flex-col items-center justify-center cursor-pointer text-white">
+                                <span class="font-bold text-xs">「SAN値（正気度）」判定</span>
+                                <span class="text-[10px] font-mono text-coc-emeraldLight mt-1">目標値 (SAN): 50</span>
+                            </button>
+                            <button id="btn-programming-roll" onclick="switchCheckMode('programming')" class="p-3 bg-coc-void border border-coc-border rounded-xl text-center transition-all duration-300 flex flex-col items-center justify-center cursor-pointer text-slate-400 hover:border-coc-emerald/50">
+                                <span class="font-bold text-xs">「プログラミング」判定</span>
+                                <span class="text-[10px] font-mono text-coc-gold mt-1">目標値 (INT): 30</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Visual Polyhedral SVG Dice -->
+                    <div class="dice-box w-44 h-44 flex items-center justify-center mb-6 relative">
+                        <div class="absolute w-36 h-36 rounded-full border border-dashed border-coc-emerald/40 animate-spin-slow"></div>
+                        <div class="absolute w-40 h-40 rounded-full border border-dotted border-coc-gold/20 animate-spin-slow" style="animation-direction: reverse;"></div>
+                        
+                        <div id="dice-render-target" class="dice-body w-28 h-28 flex items-center justify-center text-white relative">
+                            <!-- Crafted 20-sided dice geometry SVG -->
+                            <svg class="absolute inset-0 w-full h-full drop-shadow-[0_0_15px_rgba(5,150,105,0.5)] animate-pulse" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <polygon points="50,5 93,30 93,70 50,95 7,70 7,30" fill="#070a13" stroke="#059669" stroke-width="2.5" />
+                                <polygon points="50,5 50,95" stroke="#059669" stroke-width="1.2" stroke-dasharray="2 2" />
+                                <polygon points="7,30 93,30" stroke="#059669" stroke-width="1.2" stroke-dasharray="2 2" />
+                                <polygon points="7,70 93,70" stroke="#059669" stroke-width="1.2" stroke-dasharray="2 2" />
+                                <polygon points="50,35 15,48 50,95" stroke="#fbbf24" stroke-width="1.5" fill="#0f1626" fill-opacity="0.6" />
+                                <polygon points="50,35 85,48 50,95" stroke="#fbbf24" stroke-width="1.5" fill="#0f1626" fill-opacity="0.6" />
+                                <polygon points="50,35 15,48 50,5" stroke="#fbbf24" stroke-width="1.5" fill="#0f1626" fill-opacity="0.6" />
+                                <polygon points="50,35 85,48 50,5" stroke="#fbbf24" stroke-width="1.5" fill="#0f1626" fill-opacity="0.6" />
+                            </svg>
+                            <span id="dice-current-num" class="relative z-10 font-cthulhu text-4xl font-extrabold text-glow-gold tracking-tight">100</span>
+                        </div>
+                    </div>
+
+                    <!-- Roller Action Trigger -->
+                    <button id="trigger-roll-btn" onclick="execute1D100Roll()" class="w-full max-w-xs py-4 px-6 bg-gradient-to-r from-coc-emerald to-emerald-700 hover:brightness-110 active:scale-95 text-slate-100 font-bold font-mono tracking-[0.2em] rounded-xl shadow-xl transition-all duration-200 border border-coc-emeraldLight/30 flex items-center justify-center gap-2 mb-4 text-sm uppercase">
+                        <i class="fa-solid fa-dice"></i> Roll 1D100 (判定)
+                    </button>
+
+                    <!-- Evaluation Panel for results -->
+                    <div id="eval-panel" class="w-full p-4 rounded-xl bg-coc-void border border-coc-border flex flex-col items-center justify-center text-center opacity-80 transition-all duration-300 min-h-[96px]">
+                        <span id="eval-result-tag" class="font-mono font-black text-xs text-slate-500 tracking-widest mb-1.5 uppercase">WAITING INITIATION</span>
+                        <p id="eval-desc-text" class="text-[11px] text-slate-400 font-sans max-w-md">判定テストを選択してダイスを転がそう。運命の結果はいかに…？</p>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Hobbies Section -->
+    <section id="hobbies" class="py-24 px-4 relative z-10 border-t border-coc-border/40 bg-coc-card/10">
+        <div class="max-w-5xl mx-auto">
+            <!-- Section Header -->
+            <div class="text-center mb-16">
+                <span class="font-mono text-xs text-coc-gold tracking-[0.3em] uppercase block mb-2">INVESTIGATOR INTERESTS</span>
+                <h2 class="font-cthulhu text-3xl md:text-5xl font-extrabold text-white tracking-widest flex items-center justify-center gap-3">
+                    <i class="fa-solid fa-brain text-coc-emerald"></i> HOBBIES <span class="text-coc-gold font-sans text-xl md:text-2xl font-light">趣味・好きなこと</span>
+                </h2>
+                <div class="h-1 w-20 bg-coc-gold mx-auto mt-4 rounded-full"></div>
+            </div>
+
+            <!-- Side-by-Side Double card structure -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                
+                <!-- Hobby Card 1: クトゥルフ神話TRPG -->
+                <div class="p-8 rounded-2xl bg-coc-card border border-coc-border cthulhu-glow shadow-2xl relative overflow-hidden flex flex-col justify-between group">
+                    <i class="fa-solid fa-tentacles absolute -right-6 -bottom-6 text-9xl text-coc-emerald/[0.04] pointer-events-none group-hover:scale-110 transition-transform duration-500"></i>
+                    
+                    <div class="space-y-4">
+                        <div class="flex items-center space-x-4">
+                            <span class="w-12 h-12 rounded-xl bg-coc-emerald/10 border border-coc-emerald/30 flex items-center justify-center text-2xl text-coc-emeraldLight shadow-inner">
+                                <i class="fa-solid fa-book-skull"></i>
+                            </span>
+                            <div>
+                                <h3 class="text-lg md:text-xl font-bold text-white group-hover:text-coc-gold transition-colors font-sans">クトゥルフ神話TRPG</h3>
+                                <p class="text-[10px] font-mono text-coc-emeraldLight uppercase tracking-wider">Call of Cthulhu TTRPG</p>
+                            </div>
+                        </div>
+                        <p class="text-slate-300 text-xs md:text-sm leading-relaxed">
+                            シナリオに散りばめられた怪しい謎や資料を「探索者」として地道に解き明かし、プレイヤー同士で対話しながらストーリーを紡いでいく対話型推理ゲーム。
+                        </p>
+                        <p class="text-slate-400 text-xs leading-relaxed">
+                            単に遊ぶだけでなく、ルールブックに書き込まれた精密な構造や、偶然のダイスが運命を大きく変える「システムの美学」そのものに熱狂しています。ルールをまじめに分析して最適ルートを構築する楽しさが、将来の「プログラミングを組んでみたい」という挑戦に繋がっています。
+                        </p>
+                    </div>
+
+                    <div class="mt-6 pt-4 border-t border-coc-border/50 text-[11px] italic text-slate-500 flex items-center justify-between font-mono">
+                        <span>「一粒のダイスが紡ぐ恐怖と、無限の対話」</span>
+                        <span class="text-coc-gold font-bold">Keeper & Player</span>
+                    </div>
+                </div>
+
+                <!-- Hobby Card 2: ゲーム全般 -->
+                <div class="p-8 rounded-2xl bg-coc-card border border-coc-border cthulhu-glow shadow-2xl relative overflow-hidden flex flex-col justify-between group">
+                    <i class="fa-solid fa-gamepad absolute -right-6 -bottom-6 text-9xl text-coc-gold/[0.03] pointer-events-none group-hover:scale-110 transition-transform duration-500"></i>
+                    
+                    <div class="space-y-4">
+                        <div class="flex items-center space-x-4">
+                            <span class="w-12 h-12 rounded-xl bg-coc-gold/10 border border-coc-gold/30 flex items-center justify-center text-2xl text-coc-goldLight shadow-inner">
+                                <i class="fa-solid fa-headset"></i>
+                            </span>
+                            <div>
+                                <h3 class="text-lg md:text-xl font-bold text-white group-hover:text-coc-emerald transition-colors font-sans">ゲーム全般</h3>
+                                <p class="text-[10px] font-mono text-coc-goldLight uppercase tracking-wider">Strategic & Digital Gaming</p>
+                            </div>
+                        </div>
+                        <p class="text-slate-300 text-xs md:text-sm leading-relaxed">
+                            パズル、戦略RPG、インディーズアドベンチャーなど、緻密なアルゴリズムや判定処理が随所で光るゲーム各種。
+                        </p>
+                        <p class="text-slate-400 text-xs leading-relaxed">
+                            ゲームの中に存在する計算式や状態移行などのシステム的側面に強い好奇心があり、「これはどんなコードで制御されているんだろう？」と考えながらプレイします。この知的好奇心こそが、自分の手でロジックを書き上げたいという大きな原動力となっています。
+                        </p>
+                    </div>
+
+                    <div class="mt-6 pt-4 border-t border-coc-border/50 text-[11px] italic text-slate-500 flex items-center justify-between font-mono">
+                        <span>「仕様の理を読み解き、限界に挑戦する」</span>
+                        <span class="text-coc-gold font-bold">System Explorer</span>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <!-- Quest Board Contact Section -->
+    <section class="py-20 px-4 relative z-10 border-t border-coc-border/40 bg-coc-deep">
+        <div class="max-w-xl mx-auto p-8 rounded-2xl bg-coc-card border-2 border-dashed border-coc-gold/30 shadow-2xl relative">
+            <div class="absolute -top-3.5 left-1/2 transform -translate-x-1/2 px-4 py-1 bg-coc-emerald text-white text-[10px] font-mono font-bold uppercase tracking-widest rounded-full border border-coc-emeraldLight/30">
+                Guild Mission Board
+            </div>
+
+            <div class="text-center mb-6 mt-2">
+                <h3 class="font-cthulhu text-lg font-bold text-white tracking-widest">ギルドからの調査依頼（お仕事の誘い）</h3>
+                <p class="text-xs text-slate-400 mt-1.5 font-sans">
+                    クトゥルフ神話TRPGセッションのお誘い、プログラミング共創プロジェクトなどのご依頼はこちらへ。
+                </p>
+            </div>
+
+            <!-- Mock credentials with click-to-copy utility -->
+            <div class="space-y-4 font-mono text-xs">
+                <div class="p-3 bg-coc-void/80 rounded-xl border border-coc-border flex items-center justify-between gap-2">
+                    <span class="text-slate-500"><i class="fa-solid fa-envelope text-coc-emerald mr-1.5"></i> EMAIL:</span>
+                    <span class="text-slate-200 font-bold select-all break-all">rikuto.t.adventurer[at]example.com</span>
+                </div>
+                <div class="p-3 bg-coc-void/80 rounded-xl border border-coc-border flex items-center justify-between gap-2">
+                    <span class="text-slate-500"><i class="fa-solid fa-hashtag text-coc-emerald mr-1.5"></i> DISCORD ID:</span>
+                    <span class="text-slate-200 font-bold hover:text-coc-gold cursor-pointer">rikuto_coc_adventurer</span>
+                </div>
+                <button onclick="handleClipboardCopy()" class="w-full py-3 bg-coc-void hover:bg-coc-emerald/10 border border-coc-border hover:border-coc-emerald text-slate-300 hover:text-white rounded-lg transition-all font-sans font-bold flex items-center justify-center gap-2">
+                    <i class="fa-regular fa-copy text-coc-emerald"></i> メールアドレスをクリップボードに記録
+                </button>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer layout -->
+    <footer class="py-12 px-4 border-t border-coc-border/30 bg-coc-deep text-center relative z-10 text-slate-500">
+        <div class="max-w-6xl mx-auto space-y-4">
+            <p class="font-cthulhu text-xs text-coc-gold tracking-widest text-glow-gold uppercase">
+                Rikuto Takada — The Keeper of Cthulhu TTRPG & Code Quest
+            </p>
+            <p class="text-[10px] font-mono leading-relaxed">
+                © 2026 Rikuto Takada. Unveiling Secrets of the Universe through Sincerity & Programming.<br>
+                "Ph'nglui mglw'nafh Cthulhu R'lyeh wgah'nagl fhtagn."
+            </p>
+        </div>
+    </footer>
+
+    <script>
+        // Sound controller properties
+        let activeSoundEnabled = true;
+        let isAudioLoaded = false;
+
+        // Custom instruments dynamically synthed by ToneJS (no external audio latency)
+        let soundRollNoise; // Tumble friction of physical dice
+        let soundMelodySynth; // Cthulhu bells & success cues
+
+        // Safely initiate ToneJS with client gestures
+        function setupAudioCore() {
+            if (isAudioLoaded) return;
+            try {
+                // Initialize Pink Noise for rapid tumbling effect
+                soundRollNoise = new Tone.NoiseSynth({
+                    noise: { type: 'pink' },
+                    envelope: { attack: 0.005, decay: 0.02, sustain: 0, release: 0.01 }
+                }).toDestination();
+                soundRollNoise.volume.value = -12;
+
+                // FM synth for melodic alerts
+                soundMelodySynth = new Tone.Synth({
+                    oscillator: { type: 'triangle' },
+                    envelope: { attack: 0.03, decay: 0.2, sustain: 0.3, release: 0.5 }
+                }).toDestination();
+                soundMelodySynth.volume.value = -12;
+
+                isAudioLoaded = true;
+                showSystemToast("SOUNDS INITIALIZED", "ルーン音源が同期されました。ダイスサウンドをお楽しみ頂けます。", "fa-solid fa-check text-coc-emeraldLight");
+            } catch (err) {
+                console.warn("Audio context startup deferred safely.", err);
+            }
+        }
+
+        // Speaker mute toggling
+        function toggleAudioEngine() {
+            activeSoundEnabled = !activeSoundEnabled;
+            const icon = document.getElementById('sound-speaker-icon');
+            const label = document.getElementById('sound-status-label');
+            if (activeSoundEnabled) {
+                icon.className = "fa-solid fa-volume-high text-coc-emerald";
+                label.innerText = "SOUND ON";
+                if (!isAudioLoaded) {
+                    Tone.start();
+                    setupAudioCore();
+                }
+            } else {
+                icon.className = "fa-solid fa-volume-xmark text-slate-600";
+                label.innerText = "SOUND OFF";
+            }
+        }
+
+        // Precision rolling audio effects using high-performance Tone schedules
+        function triggerDiceSoundTrack() {
+            if (!activeSoundEnabled) return;
+            if (!isAudioLoaded) {
+                Tone.start();
+                setupAudioCore();
+            }
+            try {
+                const now = Tone.now() + 0.02;
+                let scheduleAccumulator = 0;
+                // Simulating dice cascading down
+                for (let i = 0; i < 15; i++) {
+                    if (soundRollNoise) {
+                        soundRollNoise.triggerAttackRelease("32n", now + scheduleAccumulator);
+                    }
+                    scheduleAccumulator += 0.03 + (i * 0.012);
+                }
+            } catch (e) {
+                console.warn("Dice roll audio scheduler exception: ", e);
+            }
+        }
+
+        // Harmonious chord for success
+        function triggerSuccessAudioCue() {
+            if (!activeSoundEnabled || !isAudioLoaded) return;
+            try {
+                const triggerTime = Tone.now() + 0.01;
+                if (soundMelodySynth) {
+                    soundMelodySynth.triggerAttackRelease("E4", "16n", triggerTime);
+                    soundMelodySynth.triggerAttackRelease("A4", "16n", triggerTime + 0.08);
+                    soundMelodySynth.triggerAttackRelease("C5", "16n", triggerTime + 0.16);
+                    soundMelodySynth.triggerAttackRelease("E5", "8n", triggerTime + 0.24);
+                }
+            } catch (e) {
+                console.warn("Melodic success scheduler exception: ", e);
+            }
+        }
+
+        // Dark discordant fall for failure
+        function triggerFailedAudioCue() {
+            if (!activeSoundEnabled || !isAudioLoaded) return;
+            try {
+                const triggerTime = Tone.now() + 0.01;
+                if (soundMelodySynth) {
+                    soundMelodySynth.triggerAttackRelease("G#3", "8n", triggerTime);
+                    soundMelodySynth.triggerAttackRelease("C#3", "4n", triggerTime + 0.15);
+                }
+            } catch (e) {
+                console.warn("Melodic failure scheduler exception: ", e);
+            }
+        }
+
+        // Ambient background floating dust spores generators
+        function generateSpaceSporeFloating() {
+            const container = document.getElementById('cosmic-dust-container');
+            const particleVolume = 12;
+            for (let i = 0; i < particleVolume; i++) {
+                const spore = document.createElement('div');
+                spore.className = "absolute pointer-events-none rounded-full";
+                const diameter = Math.random() * 3.5 + 1.5;
+                spore.style.width = `${diameter}px`;
+                spore.style.height = `${diameter}px`;
+                // Split spores colors between CoC emerald and ancient gold
+                spore.style.background = Math.random() > 0.6 ? '#d97706' : '#059669';
+                spore.style.opacity = Math.random() * 0.35 + 0.08;
+                spore.style.left = `${Math.random() * 100}%`;
+                spore.style.top = `${Math.random() * 100}%`;
+                spore.style.animation = `floatSpore ${Math.random() * 25 + 18}s linear infinite`;
+                container.appendChild(spore);
+            }
+        }
+
+        // Toast notification triggers
+        function showSystemToast(title, description, iconClass = "fa-solid fa-skull text-coc-emerald") {
+            const container = document.getElementById('log-toast');
+            const titleElement = document.getElementById('toast-title-text');
+            const descElement = document.getElementById('toast-desc-text');
+            const iconBox = document.getElementById('toast-icon-box');
+
+            titleElement.innerText = title;
+            descElement.innerText = description;
+            iconBox.innerHTML = `<i class="${iconClass}"></i>`;
+
+            container.classList.remove('translate-y-24', 'opacity-0');
+            container.classList.add('translate-y-0', 'opacity-100');
+
+            setTimeout(() => {
+                container.classList.remove('translate-y-0', 'opacity-100');
+                container.classList.add('translate-y-24', 'opacity-0');
+            }, 3800);
+        }
+
+        // Interactive 1D100 gaming script logic
+        let selectedChallengeMode = 'sanity';
+
+        function switchCheckMode(mode) {
+            selectedChallengeMode = mode;
+            const btnSanity = document.getElementById('btn-sanity-roll');
+            const btnProgramming = document.getElementById('btn-programming-roll');
+            const evalResultHeader = document.getElementById('eval-result-tag');
+            const evalDescription = document.getElementById('eval-desc-text');
+
+            if (mode === 'sanity') {
+                btnSanity.className = "p-3 bg-coc-emerald/15 border-2 border-coc-emerald rounded-xl text-center transition-all duration-300 flex flex-col items-center justify-center cursor-pointer text-white";
+                btnProgramming.className = "p-3 bg-coc-void border border-coc-border rounded-xl text-center transition-all duration-300 flex flex-col items-center justify-center cursor-pointer text-slate-400 hover:border-coc-emerald/50";
+                
+                evalResultHeader.innerText = "SANITY CHECK READY";
+                evalDescription.innerText = "探索者高田の深淵への挑戦。SAN値判定（正気度ロール）を行います。1D100で【50以下】を出せば、無事に狂気を回避して正気を保てます！";
+            } else {
+                btnProgramming.className = "p-3 bg-coc-emerald/15 border-2 border-coc-emerald rounded-xl text-center transition-all duration-300 flex flex-col items-center justify-center cursor-pointer text-white";
+                btnSanity.className = "p-3 bg-coc-void border border-coc-border rounded-xl text-center transition-all duration-300 flex flex-col items-center justify-center cursor-pointer text-slate-400 hover:border-coc-emerald/50";
+                
+                evalResultHeader.innerText = "PROGRAMMING CHALLENGE READY";
+                evalDescription.innerText = "プログラミング習得の目標「まだ」からの一歩。未経験から構文理解に至る大いなる挑戦。難関判定1D100で【30以下】を引き当てれば大成功！";
+            }
+        }
+
+        let isCurrentlyRolling = false;
+
+        function execute1D100Roll() {
+            if (isCurrentlyRolling) return;
+            isCurrentlyRolling = true;
+
+            const diceNode = document.getElementById('dice-render-target');
+            const diceNumNode = document.getElementById('dice-current-num');
+            const rollTrigger = document.getElementById('trigger-roll-btn');
+            const evalHeader = document.getElementById('eval-result-tag');
+            const evalMessage = document.getElementById('eval-desc-text');
+            const evaluationPanel = document.getElementById('eval-panel');
+
+            // Temporarily freeze roll trigger
+            rollTrigger.disabled = true;
+            rollTrigger.classList.add('opacity-40', 'cursor-not-allowed');
+
+            // Set pseudo-3D rotation vectors
+            const xRotVal = Math.random() * 1080 + 360;
+            const yRotVal = Math.random() * 1080 + 360;
+            diceNode.style.transform = `rotateX(${xRotVal}deg) rotateY(${yRotVal}deg)`;
+
+            // Execute rolling sound effects safely
+            triggerDiceSoundTrack();
+
+            // Run rapid dice number counter suspense loop
+            let loopingCounter = 0;
+            const loopTimer = setInterval(() => {
+                diceNumNode.innerText = Math.floor(Math.random() * 100) + 1;
+                loopingCounter++;
+                if (loopingCounter > 15) clearInterval(loopTimer);
+            }, 60);
+
+            // Compute final check result evaluation after spin completes
+            setTimeout(() => {
+                const rollResult = Math.floor(Math.random() * 100) + 1;
+                diceNumNode.innerText = rollResult;
+                diceNode.style.transform = "rotateX(0deg) rotateY(0deg)";
+
+                let rollWasSuccess = false;
+                let ratingTitle = "";
+                let detailsText = "";
+
+                if (selectedChallengeMode === 'sanity') {
+                    // SAN threshold target is 50
+                    if (rollResult <= 5) {
+                        rollWasSuccess = true;
+                        ratingTitle = "決定的成功 (CRITICAL)";
+                        detailsText = `出目 ${rollResult} / 目標 50。圧倒的幸運！宇宙的恐怖を完全に理解しつつやりすごし、強靭な「まじめさ」で正気を完全防衛しました！`;
+                        triggerSuccessAudioCue();
+                    } else if (rollResult <= 50) {
+                        rollWasSuccess = true;
+                        ratingTitle = "成功 (SUCCESS)";
+                        detailsText = `出目 ${rollResult} / 目標 50。SAN値チェック成功。迫りくる未知の狂気に屈することなく、高田さんは冷静な平常心を維持しました。`;
+                        triggerSuccessAudioCue();
+                    } else if (rollResult >= 96) {
+                        rollWasSuccess = false;
+                        ratingTitle = "致命的失敗 (FUMBLE)";
+                        detailsText = `出目 ${rollResult} / 目標 50。大失敗！未知の恐怖に直面し一時的狂気に。しかし高田さんの「まじめさ」ですぐに自己分析して復帰します。`;
+                        triggerFailedAudioCue();
+                    } else {
+                        rollWasSuccess = false;
+                        ratingTitle = "失敗 (FAILURE)";
+                        detailsText = `出目 ${rollResult} / 目標 50。判定失敗。背後に邪悪な視線を感じて少しSAN値が減少しましたが、HP50の体力ですぐに態勢を整えられます。`;
+                        triggerFailedAudioCue();
+                    }
+                } else {
+                    // Programming difficulty target is 30
+                    if (rollResult <= 5) {
+                        rollWasSuccess = true;
+                        ratingTitle = "決定的成功 (CRITICAL)";
+                        detailsText = `出目 ${rollResult} / 目標 30。奇跡のクリティカル！プログラミングへの眠れる才能が一瞬で覚醒。何行ものエラーを直感で突破し、完璧なコードを書き上げました！`;
+                        triggerSuccessAudioCue();
+                    } else if (rollResult <= 30) {
+                        rollWasSuccess = true;
+                        ratingTitle = "成功 (SUCCESS)";
+                        detailsText = `出目 ${rollResult} / 目標 30。スキル判定成功。持ち前の「まじめさ」で論理的構造を解読。ゼロベースから見事なコードを組み始めました！`;
+                        triggerSuccessAudioCue();
+                    } else if (rollResult >= 96) {
+                        rollWasSuccess = false;
+                        ratingTitle = "致命的失敗 (FUMBLE)";
+                        detailsText = `出目 ${rollResult} / 目標 30。致命的失敗！キーボードが邪神の触手に変化して絡まり、パソコンがエラーの闇に沈みました。一息いれて再学習しましょう。`;
+                        triggerFailedAudioCue();
+                    } else {
+                        rollWasSuccess = false;
+                        ratingTitle = "失敗 (FAILURE)";
+                        detailsText = `出目 ${rollResult} / 目標 30。失敗。「まだ」コーディングに不慣れなため構文エラーが発生。しかし、挫折せず繰り返し学ぶのが「まじめ」な高田さんの極意です！`;
+                        triggerFailedAudioCue();
+                    }
+                }
+
+                // Apply evaluation style
+                evalHeader.innerText = ratingTitle;
+                evalMessage.innerText = detailsText;
+
+                evaluationPanel.classList.remove('opacity-80');
+                evaluationPanel.style.backgroundColor = rollWasSuccess ? 'rgba(5, 150, 105, 0.15)' : 'rgba(220, 38, 38, 0.12)';
+                evaluationPanel.style.borderColor = rollWasSuccess ? '#059669' : '#dc2626';
+                evalHeader.style.color = rollWasSuccess ? '#34d399' : '#dc2626';
+
+                showSystemToast(
+                    rollWasSuccess ? "DICE TEST PASSED" : "DICE TEST FAILED", 
+                    `判定結果: ${ratingTitle} (出目: ${rollResult})`, 
+                    rollWasSuccess ? "fa-solid fa-circle-check text-coc-emeraldLight" : "fa-solid fa-circle-exclamation text-coc-insane"
+                );
+
+                // Enable trigger key
+                rollTrigger.disabled = false;
+                rollTrigger.classList.remove('opacity-40', 'cursor-not-allowed');
+                isCurrentlyRolling = false;
+
+            }, 1300);
+        }
+
+        // Fallback-compliant clipboard copy tool for restricted iframe setups
+        function handleClipboardCopy() {
+            const email = "rikuto.t.adventurer@example.com";
+            const inputBuffer = document.createElement("input");
+            inputBuffer.value = email;
+            document.body.appendChild(inputBuffer);
+            inputBuffer.select();
+            document.execCommand("copy");
+            document.body.removeChild(inputBuffer);
+
+            showSystemToast("COPIED TO CLIPBOARD", "メールアドレスをクリップボードにコピーしました！依頼をお待ちしております。", "fa-regular fa-clipboard text-coc-emeraldLight");
+        }
+
+        // Load screen particles
+        window.onload = function () {
+            generateSpaceSporeFloating();
+            switchCheckMode('sanity');
+        }
+    </script>
+
+    <!-- Custom CSS animations for background spore float effects -->
+    <style>
+        @keyframes floatSpore {
+            0% {
+                transform: translateY(105vh) translateX(0) rotate(0deg) scale(1);
+            }
+            100% {
+                transform: translateY(-20vh) translateX(70px) rotate(360deg) scale(0.5);
+            }
+        }
+        .animate-spin-slow {
+            animation: spinRoutine 15s linear infinite;
+        }
+        @keyframes spinRoutine {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</body>
+</html>
