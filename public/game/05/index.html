@@ -2,667 +2,949 @@
 <html lang="ja">
  <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Web将棋</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
+  <title>Web Voxel Game</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-   @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@600;900&display=swap');
-
-   body {
-    font-family: 'Noto Serif JP', serif;
-    background-color: #f3f4f6;
-    touch-action: manipulation;
-    /* ダブルタップズーム防止 */
+   body,
+   html {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background-color: #87CEEB;
+    /* Sky color fallback */
+    font-family: 'Inter', sans-serif;
+    touch-action: none;
+    /* Prevent browser zooming/scrolling on mobile */
    }
 
-   .board-bg {
-    background-color: #eebd76;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+   #game-canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 1;
    }
 
-   .cell {
-    border: 0.5px solid #4a3b32;
+   #ui-layer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 10;
+    pointer-events: none;
+    /* Let clicks pass through to the game by default */
    }
 
-   /* 駒のスタイル */
-   .piece-text {
-    text-shadow: 1px 1px 0px rgba(255, 255, 255, 0.5);
+   .crosshair {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 20px;
+    height: 20px;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+   }
+
+   .crosshair::before,
+   .crosshair::after {
+    content: '';
+    position: absolute;
+    background-color: rgba(255, 255, 255, 0.8);
+   }
+
+   .crosshair::before {
+    top: 9px;
+    left: 0;
+    width: 20px;
+    height: 2px;
+   }
+
+   .crosshair::after {
+    top: 0;
+    left: 9px;
+    width: 2px;
+    height: 20px;
+   }
+
+   /* Start / Death Screen */
+   #overlay-screen {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 50;
+    pointer-events: auto;
+   }
+
+   /* Mobile Controls */
+   #mobile-controls {
+    display: none;
+    /* Hidden on desktop */
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 20;
+   }
+
+   .touch-zone {
+    position: absolute;
+    pointer-events: auto;
+   }
+
+   #joystick-zone {
+    bottom: 20px;
+    left: 20px;
+    width: 120px;
+    height: 120px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 50%;
+   }
+
+   #joystick-knob {
+    position: absolute;
+    top: 35px;
+    left: 35px;
+    width: 50px;
+    height: 50px;
+    background: rgba(255, 255, 255, 0.6);
+    border-radius: 50%;
+    pointer-events: none;
+    transition: transform 0.1s;
+   }
+
+   .action-btn {
+    position: absolute;
+    width: 60px;
+    height: 60px;
+    background: rgba(255, 255, 255, 0.3);
+    border: 2px solid rgba(255, 255, 255, 0.6);
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: white;
+    font-weight: bold;
+    font-size: 14px;
+    pointer-events: auto;
+    user-select: none;
+   }
+
+   .action-btn:active {
+    background: rgba(255, 255, 255, 0.6);
+   }
+
+   #btn-jump {
+    bottom: 20px;
+    right: 20px;
+   }
+
+   #btn-mine {
+    bottom: 90px;
+    right: 20px;
+   }
+
+   #btn-place {
+    bottom: 20px;
+    right: 90px;
+   }
+
+   /* Hotbar */
+   #hotbar {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 5px;
+    background: rgba(0, 0, 0, 0.5);
+    padding: 5px;
+    border-radius: 10px;
+    pointer-events: auto;
+    z-index: 30;
+   }
+
+   .slot {
+    width: 40px;
+    height: 40px;
+    border: 2px solid #555;
+    border-radius: 5px;
+    cursor: pointer;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+   }
+
+   .slot.selected {
+    border-color: white;
+    transform: scale(1.1);
+    box-shadow: 0 0 10px white;
+   }
+
+   .slot-inner {
+    width: 30px;
+    height: 30px;
+    border-radius: 2px;
+   }
+
+   /* Health */
+   #health-bar {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    display: flex;
+    gap: 5px;
+   }
+
+   .heart {
+    width: 20px;
+    height: 20px;
+    background-color: red;
+    clip-path: polygon(50% 100%, 100% 38%, 100% 0, 50% 20%, 0 0, 0 38%);
+   }
+
+   @media (max-width: 768px) {
+    #mobile-controls {
+     display: block;
+    }
+
+    #hotbar {
+     bottom: 150px;
+    }
+
+    /* Move above mobile controls */
+    #instructions {
+     display: none;
+    }
    }
   </style>
  </head>
- <body class="min-h-screen flex flex-col items-center justify-center p-2">
+ <body>
 
-  <div class="w-full max-w-md bg-white rounded-xl shadow-lg p-3 sm:p-5 flex flex-col gap-3">
+  <canvas id="game-canvas"></canvas>
 
-   <!-- ヘッダーと設定 -->
-   <div class="flex justify-between items-center pb-2 border-b">
-    <h1 class="text-xl sm:text-2xl font-black text-gray-800">Web将棋</h1>
-    <div class="flex items-center gap-2">
-     <label for="difficulty" class="text-sm text-gray-600 font-bold">CPU強さ:</label>
-     <select id="difficulty" class="p-1 border rounded bg-gray-50 text-sm outline-none">
-      <option value="easy">初級 (浅い)</option>
-      <option value="normal" selected>中級 (普通)</option>
-     </select>
+  <div id="ui-layer">
+   <div class="crosshair"></div>
+
+   <div id="health-bar"></div>
+
+   <div id="hotbar">
+    <!-- Slots generated by JS -->
+   </div>
+
+   <div id="mobile-controls">
+    <div id="joystick-zone" class="touch-zone">
+     <div id="joystick-knob"></div>
     </div>
-   </div>
-
-   <!-- ステータスメッセージ -->
-   <div id="message" class="text-center text-lg font-bold text-blue-600 h-6">
-    あなたの番です
-   </div>
-
-   <!-- 後手（CPU）の持ち駒 -->
-   <div class="flex flex-col gap-1">
-    <span class="text-xs text-gray-500 font-bold">CPU 持ち駒</span>
-    <div id="gote-hand" class="bg-gray-100 p-2 min-h-[3.5rem] flex flex-wrap gap-2 rounded border border-gray-300">
-     <!-- JSで挿入 -->
-    </div>
-   </div>
-
-   <!-- 将棋盤 -->
-   <div id="board"
-    class="w-full aspect-square board-bg border-2 border-[#4a3b32] grid grid-cols-9 grid-rows-9 gap-0 mx-auto">
-    <!-- JSで挿入 -->
-   </div>
-
-   <!-- 先手（プレイヤー）の持ち駒 -->
-   <div class="flex flex-col gap-1">
-    <span class="text-xs text-gray-500 font-bold">あなた 持ち駒</span>
-    <div id="sente-hand" class="bg-gray-100 p-2 min-h-[3.5rem] flex flex-wrap gap-2 rounded border border-gray-300">
-     <!-- JSで挿入 -->
-    </div>
-   </div>
-
-   <!-- コントロールボタン -->
-   <div class="flex justify-center mt-2">
-    <button id="reset-btn"
-     class="px-6 py-2 bg-gray-800 text-white font-bold rounded-lg shadow hover:bg-gray-700 active:transform active:scale-95 transition-all">
-     最初からやり直す
-    </button>
+    <div id="btn-jump" class="action-btn">Jump</div>
+    <div id="btn-mine" class="action-btn">Mine</div>
+    <div id="btn-place" class="action-btn">Place</div>
+    <!-- Invisible zone for camera look on right side -->
+    <div id="look-zone" class="touch-zone" style="top: 0; right: 0; width: 60%; height: 70%;"></div>
    </div>
   </div>
 
-  <!-- 成り選択モーダル -->
-  <div id="promote-modal" class="fixed inset-0 bg-black bg-opacity-60 hidden items-center justify-center z-50 px-4">
-   <div class="bg-white p-6 rounded-xl shadow-2xl text-center w-full max-w-xs transform transition-all scale-100">
-    <h3 class="mb-6 text-xl font-black text-gray-800">成りますか？</h3>
-    <div class="flex gap-4 justify-center">
-     <button id="btn-promote"
-      class="flex-1 py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg shadow-md transition-colors">成る</button>
-     <button id="btn-not-promote"
-      class="flex-1 py-3 bg-gray-500 hover:bg-gray-600 text-white font-bold rounded-lg shadow-md transition-colors">成らない</button>
-    </div>
-   </div>
+  <div id="overlay-screen">
+   <h1 class="text-4xl text-white font-bold mb-4 drop-shadow-md" id="screen-title">Web Voxel Game</h1>
+   <p class="text-white mb-6 text-center max-w-md" id="instructions">
+    Desktop: Click to start. WASD to move, Space to jump. Left click to mine, Right click to place.<br>
+    Mobile: Use on-screen controls.
+   </p>
+   <button id="start-btn"
+    class="px-8 py-4 bg-green-500 hover:bg-green-600 text-white rounded-xl font-bold text-xl shadow-lg transition transform hover:scale-105">
+    Start Game
+   </button>
   </div>
 
-  <!-- ゲーム終了モーダル -->
-  <div id="gameover-modal" class="fixed inset-0 bg-black bg-opacity-60 hidden items-center justify-center z-50 px-4">
-   <div class="bg-white p-6 rounded-xl shadow-2xl text-center w-full max-w-xs">
-    <h3 id="gameover-title" class="mb-4 text-2xl font-black text-gray-800"></h3>
-    <button id="btn-restart"
-     class="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-md transition-colors">もう一度遊ぶ</button>
-   </div>
-  </div>
+  <!-- Load Three.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
   <script>
-   // 手番
-   const SENTE = 1;
-   const GOTE = -1;
-   const EMPTY = 0;
 
-   // 駒の種類
-   const FU = 1, KY = 2, KE = 3, GI = 4, KI = 5, KA = 6, HI = 7, OU = 8, TO = 9, NY = 10, NK = 11, NG = 12, UM = 13, RY = 14;
+   // --- Globals & Engine Setup ---
+   const canvas = document.getElementById('game-canvas');
+   const renderer = new THREE.WebGLRenderer({ canvas, antialias: false });
+   renderer.setSize(window.innerWidth, window.innerHeight);
+   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
-   const pieceChars = {
-    [FU]: '歩', [KY]: '香', [KE]: '桂', [GI]: '銀', [KI]: '金', [KA]: '角', [HI]: '飛', [OU]: '玉',
-    [TO]: 'と', [NY]: '杏', [NK]: '圭', [NG]: '全', [UM]: '馬', [RY]: '竜'
-   };
+   const scene = new THREE.Scene();
+   scene.background = new THREE.Color(0x87CEEB);
+   scene.fog = new THREE.Fog(0x87CEEB, 20, 50);
 
-   // 簡易的な駒の価値（AI評価用）
-   const pieceValues = {
-    [FU]: 100, [KY]: 300, [KE]: 300, [GI]: 500, [KI]: 600, [KA]: 800, [HI]: 1000, [OU]: 100000,
-    [TO]: 600, [NY]: 600, [NK]: 600, [NG]: 600, [UM]: 1000, [RY]: 1200
-   };
+   const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 100);
 
-   const handPieceTypes = [HI, KA, KI, GI, KE, KY, FU]; // 表示順
+   // Camera setup for first person
+   const pitchObject = new THREE.Object3D();
+   pitchObject.add(camera);
+   const yawObject = new THREE.Object3D();
+   yawObject.add(pitchObject);
+   scene.add(yawObject);
 
-   const promoteMap = { [FU]: TO, [KY]: NY, [KE]: NK, [GI]: NG, [KA]: UM, [HI]: RY };
-   const unpromoteMap = { [TO]: FU, [NY]: KY, [NK]: KE, [NG]: GI, [UM]: KA, [RY]: HI };
+   // Lighting
+   const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+   scene.add(ambientLight);
+   const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+   dirLight.position.set(50, 100, 50);
+   scene.add(dirLight);
 
-   // 駒の移動ベクトル [x, y]
-   const dirVectors = {
-    [FU]: [{ x: 0, y: -1 }],
-    [KE]: [{ x: -1, y: -2 }, { x: 1, y: -2 }],
-    [GI]: [{ x: -1, y: -1 }, { x: 0, y: -1 }, { x: 1, y: -1 }, { x: -1, y: 1 }, { x: 1, y: 1 }],
-    [KI]: [{ x: -1, y: -1 }, { x: 0, y: -1 }, { x: 1, y: -1 }, { x: -1, y: 0 }, { x: 1, y: 0 }, { x: 0, y: 1 }],
-    [OU]: [{ x: -1, y: -1 }, { x: 0, y: -1 }, { x: 1, y: -1 }, { x: -1, y: 0 }, { x: 1, y: 0 }, { x: -1, y: 1 }, { x: 0, y: 1 }, { x: 1, y: 1 }]
-   };
-   dirVectors[TO] = dirVectors[KI];
-   dirVectors[NY] = dirVectors[KI];
-   dirVectors[NK] = dirVectors[KI];
-   dirVectors[NG] = dirVectors[KI];
+   // --- Texture Generation (Procedural Canvas) ---
+   function generateTexture(baseColor, accentColor, type = 'noise') {
+    const size = 64;
+    const texCanvas = document.createElement('canvas');
+    texCanvas.width = size; texCanvas.height = size;
+    const ctx = texCanvas.getContext('2d');
 
-   // 飛び駒の移動ベクトル
-   const slideVectorsObj = {
-    [KY]: [{ x: 0, y: -1 }],
-    [KA]: [{ x: -1, y: -1 }, { x: 1, y: -1 }, { x: -1, y: 1 }, { x: 1, y: 1 }],
-    [HI]: [{ x: 0, y: -1 }, { x: 0, y: 1 }, { x: -1, y: 0 }, { x: 1, y: 0 }]
-   };
+    ctx.fillStyle = baseColor;
+    ctx.fillRect(0, 0, size, size);
 
-   // 馬・竜の追加1マス移動
-   const extraVectorsObj = {
-    [UM]: [{ x: 0, y: -1 }, { x: 0, y: 1 }, { x: -1, y: 0 }, { x: 1, y: 0 }],
-    [RY]: [{ x: -1, y: -1 }, { x: 1, y: -1 }, { x: -1, y: 1 }, { x: 1, y: 1 }]
-   };
-
-   const initialBoardState = [
-    -KY, -KE, -GI, -KI, -OU, -KI, -GI, -KE, -KY,
-    0, -HI, 0, 0, 0, 0, 0, -KA, 0,
-    -FU, -FU, -FU, -FU, -FU, -FU, -FU, -FU, -FU,
-    0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0,
-    FU, FU, FU, FU, FU, FU, FU, FU, FU,
-    0, KA, 0, 0, 0, 0, 0, HI, 0,
-    KY, KE, GI, KI, OU, KI, GI, KE, KY
-   ];
-
-   let state = {
-    board: [],
-    hand: { [SENTE]: {}, [GOTE]: {} },
-    turn: SENTE,
-    selectedSq: null,
-    legalMovesCache: []
-   };
-
-   let isCpuThinking = false;
-
-   function getOwner(p) { return p === 0 ? 0 : (p > 0 ? SENTE : GOTE); }
-   function getType(p) { return Math.abs(p); }
-   function getBasePiece(type) { return unpromoteMap[type] || type; }
-
-   function isDeadEnd(pieceType, turn, y) {
-    if (turn === SENTE) {
-     if ((pieceType === FU || pieceType === KY) && y === 0) return true;
-     if (pieceType === KE && y <= 1) return true;
-    } else {
-     if ((pieceType === FU || pieceType === KY) && y === 8) return true;
-     if (pieceType === KE && y >= 7) return true;
+    if (type === 'noise') {
+     for (let i = 0; i < 200; i++) {
+      ctx.fillStyle = accentColor;
+      ctx.fillRect(Math.random() * size, Math.random() * size, 4, 4);
+     }
+    } else if (type === 'wood') {
+     ctx.fillStyle = accentColor;
+     for (let i = 0; i < size; i += 8) {
+      ctx.fillRect(0, i, size, 4);
+     }
+    } else if (type === 'leaves') {
+     for (let i = 0; i < 300; i++) {
+      ctx.fillStyle = Math.random() > 0.5 ? accentColor : baseColor;
+      ctx.fillRect(Math.random() * size, Math.random() * size, 8, 8);
+     }
     }
-    return false;
+
+    const texture = new THREE.CanvasTexture(texCanvas);
+    texture.magFilter = THREE.NearestFilter;
+    texture.minFilter = THREE.NearestFilter;
+    return texture;
    }
 
-   function canPromote(pieceType, turn, fromY, toY) {
-    if (![FU, KY, KE, GI, KA, HI].includes(pieceType)) return false;
-    return turn === SENTE ? (fromY <= 2 || toY <= 2) : (fromY >= 6 || toY >= 6);
+   const textures = {
+    grassTop: generateTexture('#55903b', '#62a844'),
+    grassSide: generateTexture('#6d4c31', '#55903b', 'noise'), // Simulating dirt with grass top manually in material
+    dirt: generateTexture('#6d4c31', '#5c3e26'),
+    stone: generateTexture('#7d7d7d', '#666666'),
+    wood: generateTexture('#5c3e26', '#3b2514', 'wood'),
+    leaves: generateTexture('#427329', '#2e521c', 'leaves'),
+    water: generateTexture('#3f76e4', '#4e85f5')
+   };
+
+
+   // Block Materials
+   const materials = {
+    grass: [
+     new THREE.MeshLambertMaterial({ map: textures.grassSide }), // right
+     new THREE.MeshLambertMaterial({ map: textures.grassSide }), // left
+     new THREE.MeshLambertMaterial({ map: textures.grassTop }),  // top
+     new THREE.MeshLambertMaterial({ map: textures.dirt }),      // bottom
+     new THREE.MeshLambertMaterial({ map: textures.grassSide }), // front
+     new THREE.MeshLambertMaterial({ map: textures.grassSide })  // back
+    ],
+    dirt: new THREE.MeshLambertMaterial({ map: textures.dirt }),
+    stone: new THREE.MeshLambertMaterial({ map: textures.stone }),
+    wood: new THREE.MeshLambertMaterial({ map: textures.wood }),
+    leaves: new THREE.MeshLambertMaterial({ map: textures.leaves, transparent: true, opacity: 0.9 }),
+    water: new THREE.MeshLambertMaterial({ map: textures.water, transparent: true, opacity: 0.6 })
+   };
+
+   const blockTypes = ['grass', 'dirt', 'stone', 'wood', 'leaves', 'water'];
+   let selectedBlockType = 'dirt';
+
+   // Voxel World Data
+   const world = new Map(); // 'x,y,z' -> { type, meshId }
+   const chunkSize = 32;
+   const geometry = new THREE.BoxGeometry(1, 1, 1);
+
+   // Using InstancedMesh for performance
+   const MAX_BLOCKS_PER_TYPE = 10000;
+   const instancedMeshes = {};
+   const availableInstances = {}; // type -> array of free indices
+
+   blockTypes.forEach(type => {
+    const mesh = new THREE.InstancedMesh(geometry, materials[type], MAX_BLOCKS_PER_TYPE);
+    mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    scene.add(mesh);
+    instancedMeshes[type] = mesh;
+
+    // Initialize all instances as hidden (scale 0)
+    const dummy = new THREE.Object3D();
+    dummy.scale.set(0, 0, 0);
+    availableInstances[type] = [];
+    for (let i = 0; i < MAX_BLOCKS_PER_TYPE; i++) {
+     dummy.updateMatrix();
+     mesh.setMatrixAt(i, dummy.matrix);
+     availableInstances[type].push(i);
+    }
+    mesh.instanceMatrix.needsUpdate = true;
+   });
+
+   function getBlock(x, y, z) {
+    return world.get(`${x},${y},${z}`);
    }
 
-   function mustPromote(pieceType, turn, toY) {
-    if (pieceType === FU || pieceType === KY) return turn === SENTE ? toY === 0 : toY === 8;
-    if (pieceType === KE) return turn === SENTE ? toY <= 1 : toY >= 7;
-    return false;
+   const dummy = new THREE.Object3D();
+   function addBlock(x, y, z, type) {
+    const key = `${x},${y},${z}`;
+    if (world.has(key)) return false; // Already occupied
+
+    const freeIndices = availableInstances[type];
+    if (freeIndices.length === 0) return false; // Limit reached
+
+    const id = freeIndices.pop();
+    dummy.position.set(x, y, z);
+    dummy.scale.set(1, 1, 1);
+    dummy.updateMatrix();
+
+    instancedMeshes[type].setMatrixAt(id, dummy.matrix);
+    instancedMeshes[type].instanceMatrix.needsUpdate = true;
+
+    world.set(key, { type, id });
+    return true;
    }
 
-   function getPseudoMoves(board, hand, turn, onlyCaptureOrMove = false) {
-    let moves = [];
+   function removeBlock(x, y, z) {
+    const key = `${x},${y},${z}`;
+    const block = world.get(key);
+    if (!block) return;
 
-    for (let i = 0; i < 81; i++) {
-     let p = board[i];
-     if (p !== 0 && getOwner(p) === turn) {
-      let type = getType(p);
-      let cx = i % 9;
-      let cy = Math.floor(i / 9);
+    // Hide it
+    dummy.position.set(0, 0, 0);
+    dummy.scale.set(0, 0, 0);
+    dummy.updateMatrix();
+    instancedMeshes[block.type].setMatrixAt(block.id, dummy.matrix);
+    instancedMeshes[block.type].instanceMatrix.needsUpdate = true;
 
-      // 1マス移動
-      if (dirVectors[type]) {
-       for (let v of dirVectors[type]) {
-        let nx = cx + (turn === SENTE ? v.x : -v.x);
-        let ny = cy + (turn === SENTE ? v.y : -v.y);
-        if (nx >= 0 && nx < 9 && ny >= 0 && ny < 9) {
-         let ni = ny * 9 + nx;
-         if (getOwner(board[ni]) !== turn) {
-          moves.push({ from: i, to: ni, piece: type, promote: false, isDrop: false });
-         }
+    availableInstances[block.type].push(block.id);
+    world.delete(key);
+   }
+
+
+   function generateWorld() {
+    // Simple heightmap generator
+    function noise(nx, nz) {
+     return Math.sin(nx * 0.2) * 2 + Math.cos(nz * 0.2) * 2 + Math.sin(nx * 0.5 + nz * 0.5);
+    }
+
+    for (let x = -chunkSize / 2; x < chunkSize / 2; x++) {
+     for (let z = -chunkSize / 2; z < chunkSize / 2; z++) {
+      const h = Math.floor(noise(x, z)) + 5;
+
+      // Column
+      for (let y = 0; y <= h; y++) {
+       let type = 'stone';
+       if (y === h) type = 'grass';
+       else if (y > h - 3) type = 'dirt';
+       addBlock(x, y, z, type);
+      }
+
+      // Water layer at y=4
+      if (h < 4) {
+       for (let wy = h + 1; wy <= 4; wy++) {
+        addBlock(x, wy, z, 'water');
+       }
+      }
+
+      // Trees
+      if (h >= 4 && Math.random() < 0.02) {
+       generateTree(x, h + 1, z);
+      }
+     }
+    }
+   }
+
+   function generateTree(x, y, z) {
+    const h = 4 + Math.floor(Math.random() * 2);
+    for (let i = 0; i < h; i++) {
+     addBlock(x, y + i, z, 'wood');
+    }
+    for (let lx = x - 2; lx <= x + 2; lx++) {
+     for (let ly = y + h - 2; ly <= y + h + 1; ly++) {
+      for (let lz = z - 2; lz <= z + 2; lz++) {
+       // shape it slightly round
+       if (Math.abs(lx - x) + Math.abs(ly - (y + h)) + Math.abs(lz - z) < 4) {
+        if (!getBlock(lx, ly, lz)) addBlock(lx, ly, lz, 'leaves');
+       }
+      }
+     }
+    }
+   }
+
+
+   // Player State
+   const player = {
+    pos: new THREE.Vector3(0, 15, 0),
+    vel: new THREE.Vector3(0, 0, 0),
+    width: 0.6,
+    height: 1.6,
+    onGround: false,
+    inWater: false,
+    health: 5,
+    speed: 5,
+    jumpPower: 7
+   };
+
+   yawObject.position.copy(player.pos);
+
+   // Physics & Collision
+   function checkCollision(pos) {
+    const minX = Math.floor(pos.x - player.width / 2);
+    const maxX = Math.floor(pos.x + player.width / 2);
+    const minY = Math.floor(pos.y);
+    const maxY = Math.floor(pos.y + player.height);
+    const minZ = Math.floor(pos.z - player.width / 2);
+    const maxZ = Math.floor(pos.z + player.width / 2);
+
+    let inWaterTemp = false;
+
+    for (let x = minX; x <= maxX; x++) {
+     for (let y = minY; y <= maxY; y++) {
+      for (let z = minZ; z <= maxZ; z++) {
+       const block = getBlock(x, y, z);
+       if (block) {
+        if (block.type === 'water') {
+         inWaterTemp = true;
+        } else {
+         return { hit: true, inWater: inWaterTemp };
         }
        }
       }
-
-      // 飛び駒
-      if (slideVectorsObj[type] || type === UM || type === RY) {
-       let sVecs = slideVectorsObj[type] || (type === UM ? slideVectorsObj[KA] : slideVectorsObj[HI]);
-       for (let v of sVecs) {
-        let dx = turn === SENTE ? v.x : -v.x;
-        let dy = turn === SENTE ? v.y : -v.y;
-        let nx = cx + dx;
-        let ny = cy + dy;
-        while (nx >= 0 && nx < 9 && ny >= 0 && ny < 9) {
-         let ni = ny * 9 + nx;
-         let target = board[ni];
-         if (target === 0) {
-          moves.push({ from: i, to: ni, piece: type, promote: false, isDrop: false });
-         } else {
-          if (getOwner(target) !== turn) {
-           moves.push({ from: i, to: ni, piece: type, promote: false, isDrop: false });
-          }
-          break;
-         }
-         nx += dx;
-         ny += dy;
-        }
-       }
-      }
-
-      // 馬・竜の追加
-      if (type === UM || type === RY) {
-       for (let v of extraVectorsObj[type]) {
-        let nx = cx + (turn === SENTE ? v.x : -v.x);
-        let ny = cy + (turn === SENTE ? v.y : -v.y);
-        if (nx >= 0 && nx < 9 && ny >= 0 && ny < 9) {
-         let ni = ny * 9 + nx;
-         if (getOwner(board[ni]) !== turn) {
-          moves.push({ from: i, to: ni, piece: type, promote: false, isDrop: false });
-         }
-        }
-       }
-      }
      }
     }
-
-    // 持ち駒の打ち込み
-    if (!onlyCaptureOrMove && hand) {
-     for (let type of handPieceTypes) {
-      if (hand[turn][type] > 0) {
-       for (let i = 0; i < 81; i++) {
-        if (board[i] === 0) {
-         let cx = i % 9;
-         let cy = Math.floor(i / 9);
-         if (isDeadEnd(type, turn, cy)) continue;
-         // 二歩チェック
-         if (type === FU) {
-          let hasFu = false;
-          for (let y = 0; y < 9; y++) {
-           if (board[y * 9 + cx] === turn * FU) { hasFu = true; break; }
-          }
-          if (hasFu) continue;
-         }
-         moves.push({ from: -1, to: i, piece: type, promote: false, isDrop: true });
-        }
-       }
-      }
-     }
-    }
-
-    // 成り情報の追加
-    let finalMoves = [];
-    for (let m of moves) {
-     if (m.isDrop) {
-      finalMoves.push(m);
-     } else {
-      let cy = Math.floor(m.from / 9);
-      let ny = Math.floor(m.to / 9);
-      if (canPromote(m.piece, turn, cy, ny)) {
-       if (mustPromote(m.piece, turn, ny)) {
-        finalMoves.push({ ...m, promote: true });
-       } else {
-        finalMoves.push({ ...m, promote: false });
-        finalMoves.push({ ...m, promote: true });
-       }
-      } else {
-       finalMoves.push(m);
-      }
-     }
-    }
-    return finalMoves;
+    return { hit: false, inWater: inWaterTemp };
    }
 
-   function isCheck(board, turn) {
-    let kingPos = board.indexOf(turn * OU);
-    if (kingPos === -1) return false;
-    let oppMoves = getPseudoMoves(board, null, -turn, true);
-    return oppMoves.some(m => m.to === kingPos);
-   }
-
-   function getStrictLegalMoves(board, hand, turn) {
-    let pseudoMoves = getPseudoMoves(board, hand, turn, false);
-    let strictMoves = [];
-    for (let m of pseudoMoves) {
-     let { captured } = doMove(board, hand, turn, m);
-     if (!isCheck(board, turn)) {
-      strictMoves.push(m);
-     }
-     undoMove(board, hand, turn, m, captured);
-    }
-    return strictMoves;
-   }
-
-   function doMove(board, hand, turn, move) {
-    let captured = 0;
-    if (move.isDrop) {
-     hand[turn][move.piece]--;
-     board[move.to] = turn * move.piece;
+   function updatePhysics(dt) {
+    // Apply Gravity / Water drag
+    if (player.inWater) {
+     player.vel.y -= 5 * dt; // Lower gravity
+     player.vel.x *= 0.8;
+     player.vel.z *= 0.8;
+     player.vel.y *= 0.8; // Water resistance
     } else {
-     let targetPiece = board[move.to];
-     if (targetPiece !== 0) {
-      captured = getType(targetPiece);
-      hand[turn][getBasePiece(captured)]++;
-     }
-     board[move.from] = 0;
-     board[move.to] = turn * (move.promote ? promoteMap[move.piece] : move.piece);
+     player.vel.y -= 20 * dt; // Normal gravity
+     player.vel.x *= 0.85; // Ground friction
+     player.vel.z *= 0.85;
     }
-    return { captured };
+
+    // X Movement
+    player.pos.x += player.vel.x * dt;
+    let col = checkCollision(player.pos);
+    if (col.hit) {
+     player.pos.x -= player.vel.x * dt;
+     player.vel.x = 0;
+    }
+
+    // Y Movement
+    player.pos.y += player.vel.y * dt;
+    col = checkCollision(player.pos);
+    player.onGround = false;
+    if (col.hit) {
+     if (player.vel.y < 0) player.onGround = true;
+     player.pos.y -= player.vel.y * dt;
+     player.vel.y = 0;
+    }
+
+    // Z Movement
+    player.pos.z += player.vel.z * dt;
+    col = checkCollision(player.pos);
+    if (col.hit) {
+     player.pos.z -= player.vel.z * dt;
+     player.vel.z = 0;
+    }
+
+    player.inWater = col.inWater;
+
+    // Sync camera
+    yawObject.position.copy(player.pos);
+    yawObject.position.y += player.height; // Camera at eye level
+
+    // Death by falling out of world
+    if (player.pos.y < -10) takeDamage(5);
    }
 
-   function undoMove(board, hand, turn, move, captured) {
-    if (move.isDrop) {
-     board[move.to] = 0;
-     hand[turn][move.piece]++;
-    } else {
-     board[move.from] = turn * move.piece;
-     if (captured !== 0) {
-      board[move.to] = (-turn) * captured;
-      hand[turn][getBasePiece(captured)]--;
+
+   // Input Handling
+   const keys = { w: false, a: false, s: false, d: false, space: false };
+   let isLocked = false;
+   let isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+   // Desktop Controls
+   document.addEventListener('keydown', (e) => {
+    if (e.code === 'KeyW') keys.w = true;
+    if (e.code === 'KeyA') keys.a = true;
+    if (e.code === 'KeyS') keys.s = true;
+    if (e.code === 'KeyD') keys.d = true;
+    if (e.code === 'Space') keys.space = true;
+   });
+   document.addEventListener('keyup', (e) => {
+    if (e.code === 'KeyW') keys.w = false;
+    if (e.code === 'KeyA') keys.a = false;
+    if (e.code === 'KeyS') keys.s = false;
+    if (e.code === 'KeyD') keys.d = false;
+    if (e.code === 'Space') keys.space = false;
+   });
+
+   document.addEventListener('mousemove', (e) => {
+    if (document.pointerLockElement === document.body) {
+     yawObject.rotation.y -= e.movementX * 0.002;
+     pitchObject.rotation.x -= e.movementY * 0.002;
+     pitchObject.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, pitchObject.rotation.x));
+    }
+   });
+
+   document.addEventListener('mousedown', (e) => {
+    if (document.pointerLockElement === document.body) {
+     if (e.button === 0) interact('mine');
+     if (e.button === 2) interact('place');
+    }
+   });
+
+   // Mobile Controls
+   let joyActive = false;
+   let joyVector = { x: 0, y: 0 };
+   const joyZone = document.getElementById('joystick-zone');
+   const joyKnob = document.getElementById('joystick-knob');
+   const lookZone = document.getElementById('look-zone');
+
+   joyZone.addEventListener('touchstart', (e) => { joyActive = true; updateJoy(e); }, { passive: false });
+   joyZone.addEventListener('touchmove', (e) => { if (joyActive) updateJoy(e); }, { passive: false });
+   joyZone.addEventListener('touchend', () => { joyActive = false; joyVector = { x: 0, y: 0 }; joyKnob.style.transform = `translate(0px, 0px)`; });
+
+   function updateJoy(e) {
+    e.preventDefault();
+    const touch = e.targetTouches[0];
+    const rect = joyZone.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+    let dx = touch.clientX - cx;
+    let dy = touch.clientY - cy;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    const maxDist = 35;
+
+    if (dist > maxDist) {
+     dx = (dx / dist) * maxDist;
+     dy = (dy / dist) * maxDist;
+    }
+
+    joyKnob.style.transform = `translate(${dx}px, ${dy}px)`;
+    joyVector.x = dx / maxDist;
+    joyVector.y = dy / maxDist;
+   }
+
+   let lastTouch = null;
+   lookZone.addEventListener('touchstart', (e) => { lastTouch = { x: e.touches[0].clientX, y: e.touches[0].clientY }; }, { passive: false });
+   lookZone.addEventListener('touchmove', (e) => {
+    e.preventDefault();
+    if (!lastTouch) return;
+    const touch = e.touches[0];
+    const dx = touch.clientX - lastTouch.x;
+    const dy = touch.clientY - lastTouch.y;
+
+    yawObject.rotation.y -= dx * 0.005;
+    pitchObject.rotation.x -= dy * 0.005;
+    pitchObject.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, pitchObject.rotation.x));
+
+    lastTouch = { x: touch.clientX, y: touch.clientY };
+   }, { passive: false });
+   lookZone.addEventListener('touchend', () => { lastTouch = null; });
+
+   document.getElementById('btn-jump').addEventListener('touchstart', (e) => { e.preventDefault(); keys.space = true; }, { passive: false });
+   document.getElementById('btn-jump').addEventListener('touchend', (e) => { e.preventDefault(); keys.space = false; }, { passive: false });
+
+   document.getElementById('btn-mine').addEventListener('touchstart', (e) => { e.preventDefault(); interact('mine'); }, { passive: false });
+   document.getElementById('btn-place').addEventListener('touchstart', (e) => { e.preventDefault(); interact('place'); }, { passive: false });
+
+
+   // Raycasting for Interaction
+   const raycaster = new THREE.Raycaster();
+   const center = new THREE.Vector2(0, 0);
+
+   function interact(action) {
+    raycaster.setFromCamera(center, camera);
+
+    // Collect all instanced meshes
+    const meshes = Object.values(instancedMeshes);
+    const intersects = raycaster.intersectObjects(meshes);
+
+    if (intersects.length > 0) {
+     // Find closest that is not water (unless we want to interact with water)
+     let hit = null;
+     for (let i = 0; i < intersects.length; i++) {
+      // Quick check by finding which mesh it is, not perfect but okay
+      if (intersects[i].object !== instancedMeshes['water']) {
+       hit = intersects[i];
+       break;
+      }
+     }
+     if (!hit) hit = intersects[0];
+
+     if (hit.distance > 5) return; // Reach distance
+
+     const pos = new THREE.Vector3().copy(hit.point).sub(hit.face.normal.clone().multiplyScalar(0.5));
+     const blockPos = new THREE.Vector3(Math.round(pos.x), Math.round(pos.y), Math.round(pos.z));
+
+     if (action === 'mine') {
+      removeBlock(blockPos.x, blockPos.y, blockPos.z);
+     } else if (action === 'place') {
+      const placePos = blockPos.clone().add(hit.face.normal);
+      // Prevent placing block inside player
+      const distToPlayer = placePos.distanceTo(new THREE.Vector3(Math.round(player.pos.x), Math.round(player.pos.y), Math.round(player.pos.z)));
+      if (distToPlayer > 1) {
+       addBlock(placePos.x, placePos.y, placePos.z, selectedBlockType);
+      }
+     }
+    }
+   }
+
+
+   const hotbar = document.getElementById('hotbar');
+   blockTypes.forEach((type, index) => {
+    const slot = document.createElement('div');
+    slot.className = `slot ${index === 1 ? 'selected' : ''}`;
+    slot.onclick = () => selectBlock(type, slot);
+
+    const inner = document.createElement('div');
+    inner.className = 'slot-inner';
+    // Simple colors for hotbar
+    const colors = { grass: '#55903b', dirt: '#6d4c31', stone: '#7d7d7d', wood: '#5c3e26', leaves: '#427329', water: '#3f76e4' };
+    inner.style.backgroundColor = colors[type];
+
+    slot.appendChild(inner);
+    hotbar.appendChild(slot);
+   });
+
+   function selectBlock(type, slotElement) {
+    selectedBlockType = type;
+    document.querySelectorAll('.slot').forEach(s => s.classList.remove('selected'));
+    if (slotElement) slotElement.classList.add('selected');
+   }
+
+   function updateHealthUI() {
+    const container = document.getElementById('health-bar');
+    container.innerHTML = '';
+    for (let i = 0; i < player.health; i++) {
+     const heart = document.createElement('div');
+     heart.className = 'heart';
+     container.appendChild(heart);
+    }
+    if (player.health <= 0) {
+     gameOver();
+    }
+   }
+
+
+   class Zombie {
+    constructor(x, y, z) {
+     this.pos = new THREE.Vector3(x, y, z);
+     this.vel = new THREE.Vector3(0, 0, 0);
+     this.width = 0.6;
+     this.height = 1.8;
+
+     const geo = new THREE.BoxGeometry(0.6, 1.8, 0.6);
+     const mat = new THREE.MeshLambertMaterial({ color: 0xff0000 }); // Red Cube for zombie
+     this.mesh = new THREE.Mesh(geo, mat);
+     this.mesh.castShadow = true;
+     scene.add(this.mesh);
+
+     this.lastAttack = 0;
+    }
+
+    update(dt) {
+     // AI: move towards player if close
+     const dist = this.pos.distanceTo(player.pos);
+     if (dist < 15 && dist > 1) {
+      const dir = new THREE.Vector3().subVectors(player.pos, this.pos);
+      dir.y = 0;
+      dir.normalize();
+      this.vel.x = dir.x * 3;
+      this.vel.z = dir.z * 3;
      } else {
-      board[move.to] = 0;
-     }
-    }
-   }
-
-   function evaluate(board, hand) {
-    let score = 0;
-    for (let i = 0; i < 81; i++) {
-     let p = board[i];
-     if (p !== 0) {
-      let val = pieceValues[getType(p)];
-      score += (getOwner(p) === SENTE) ? val : -val;
-     }
-    }
-    for (let type of handPieceTypes) {
-     score += hand[SENTE][type] * pieceValues[type] * 1.1;
-     score -= hand[GOTE][type] * pieceValues[type] * 1.1;
-    }
-    return score;
-   }
-
-   function minimax(board, hand, turn, depth, alpha, beta) {
-    let myKings = board.indexOf(turn * OU);
-    let oppKings = board.indexOf(-turn * OU);
-    if (myKings === -1) return (turn === SENTE) ? -999999 : 999999;
-    if (oppKings === -1) return (turn === SENTE) ? 999999 : -999999;
-
-    if (depth === 0) return evaluate(board, hand);
-
-    let moves = getPseudoMoves(board, hand, turn, false);
-    if (moves.length === 0) return (turn === SENTE) ? -999999 : 999999;
-
-    let isMax = (turn === SENTE);
-    let bestVal = isMax ? -Infinity : Infinity;
-
-    for (let m of moves) {
-     let { captured } = doMove(board, hand, turn, m);
-     let ev = minimax(board, hand, -turn, depth - 1, alpha, beta);
-     undoMove(board, hand, turn, m, captured);
-
-     if (isMax) {
-      bestVal = Math.max(bestVal, ev);
-      alpha = Math.max(alpha, ev);
-     } else {
-      bestVal = Math.min(bestVal, ev);
-      beta = Math.min(beta, ev);
-     }
-     if (beta <= alpha) break;
-    }
-    return bestVal;
-   }
-
-   function getAIMove(difficulty) {
-    let depth = (difficulty === 'easy') ? 2 : 3;
-    let moves = getStrictLegalMoves(state.board, state.hand, state.turn);
-    if (moves.length === 0) return null;
-
-    let bestMove = null;
-    let minEval = Infinity;
-
-    moves.sort(() => Math.random() - 0.5);
-
-    for (let m of moves) {
-     let { captured } = doMove(state.board, state.hand, state.turn, m);
-     let ev = minimax(state.board, state.hand, -state.turn, depth - 1, -Infinity, Infinity);
-     undoMove(state.board, state.hand, state.turn, m, captured);
-
-     if (difficulty === 'easy') ev += (Math.random() * 200 - 100);
-
-     if (ev < minEval) {
-      minEval = ev;
-      bestMove = m;
-     }
-    }
-    return bestMove;
-   }
-
-   function renderStatus(msg, isError = false) {
-    const msgEl = document.getElementById('message');
-    msgEl.textContent = msg;
-    msgEl.className = `text-center text-lg font-bold h-6 ${isError ? 'text-red-600' : 'text-blue-600'}`;
-   }
-
-   function renderBoard() {
-    const boardEl = document.getElementById('board');
-    boardEl.innerHTML = '';
-
-    for (let i = 0; i < 81; i++) {
-     let cell = document.createElement('div');
-     cell.className = 'cell flex justify-center items-center relative cursor-pointer';
-
-     let p = state.board[i];
-     if (p !== 0) {
-      let pieceEl = document.createElement('div');
-      let type = getType(p);
-      pieceEl.textContent = pieceChars[type];
-      pieceEl.className = 'piece-text text-xl sm:text-2xl font-black select-none pointer-events-none transition-transform';
-      if (getOwner(p) === GOTE) pieceEl.classList.add('rotate-180');
-      if ([TO, NY, NK, NG, UM, RY].includes(type)) pieceEl.classList.add('text-red-600');
-      else pieceEl.classList.add('text-gray-900');
-      cell.appendChild(pieceEl);
+      this.vel.x *= 0.5;
+      this.vel.z *= 0.5;
      }
 
-     // 選択中ハイライト
-     if (state.selectedSq === i) {
-      cell.classList.add('bg-yellow-300', 'bg-opacity-70');
-     }
+     // Gravity
+     this.vel.y -= 20 * dt;
 
-     // 移動可能先ハイライト
-     if (state.selectedSq !== null) {
-      let isTarget = false;
-      if (typeof state.selectedSq === 'number') {
-       isTarget = state.legalMovesCache.some(m => !m.isDrop && m.from === state.selectedSq && m.to === i);
-      } else if (typeof state.selectedSq === 'string') {
-       let type = parseInt(state.selectedSq.split('_')[2]);
-       isTarget = state.legalMovesCache.some(m => m.isDrop && m.piece === type && m.to === i);
+     // Move & Collide (simplified AABB)
+     this.pos.x += this.vel.x * dt;
+     if (this.checkCol()) { this.pos.x -= this.vel.x * dt; this.vel.x = 0; }
+
+     this.pos.y += this.vel.y * dt;
+     if (this.checkCol()) {
+      if (this.vel.y < 0 && this.vel.x !== 0 && Math.random() < 0.1) {
+       this.vel.y = 6; // auto jump if stuck
       }
-      if (isTarget) {
-       let dot = document.createElement('div');
-       dot.className = 'w-3 h-3 bg-red-500 rounded-full opacity-60 absolute pointer-events-none';
-       cell.appendChild(dot);
-      }
+      this.pos.y -= this.vel.y * dt;
+      this.vel.y = 0;
      }
 
-     cell.addEventListener('click', () => handleCellClick(i));
-     boardEl.appendChild(cell);
+     this.pos.z += this.vel.z * dt;
+     if (this.checkCol()) { this.pos.z -= this.vel.z * dt; this.vel.z = 0; }
+
+     this.mesh.position.copy(this.pos);
+     this.mesh.position.y += this.height / 2;
+
+     // Attack
+     if (dist < 1.5 && performance.now() - this.lastAttack > 1000) {
+      takeDamage(1);
+      this.lastAttack = performance.now();
+     }
     }
 
-    renderHand(SENTE, 'sente-hand');
-    renderHand(GOTE, 'gote-hand');
-   }
-
-   function renderHand(turn, elementId) {
-    const el = document.getElementById(elementId);
-    el.innerHTML = '';
-
-    for (let type of handPieceTypes) {
-     let count = state.hand[turn][type];
-     if (count > 0) {
-      let pDiv = document.createElement('div');
-      pDiv.className = `w-10 h-10 sm:w-12 sm:h-12 board-bg border border-[#4a3b32] flex items-center justify-center font-black text-lg cursor-pointer relative select-none shadow-sm transition-transform ${turn === GOTE ? 'rotate-180' : ''}`;
-      pDiv.textContent = pieceChars[type];
-
-      if (count > 1) {
-       let badge = document.createElement('span');
-       badge.className = `absolute -bottom-2 -right-2 bg-red-600 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center border border-white ${turn === GOTE ? 'rotate-180' : ''}`;
-       badge.textContent = count;
-       pDiv.appendChild(badge);
-      }
-
-      if (state.selectedSq === `hand_${turn}_${type}`) {
-       pDiv.classList.add('ring-2', 'ring-blue-500', 'z-10');
-      }
-
-      pDiv.addEventListener('click', () => handleHandClick(turn, type));
-      el.appendChild(pDiv);
-     }
+    checkCol() {
+     // Simplify to just checking block at feet and head
+     const bx = Math.round(this.pos.x);
+     const by1 = Math.floor(this.pos.y);
+     const by2 = Math.floor(this.pos.y + 1);
+     const bz = Math.round(this.pos.z);
+     const b1 = getBlock(bx, by1, bz);
+     const b2 = getBlock(bx, by2, bz);
+     return (b1 && b1.type !== 'water') || (b2 && b2.type !== 'water');
     }
    }
 
-   function getSelectedMoveTo(index) {
-    if (state.selectedSq === null) return null;
-    if (typeof state.selectedSq === 'number') {
-     return state.legalMovesCache.find(m => !m.isDrop && m.from === state.selectedSq && m.to === index);
+   const mobs = [];
+   function spawnMobs() {
+    for (let i = 0; i < 3; i++) {
+     const x = (Math.random() - 0.5) * 20;
+     const z = (Math.random() - 0.5) * 20;
+     mobs.push(new Zombie(x, 15, z));
+    }
+   }
+
+   function takeDamage(amount) {
+    player.health -= amount;
+    updateHealthUI();
+
+    // Visual feedback
+    const overlay = document.createElement('div');
+    overlay.style.position = 'absolute';
+    overlay.style.top = '0'; overlay.style.left = '0';
+    overlay.style.width = '100%'; overlay.style.height = '100%';
+    overlay.style.backgroundColor = 'rgba(255,0,0,0.5)';
+    overlay.style.pointerEvents = 'none';
+    overlay.style.transition = 'opacity 0.5s';
+    document.body.appendChild(overlay);
+    setTimeout(() => { overlay.style.opacity = '0'; }, 50);
+    setTimeout(() => { overlay.remove(); }, 550);
+   }
+
+
+   let lastTime = performance.now();
+   let gameRunning = false;
+
+   function update() {
+    if (!gameRunning) return;
+    requestAnimationFrame(update);
+
+    const time = performance.now();
+    const dt = Math.min((time - lastTime) / 1000, 0.1);
+    lastTime = time;
+
+    // Player Input -> Velocity
+    const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(yawObject.quaternion);
+    const right = new THREE.Vector3(1, 0, 0).applyQuaternion(yawObject.quaternion);
+
+    let moveX = 0; let moveZ = 0;
+
+    if (keys.w) { moveX += forward.x; moveZ += forward.z; }
+    if (keys.s) { moveX -= forward.x; moveZ -= forward.z; }
+    if (keys.a) { moveX -= right.x; moveZ -= right.z; }
+    if (keys.d) { moveX += right.x; moveZ += right.z; }
+
+    if (isMobile && joyActive) {
+     // joyVector y is forward/back, x is left/right
+     moveX += forward.x * -joyVector.y + right.x * joyVector.x;
+     moveZ += forward.z * -joyVector.y + right.z * joyVector.x;
+    }
+
+    // Normalize movement
+    if (moveX !== 0 || moveZ !== 0) {
+     const len = Math.sqrt(moveX * moveX + moveZ * moveZ);
+     moveX /= len; moveZ /= len;
+     player.vel.x += moveX * player.speed * dt * (player.onGround ? 10 : 2);
+     player.vel.z += moveZ * player.speed * dt * (player.onGround ? 10 : 2);
+    }
+
+    if (keys.space && (player.onGround || player.inWater)) {
+     player.vel.y = player.jumpPower;
+     keys.space = false; // require re-press, except in water maybe
+     if (player.inWater) keys.space = true; // swim up
+    }
+
+    updatePhysics(dt);
+
+    mobs.forEach(mob => mob.update(dt));
+
+    renderer.render(scene, camera);
+   }
+
+   // Game State Management
+   document.getElementById('start-btn').addEventListener('click', startGame);
+
+   function startGame() {
+    document.getElementById('overlay-screen').style.display = 'none';
+    if (!isMobile) {
+     document.body.requestPointerLock();
     } else {
-     let type = parseInt(state.selectedSq.split('_')[2]);
-     return state.legalMovesCache.find(m => m.isDrop && m.piece === type && m.to === index);
-    }
-   }
-
-   function handleCellClick(index) {
-    if (state.turn !== SENTE || isCpuThinking) return;
-
-    let move = getSelectedMoveTo(index);
-    if (move) {
-     if (!move.isDrop && canPromote(move.piece, SENTE, Math.floor(move.from / 9), Math.floor(index / 9))) {
-      if (mustPromote(move.piece, SENTE, Math.floor(index / 9))) {
-       move.promote = true;
-       executePlayerMove(move);
-      } else {
-       showPromoteDialog().then(prom => {
-        move.promote = prom;
-        executePlayerMove(move);
-       });
-      }
-     } else {
-      executePlayerMove(move);
+     // Fullscreen for better mobile experience
+     if (document.documentElement.requestFullscreen) {
+      document.documentElement.requestFullscreen().catch(e => console.log(e));
      }
-     return;
     }
 
-    let p = state.board[index];
-    if (p !== 0 && getOwner(p) === SENTE) {
-     state.selectedSq = index;
-     renderBoard();
-    } else {
-     state.selectedSq = null;
-     renderBoard();
+    if (!gameRunning) {
+     generateWorld();
+     spawnMobs();
+     updateHealthUI();
+     gameRunning = true;
+     lastTime = performance.now();
+     update();
     }
    }
 
-   function handleHandClick(turn, pieceType) {
-    if (state.turn !== SENTE || isCpuThinking || turn !== SENTE) return;
-    state.selectedSq = `hand_${turn}_${pieceType}`;
-    renderBoard();
+   function gameOver() {
+    gameRunning = false;
+    document.exitPointerLock?.();
+    const overlay = document.getElementById('overlay-screen');
+    overlay.style.display = 'flex';
+    document.getElementById('screen-title').innerText = "Game Over";
+    document.getElementById('screen-title').style.color = "red";
+    document.getElementById('start-btn').innerText = "Respawn";
+
+    // Reset player
+    player.health = 5;
+    player.pos.set(0, 15, 0);
+    player.vel.set(0, 0, 0);
    }
 
-   function showPromoteDialog() {
-    return new Promise((resolve) => {
-     const modal = document.getElementById('promote-modal');
-     modal.classList.remove('hidden');
-     modal.classList.add('flex');
+   window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+   });
 
-     const cleanup = () => {
-      modal.classList.add('hidden');
-      modal.classList.remove('flex');
-      document.getElementById('btn-promote').onclick = null;
-      document.getElementById('btn-not-promote').onclick = null;
-     };
+   // Prevent context menu
+   document.addEventListener('contextmenu', e => e.preventDefault());
 
-     document.getElementById('btn-promote').onclick = () => { cleanup(); resolve(true); };
-     document.getElementById('btn-not-promote').onclick = () => { cleanup(); resolve(false); };
-    });
-   }
-
-   function showGameOver(title) {
-    const modal = document.getElementById('gameover-modal');
-    document.getElementById('gameover-title').textContent = title;
-    modal.classList.remove('hidden');
-    modal.classList.add('flex');
-    document.getElementById('btn-restart').onclick = () => {
-     modal.classList.add('hidden');
-     modal.classList.remove('flex');
-     initGame();
-    };
-   }
-
-   async function executePlayerMove(move) {
-    doMove(state.board, state.hand, state.turn, move);
-    state.turn *= -1;
-    state.selectedSq = null;
-    state.legalMovesCache = getStrictLegalMoves(state.board, state.hand, state.turn);
-    renderBoard();
-
-    if (state.legalMovesCache.length === 0) {
-     renderStatus("詰みです");
-     showGameOver("あなたの勝ちです！🎉");
-     return;
-    }
-
-    isCpuThinking = true;
-    renderStatus("CPUが思考中...");
-
-    // UIを更新させてからCPU思考開始
-    setTimeout(processCpuTurn, 50);
-   }
-
-   function processCpuTurn() {
-    let diff = document.getElementById('difficulty').value;
-    let aiMove = getAIMove(diff);
-
-    if (!aiMove) {
-     renderStatus("詰みです");
-     showGameOver("あなたの勝ちです！🎉");
-     return;
-    }
-
-    doMove(state.board, state.hand, state.turn, aiMove);
-    state.turn *= -1;
-    state.legalMovesCache = getStrictLegalMoves(state.board, state.hand, state.turn);
-    isCpuThinking = false;
-    renderBoard();
-
-    if (state.legalMovesCache.length === 0) {
-     renderStatus("詰みです");
-     showGameOver("CPUの勝ちです🤖");
-     return;
-    }
-
-    renderStatus("あなたの番です");
-   }
-
-   function initGame() {
-    state.board = [...initialBoardState];
-    handPieceTypes.forEach(t => {
-     state.hand[SENTE][t] = 0;
-     state.hand[GOTE][t] = 0;
-    });
-    state.turn = SENTE;
-    state.selectedSq = null;
-    isCpuThinking = false;
-    state.legalMovesCache = getStrictLegalMoves(state.board, state.hand, state.turn);
-
-    renderBoard();
-    renderStatus("あなたの番です");
-   }
-
-   document.getElementById('reset-btn').addEventListener('click', initGame);
-
-   // ゲーム開始
-   window.onload = initGame;
   </script>
  </body>
 </html>

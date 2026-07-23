@@ -3,1079 +3,760 @@
  <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Galactic Striker - Web Shooter</title>
+  <title>Web 囲碁 (9路盤)</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-   @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+   @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&display=swap');
 
-   body,
-   html {
-    margin: 0;
-    padding: 0;
-    width: 100%;
-    height: 100%;
-    background-color: #000;
-    overflow: hidden;
-    font-family: 'Press Start 2P', monospace;
-    touch-action: none;
-    /* スマホでのスクロールを防止 */
+   body {
+    font-family: 'Noto Sans JP', sans-serif;
+    background-color: #f3f4f6;
+    touch-action: manipulation;
+    /* スマホでのダブルタップズーム防止 */
+    -webkit-tap-highlight-color: transparent;
    }
 
-   #game-container {
-    position: relative;
-    width: 100%;
-    height: 100%;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-   }
-
-   canvas {
+   /* 碁盤の質感 */
+   #go-board {
+    background-color: #dcb35c;
+    background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.05' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100' height='100' filter='url(%23noise)' opacity='0.15'/%3E%3C/svg%3E");
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.1), inset 0 0 10px rgba(0, 0, 0, 0.1);
+    border-radius: 4px;
+    max-width: 100%;
     display: block;
-    box-shadow: 0 0 20px rgba(0, 255, 255, 0.2);
-    background-color: #050510;
+    margin: 0 auto;
    }
 
-   #mobile-controls {
-    position: absolute;
-    bottom: 20px;
-    right: 20px;
-    display: flex;
-    gap: 15px;
-    z-index: 10;
-    display: none;
-    /* デフォルトは非表示、タッチデバイスで表示 */
+   /* カスタムスクロールバー等 */
+   .btn-game {
+    transition: all 0.2s;
    }
 
-   @media (hover: none) and (pointer: coarse) {
-    #mobile-controls {
-     display: flex;
-    }
-   }
-
-   .action-btn {
-    width: 70px;
-    height: 70px;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.2);
-    border: 2px solid rgba(255, 255, 255, 0.5);
-    color: white;
-    font-size: 10px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    user-select: none;
-    backdrop-filter: blur(4px);
-    font-family: 'Press Start 2P', monospace;
-    text-align: center;
-   }
-
-   .action-btn:active {
-    background: rgba(255, 255, 255, 0.5);
-    transform: scale(0.95);
-   }
-
-   #touch-area-left {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 50%;
-    height: 100%;
-    z-index: 5;
-   }
-
-   #ui-layer {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    pointer-events: none;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    padding: 20px;
-    box-sizing: border-box;
-   }
-
-   #game-over,
-   #title-screen {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.8);
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    color: white;
-    z-index: 20;
-    pointer-events: auto;
+   .btn-game:active {
+    transform: translateY(2px);
    }
   </style>
  </head>
- <body>
+ <body class="min-h-screen flex flex-col items-center py-6 px-4">
 
-  <div id="game-container">
-   <canvas id="gameCanvas"></canvas>
-
-   <!-- Touch Controls -->
-   <div id="touch-area-left"></div>
-   <div id="mobile-controls">
-    <div id="btn-powerup" class="action-btn">PWR<br>UP</div>
-    <div id="btn-shoot" class="action-btn" style="background: rgba(255, 50, 50, 0.3);">SHOOT</div>
-   </div>
-
-   <!-- Overlays -->
-   <div id="title-screen">
-    <h1 class="text-3xl md:text-5xl text-blue-400 mb-8 text-center" style="text-shadow: 0 0 10px blue;">GALACTIC STRIKER
+  <div class="w-full max-w-md bg-white rounded-xl shadow-xl overflow-hidden">
+   <div class="bg-slate-800 text-white py-4 px-6 text-center relative">
+    <h1 class="text-2xl font-bold tracking-wider">囲碁 <span class="text-sm font-normal text-slate-300 ml-2">9路盤</span>
     </h1>
-    <p class="text-sm md:text-base text-gray-300 mb-4 text-center leading-relaxed">
-     PC: Arrow keys/WASD to move.<br>Z to Shoot, X to Power Up.<br><br>
-     Mobile: Drag left side to move.<br>Use buttons on right.
-    </p>
-    <button id="start-btn"
-     class="mt-8 px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded font-bold border-2 border-white">START
-     GAME</button>
    </div>
 
-   <div id="game-over" style="display: none;">
-    <h1 class="text-4xl text-red-500 mb-4" id="game-over-title">GAME OVER</h1>
-    <p class="text-xl mb-8" id="final-score">Score: 0</p>
-    <button id="restart-btn"
-     class="px-6 py-3 bg-red-600 hover:bg-red-500 text-white rounded font-bold border-2 border-white">RETRY</button>
+   <div class="p-4 md:p-6 flex flex-col gap-4">
+
+    <!-- ステータス・スコア表示 -->
+    <div class="flex justify-between items-center bg-slate-50 p-3 rounded-lg border border-slate-200">
+     <div class="flex items-center gap-2">
+      <div class="w-6 h-6 rounded-full bg-black shadow-inner flex items-center justify-center border border-gray-700">
+      </div>
+      <div class="flex flex-col">
+       <span class="text-xs text-gray-500 font-bold">あなた (黒)</span>
+       <span id="player-captures" class="text-sm font-bold">アゲハマ: 0</span>
+      </div>
+     </div>
+
+     <div class="text-center">
+      <div id="turn-indicator" class="text-sm font-bold px-3 py-1 bg-blue-100 text-blue-800 rounded-full animate-pulse">
+       黒の番です
+      </div>
+     </div>
+
+     <div class="flex items-center gap-2">
+      <div class="flex flex-col text-right">
+       <span class="text-xs text-gray-500 font-bold">CPU (白)</span>
+       <span id="cpu-captures" class="text-sm font-bold">アゲハマ: 0</span>
+      </div>
+      <div class="w-6 h-6 rounded-full bg-white shadow-inner flex items-center justify-center border border-gray-300">
+      </div>
+     </div>
+    </div>
+
+    <!-- メッセージエリア -->
+    <div id="message-box"
+     class="h-8 flex items-center justify-center text-sm font-bold text-slate-700 bg-amber-50 rounded border border-amber-200 transition-opacity duration-300">
+     対局を開始します。黒番（あなた）からどうぞ。
+    </div>
+
+    <!-- 碁盤キャンバス -->
+    <div class="w-full relative touch-none">
+     <canvas id="go-board" width="400" height="400"></canvas>
+
+     <!-- 結果オーバーレイ -->
+     <div id="result-overlay"
+      class="absolute inset-0 bg-black/70 hidden flex-col items-center justify-center rounded text-white z-10 backdrop-blur-sm">
+      <h2 class="text-3xl font-bold mb-2">終局</h2>
+      <p id="result-text" class="text-lg mb-6 text-center px-4"></p>
+      <button onclick="resetGame()"
+       class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-6 rounded-full shadow-lg btn-game">
+       もう一度遊ぶ
+      </button>
+     </div>
+    </div>
+
+    <!-- コントロールパネル -->
+    <div class="grid grid-cols-2 gap-3 mt-2">
+     <div class="col-span-2 flex justify-between items-center bg-gray-50 p-2 rounded border">
+      <span class="text-sm font-bold text-gray-700 ml-2">CPUの強さ:</span>
+      <div class="flex gap-1">
+       <button onclick="setDifficulty('easy')" id="diff-easy"
+        class="px-3 py-1 text-xs font-bold rounded bg-gray-200 text-gray-700 hover:bg-gray-300 transition-colors">弱い</button>
+       <button onclick="setDifficulty('normal')" id="diff-normal"
+        class="px-3 py-1 text-xs font-bold rounded bg-blue-500 text-white shadow transition-colors">普通</button>
+       <button onclick="setDifficulty('hard')" id="diff-hard"
+        class="px-3 py-1 text-xs font-bold rounded bg-gray-200 text-gray-700 hover:bg-gray-300 transition-colors">強い</button>
+      </div>
+     </div>
+
+     <button onclick="playerPass()" id="btn-pass"
+      class="bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 font-bold py-3 rounded-lg shadow-sm btn-game text-sm flex items-center justify-center gap-1">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7"></path>
+      </svg>
+      パスする
+     </button>
+     <button onclick="resetGame()"
+      class="bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 font-bold py-3 rounded-lg shadow-sm btn-game text-sm flex items-center justify-center gap-1">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+        d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15">
+       </path>
+      </svg>
+      はじめから
+     </button>
+    </div>
+
+    <div class="text-xs text-gray-400 mt-2 text-center">
+     ※中国ルール（陣地＋生き石の数）で簡易判定します。<br>
+     ※双方がパスをすると終局（判定）となります。
+    </div>
    </div>
   </div>
 
   <script>
-   const canvas = document.getElementById('gameCanvas');
+   const canvas = document.getElementById('go-board');
    const ctx = canvas.getContext('2d');
 
-   // 内部解像度（レトロ感と処理負荷低減のため固定サイズで描画し、CSSで引き伸ばす）
-   const GAME_WIDTH = 800;
-   const GAME_HEIGHT = 450;
+   // 囲碁の定数
+   const BOARD_SIZE = 9;
+   const EMPTY = 0;
+   const BLACK = 1;
+   const WHITE = 2;
 
-   function resize() {
-    const windowRatio = window.innerWidth / window.innerHeight;
-    const gameRatio = GAME_WIDTH / GAME_HEIGHT;
+   // UI定数
+   const MARGIN = 20; // キャンバスの余白
+   let CELL_SIZE = 0; // 描画時のマス目のサイズ（レスポンシブ対応）
 
-    if (windowRatio < gameRatio) {
-     canvas.style.width = window.innerWidth + 'px';
-     canvas.style.height = (window.innerWidth / gameRatio) + 'px';
-    } else {
-     canvas.style.width = (window.innerHeight * gameRatio) + 'px';
-     canvas.style.height = window.innerHeight + 'px';
-    }
+   // ゲーム状態
+   let board = new Array(BOARD_SIZE * BOARD_SIZE).fill(EMPTY);
+   let currentTurn = BLACK; // 1: プレイヤー(黒), 2: CPU(白)
+   let playerCaptures = 0;
+   let cpuCaptures = 0;
+   let gameOver = false;
+   let boardHistory = []; // コウ（Ko）判定用
+   let consecutivePasses = 0;
+   let difficulty = 'normal';
+   let isProcessing = false; // 連続タップ防止
 
-    canvas.width = GAME_WIDTH;
-    canvas.height = GAME_HEIGHT;
+   // 難易度設定の初期化
+   const difficulties = {
+    'easy': { element: 'diff-easy' },
+    'normal': { element: 'diff-normal' },
+    'hard': { element: 'diff-hard' }
+   };
 
-    // フォントのスケーリング対策
-    ctx.textBaseline = 'top';
+   // UI要素
+   const msgBox = document.getElementById('message-box');
+   const turnIndicator = document.getElementById('turn-indicator');
+   const pCapturesEl = document.getElementById('player-captures');
+   const cCapturesEl = document.getElementById('cpu-captures');
+   const resultOverlay = document.getElementById('result-overlay');
+   const resultText = document.getElementById('result-text');
+
+
+   // 画面リサイズ対応
+   function resizeCanvas() {
+    const container = canvas.parentElement;
+    const size = Math.min(container.clientWidth, 500); // 最大500px
+
+    // 高解像度ディスプレイ対応
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = size * dpr;
+    canvas.height = size * dpr;
+    canvas.style.width = `${size}px`;
+    canvas.style.height = `${size}px`;
+
+    ctx.scale(dpr, dpr);
+
+    CELL_SIZE = (size - MARGIN * 2) / (BOARD_SIZE - 1);
+    drawBoard();
    }
 
-   window.addEventListener('resize', resize);
-   resize();
+   window.addEventListener('resize', resizeCanvas);
 
-   const POWERUP_TYPES = [
-    { name: "SPEED", color: "#3498db" },
-    { name: "MISSILE", color: "#e74c3c" },
-    { name: "DOUBLE", color: "#f1c40f" },
-    { name: "LASER", color: "#2ecc71" },
-    { name: "OPTION", color: "#9b59b6" },
-    { name: "SHIELD", color: "#e67e22" }
-   ];
+   // 盤面描画
+   function drawBoard() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-   const STATE = {
-    TITLE: 0,
-    PLAYING: 1,
-    GAMEOVER: 2,
-    STAGECLEAR: 3
-   };
+    // 罫線を描画
+    ctx.beginPath();
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 1.2;
 
-   let game = {
-    state: STATE.TITLE,
-    score: 0,
-    lives: 3,
-    stage: 1,
-    scrollX: 0,
-    frame: 0,
-    bossActive: false,
-    entities: {
-     player: null,
-     bullets: [],
-     enemies: [],
-     particles: [],
-     items: [],
-     options: []
-    },
-    keys: { ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false, z: false, x: false },
-    touch: { active: false, x: 0, y: 0, originX: 0, originY: 0, playerOriginX: 0, playerOriginY: 0 },
-    shooting: false,
-    stars: []
-   };
-
-   class Player {
-    constructor() {
-     this.x = 100;
-     this.y = GAME_HEIGHT / 2;
-     this.width = 30;
-     this.height = 14;
-     this.speed = 3;
-     this.speedLevel = 0;
-
-     this.weapon = "NORMAL"; // NORMAL, DOUBLE, LASER
-     this.hasMissile = false;
-     this.shield = 0; // シールド耐久値
-
-     this.powerUpGauge = 0; // 1~6
-     this.optionsCount = 0;
-
-     this.cooldown = 0;
-     this.missileCooldown = 0;
-
-     this.history = []; // オプション追従用
-     this.invincibleTime = 0;
-     this.dead = false;
+    for (let i = 0; i < BOARD_SIZE; i++) {
+     const pos = MARGIN + i * CELL_SIZE;
+     // 縦線
+     ctx.moveTo(pos, MARGIN);
+     ctx.lineTo(pos, MARGIN + (BOARD_SIZE - 1) * CELL_SIZE);
+     // 横線
+     ctx.moveTo(MARGIN, pos);
+     ctx.lineTo(MARGIN + (BOARD_SIZE - 1) * CELL_SIZE, pos);
     }
+    ctx.stroke();
 
-    update() {
-     if (this.dead) return;
-
-     if (this.invincibleTime > 0) this.invincibleTime--;
-
-     // 移動履歴の記録 (オプション用)
-     this.history.unshift({ x: this.x, y: this.y });
-     if (this.history.length > 60) this.history.pop();
-
-     // 操作処理 (PC)
-     let dx = 0, dy = 0;
-     if (game.keys['ArrowUp'] || game.keys['w']) dy -= 1;
-     if (game.keys['ArrowDown'] || game.keys['s']) dy += 1;
-     if (game.keys['ArrowLeft'] || game.keys['a']) dx -= 1;
-     if (game.keys['ArrowRight'] || game.keys['d']) dx += 1;
-
-     // タッチ操作のオーバーライド
-     if (game.touch.active) {
-      this.x = game.touch.playerOriginX + (game.touch.x - game.touch.originX) * 1.5;
-      this.y = game.touch.playerOriginY + (game.touch.y - game.touch.originY) * 1.5;
-     } else {
-      // 正規化して移動
-      if (dx !== 0 && dy !== 0) {
-       const length = Math.sqrt(dx * dx + dy * dy);
-       dx /= length; dy /= length;
-      }
-      this.x += dx * this.speed;
-      this.y += dy * this.speed;
-     }
-
-     // 画面外に出ないように制限
-     this.x = Math.max(this.width / 2, Math.min(GAME_WIDTH - this.width / 2, this.x));
-     this.y = Math.max(this.height / 2, Math.min(GAME_HEIGHT - this.height / 2, this.y));
-
-     // ショット
-     if (this.cooldown > 0) this.cooldown--;
-     if (this.missileCooldown > 0) this.missileCooldown--;
-
-     if ((game.keys['z'] || game.shooting) && this.cooldown <= 0) {
-      this.shoot();
-     }
-    }
-
-    shoot() {
-     // メインショット
-     if (this.weapon === "NORMAL") {
-      game.entities.bullets.push(new Bullet(this.x + 10, this.y, 10, 0, false, "NORMAL"));
-      this.cooldown = 8;
-     } else if (this.weapon === "DOUBLE") {
-      game.entities.bullets.push(new Bullet(this.x + 10, this.y, 10, 0, false, "NORMAL"));
-      game.entities.bullets.push(new Bullet(this.x + 10, this.y - 5, 8, -6, false, "NORMAL"));
-      this.cooldown = 10;
-     } else if (this.weapon === "LASER") {
-      // レーザーは長くて貫通する
-      game.entities.bullets.push(new Bullet(this.x + 20, this.y, 15, 0, false, "LASER"));
-      this.cooldown = 15;
-     }
-
-     // ミサイル
-     if (this.hasMissile && this.missileCooldown <= 0) {
-      game.entities.bullets.push(new Bullet(this.x, this.y + 5, 5, 5, false, "MISSILE"));
-      this.missileCooldown = 30;
-     }
-
-     // オプションからのショット
-     game.entities.options.forEach(opt => opt.shoot(this.weapon, this.hasMissile));
-    }
-
-    activatePowerUp() {
-     if (this.powerUpGauge === 0) return;
-     const type = POWERUP_TYPES[this.powerUpGauge - 1].name;
-
-     switch (type) {
-      case "SPEED":
-       if (this.speedLevel < 5) {
-        this.speedLevel++;
-        this.speed = 3 + (this.speedLevel * 1.5);
-       }
-       break;
-      case "MISSILE":
-       this.hasMissile = true;
-       break;
-      case "DOUBLE":
-       this.weapon = "DOUBLE";
-       break;
-      case "LASER":
-       this.weapon = "LASER";
-       break;
-      case "OPTION":
-       if (this.optionsCount < 4) {
-        this.optionsCount++;
-        game.entities.options.push(new Option(this.optionsCount));
-       }
-       break;
-      case "SHIELD":
-       this.shield = 5; // 5回攻撃を防ぐ
-       break;
-     }
-     this.powerUpGauge = 0;
-     createParticles(this.x, this.y, 10, "#FFF");
-    }
-
-    draw() {
-     if (this.dead) return;
-     // 無敵点滅
-     if (this.invincibleTime > 0 && Math.floor(Date.now() / 100) % 2 === 0) return;
-
-     ctx.save();
-     ctx.translate(this.x, this.y);
-
-     // 機体描画 (Vic Viper風の尖った形状)
-     ctx.fillStyle = "#FFF";
-     ctx.beginPath();
-     ctx.moveTo(15, 0);
-     ctx.lineTo(-10, -8);
-     ctx.lineTo(-5, 0);
-     ctx.lineTo(-10, 8);
-     ctx.closePath();
-     ctx.fill();
-
-     // エンジンの炎
-     if (game.frame % 4 < 2) {
-      ctx.fillStyle = "#F80";
+    // 星（9路盤の場合、中心と四隅）を描画
+    if (BOARD_SIZE === 9) {
+     const starPoints = [[2, 2], [6, 2], [4, 4], [2, 6], [6, 6]];
+     ctx.fillStyle = '#000000';
+     starPoints.forEach(p => {
       ctx.beginPath();
-      ctx.moveTo(-10, -2);
-      ctx.lineTo(-20 - Math.random() * 5, 0);
-      ctx.lineTo(-10, 2);
+      ctx.arc(MARGIN + p[0] * CELL_SIZE, MARGIN + p[1] * CELL_SIZE, 3, 0, 2 * Math.PI);
       ctx.fill();
-     }
+     });
+    }
 
-     ctx.restore();
-
-     // シールド描画
-     if (this.shield > 0) {
-      ctx.strokeStyle = `rgba(255, 150, 0, ${0.5 + Math.random() * 0.3})`;
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.arc(this.x, this.y, 25, 0, Math.PI * 2);
-      ctx.stroke();
+    // 石を描画
+    for (let y = 0; y < BOARD_SIZE; y++) {
+     for (let x = 0; x < BOARD_SIZE; x++) {
+      const idx = y * BOARD_SIZE + x;
+      if (board[idx] !== EMPTY) {
+       drawStone(x, y, board[idx]);
+      }
      }
     }
    }
 
-   class Option {
-    constructor(index) {
-     this.index = index; // 1, 2, 3, 4
-     this.x = -100;
-     this.y = -100;
+   // 石の描画（立体感を持たせる）
+   function drawStone(x, y, color) {
+    const cx = MARGIN + x * CELL_SIZE;
+    const cy = MARGIN + y * CELL_SIZE;
+    const radius = CELL_SIZE * 0.45; // 石の大きさ
+
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, 0, 2 * Math.PI);
+
+    // グラデーションで立体感を表現
+    const gradient = ctx.createRadialGradient(
+     cx - radius * 0.3, cy - radius * 0.3, radius * 0.1,
+     cx, cy, radius
+    );
+
+    if (color === BLACK) {
+     gradient.addColorStop(0, '#555');
+     gradient.addColorStop(1, '#000');
+     ctx.fillStyle = gradient;
+    } else if (color === WHITE) {
+     gradient.addColorStop(0, '#fff');
+     gradient.addColorStop(1, '#ccc');
+     ctx.fillStyle = gradient;
     }
 
-    update() {
-     const player = game.entities.player;
-     // インデックスに応じて履歴から位置を取得
-     const delay = this.index * 12;
-     if (player.history.length > delay) {
-      const target = player.history[delay];
-      this.x = target.x;
-      this.y = target.y;
-     }
-    }
+    // 影を追加
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.4)';
+    ctx.shadowBlur = 4;
+    ctx.shadowOffsetX = 2;
+    ctx.shadowOffsetY = 2;
 
-    shoot(weapon, hasMissile) {
-     if (this.x < 0) return; // 画面外なら撃たない
+    ctx.fill();
 
-     if (weapon === "NORMAL" || weapon === "DOUBLE") {
-      game.entities.bullets.push(new Bullet(this.x + 5, this.y, 10, 0, false, "NORMAL"));
-     } else if (weapon === "LASER") {
-      game.entities.bullets.push(new Bullet(this.x + 10, this.y, 15, 0, false, "LASER"));
-     }
+    // 影をリセット
+    ctx.shadowColor = 'transparent';
+    ctx.shadowBlur = 0;
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 0;
 
-     if (hasMissile && game.entities.player.missileCooldown === 30) {
-      // プレイヤーのミサイル発射タイミングに同期
-      game.entities.bullets.push(new Bullet(this.x, this.y + 5, 5, 5, false, "MISSILE"));
-     }
-    }
-
-    draw() {
-     if (this.x < 0) return;
-     ctx.fillStyle = "#f39c12";
-     ctx.beginPath();
-     ctx.arc(this.x, this.y, 6, 0, Math.PI * 2);
-     ctx.fill();
-     ctx.strokeStyle = "#fff";
+    // 境界線（白石は見やすくするため）
+    if (color === WHITE) {
      ctx.lineWidth = 1;
+     ctx.strokeStyle = '#999';
      ctx.stroke();
     }
+
+    // 最新の手にはマークをつける（オプション）
+    // 実装簡略化のため省略
    }
 
-   class Bullet {
-    constructor(x, y, vx, vy, isEnemy, type) {
-     this.x = x;
-     this.y = y;
-     this.vx = vx;
-     this.vy = vy;
-     this.isEnemy = isEnemy;
-     this.type = type; // NORMAL, LASER, MISSILE
-     this.active = true;
-     this.width = 10;
-     this.height = 4;
 
-     if (type === "LASER") {
-      this.width = 40;
-      this.height = 4;
-     } else if (type === "MISSILE") {
-      this.width = 8;
-      this.height = 8;
-     } else if (isEnemy) {
-      this.width = 6;
-      this.height = 6;
-     }
-    }
-
-    update() {
-     this.x += this.vx;
-     this.y += this.vy;
-
-     // ミサイルの地形（画面下部）這い沿い処理
-     if (this.type === "MISSILE" && this.y >= GAME_HEIGHT - 10) {
-      this.y = GAME_HEIGHT - 10;
-      this.vy = 0;
-      this.vx = 8; // 地面を走る
-     }
-
-     if (this.x < 0 || this.x > GAME_WIDTH || this.y < 0 || this.y > GAME_HEIGHT) {
-      this.active = false;
-     }
-    }
-
-    draw() {
-     ctx.save();
-     ctx.translate(this.x, this.y);
-
-     if (this.isEnemy) {
-      ctx.fillStyle = "#ff0044";
-      ctx.beginPath();
-      ctx.arc(0, 0, 3, 0, Math.PI * 2);
-      ctx.fill();
-     } else {
-      if (this.type === "LASER") {
-       ctx.fillStyle = "#00ffff";
-       ctx.fillRect(-this.width / 2, -this.height / 2, this.width, this.height);
-       ctx.fillStyle = "#ffffff";
-       ctx.fillRect(-this.width / 2, -1, this.width, 2);
-      } else if (this.type === "MISSILE") {
-       ctx.fillStyle = "#ffaa00";
-       ctx.beginPath();
-       ctx.arc(0, 0, 4, 0, Math.PI * 2);
-       ctx.fill();
-      } else {
-       ctx.fillStyle = "#ffff00";
-       ctx.fillRect(-this.width / 2, -this.height / 2, this.width, this.height);
-      }
-     }
-     ctx.restore();
-    }
+   // 座標からインデックスに変換
+   function getIndex(x, y) {
+    return y * BOARD_SIZE + x;
    }
 
-   class Item {
-    constructor(x, y) {
-     this.x = x;
-     this.y = y;
-     this.vx = -1; // 背景と共にスクロール
-     this.active = true;
-     this.width = 16;
-     this.height = 10;
-     this.animCounter = 0;
-    }
-
-    update() {
-     this.x += this.vx;
-     this.animCounter++;
-     if (this.x < -20) this.active = false;
-    }
-
-    draw() {
-     ctx.save();
-     ctx.translate(this.x, this.y);
-
-     // カプセルの描画
-     ctx.fillStyle = (Math.floor(this.animCounter / 10) % 2 === 0) ? "#e74c3c" : "#ffb8b8";
-     ctx.beginPath();
-     ctx.ellipse(0, 0, 10, 6, 0, 0, Math.PI * 2);
-     ctx.fill();
-     ctx.fillStyle = "white";
-     ctx.fillRect(-3, -2, 6, 4);
-
-     ctx.restore();
-    }
+   // 盤外判定
+   function isOutOfBounds(x, y) {
+    return x < 0 || x >= BOARD_SIZE || y < 0 || y >= BOARD_SIZE;
    }
 
-   class Enemy {
-    constructor(x, y, type, hasItem = false) {
-     this.x = x;
-     this.y = y;
-     this.type = type; // BASIC, SINE, TURRET, BOSS
-     this.hasItem = hasItem;
-     this.active = true;
-     this.width = 20;
-     this.height = 20;
-     this.hp = 1;
-     this.timer = 0;
-     this.startY = y;
+   // 隣接する座標を取得
+   function getNeighbors(x, y) {
+    const neighbors = [];
+    if (y > 0) neighbors.push([x, y - 1]);
+    if (y < BOARD_SIZE - 1) neighbors.push([x, y + 1]);
+    if (x > 0) neighbors.push([x - 1, y]);
+    if (x < BOARD_SIZE - 1) neighbors.push([x + 1, y]);
+    return neighbors;
+   }
 
-     if (type === "BOSS") {
-      this.hp = 100 * game.stage;
-      this.width = 80;
-      this.height = 120;
-      this.y = GAME_HEIGHT / 2;
-     } else if (this.hasItem) {
-      this.hp = 2; // 赤ザコは少し硬い
-     }
-    }
+   // 連（繋がった石のグループ）と呼吸点（ダメ）を探索する
+   function getGroupAndLiberties(x, y, currentBoard) {
+    const color = currentBoard[getIndex(x, y)];
+    if (color === EMPTY) return null;
 
-    update() {
-     this.timer++;
+    const group = new Set();
+    const liberties = new Set();
+    const queue = [[x, y]];
+    const visited = new Set();
 
-     switch (this.type) {
-      case "BASIC":
-       this.x -= 1.5;
-       break;
-      case "SINE":
-       this.x -= 1;
-       this.y = this.startY + Math.sin(this.timer * 0.025) * 50;
-       break;
-      case "TURRET":
-       this.x -= 1; // スクロール速度
-       // プレイヤーを狙って撃つ
-       if (this.timer % 100 === 0 && this.x < GAME_WIDTH && this.x > 0) {
-        const p = game.entities.player;
-        if (p && !p.dead) {
-         const angle = Math.atan2(p.y - this.y, p.x - this.x);
-         game.entities.bullets.push(new Bullet(this.x, this.y, Math.cos(angle) * 2, Math.sin(angle) * 2, true, "NORMAL"));
-        }
-       }
-       break;
-      case "BOSS":
-       // ボスの動き
-       if (this.x > GAME_WIDTH - 100) {
-        this.x -= 1; // 登場
-       } else {
-        // 上下に動く
-        this.y = (GAME_HEIGHT / 2) + Math.sin(this.timer * 0.01) * 100;
+    group.add(getIndex(x, y));
+    visited.add(getIndex(x, y));
 
-        // 攻撃パターン
-        if (this.timer % 60 === 0) {
-         // 3WAY弾
-         game.entities.bullets.push(new Bullet(this.x - 30, this.y, -2.5, 0, true, "NORMAL"));
-         game.entities.bullets.push(new Bullet(this.x - 30, this.y, -2, 1, true, "NORMAL"));
-         game.entities.bullets.push(new Bullet(this.x - 30, this.y, -2, -1, true, "NORMAL"));
-        }
-        if (this.timer % 200 === 0) {
-         // レーザーもどき（高速弾）
-         game.entities.bullets.push(new Bullet(this.x - 30, this.y, -6, 0, true, "NORMAL"));
-        }
-       }
-       break;
-     }
+    while (queue.length > 0) {
+     const [cx, cy] = queue.shift();
 
-     if (this.x < -this.width) this.active = false;
-    }
+     const neighbors = getNeighbors(cx, cy);
+     for (const [nx, ny] of neighbors) {
+      const nIdx = getIndex(nx, ny);
+      const nColor = currentBoard[nIdx];
 
-    draw() {
-     ctx.save();
-     ctx.translate(this.x, this.y);
-
-     if (this.type === "BOSS") {
-      // コア
-      ctx.fillStyle = (this.timer % 10 < 5) ? "#555" : "#777";
-      ctx.fillRect(-this.width / 2, -this.height / 2, this.width, this.height);
-      // 目玉（弱点）
-      ctx.fillStyle = "#0ff";
-      ctx.beginPath();
-      ctx.arc(-10, 0, 15, 0, Math.PI * 2);
-      ctx.fill();
-
-      // ダメージエフェクト
-      if (this.hitTimer > 0) {
-       ctx.fillStyle = "rgba(255,255,255,0.5)";
-       ctx.fillRect(-this.width / 2, -this.height / 2, this.width, this.height);
-       this.hitTimer--;
-      }
-
-     } else {
-      ctx.fillStyle = this.hasItem ? "#e74c3c" : "#8e44ad";
-      if (this.type === "TURRET") ctx.fillStyle = "#27ae60";
-
-      ctx.beginPath();
-      ctx.moveTo(10, 0);
-      ctx.lineTo(-10, -10);
-      ctx.lineTo(-5, 0);
-      ctx.lineTo(-10, 10);
-      ctx.closePath();
-      ctx.fill();
-      ctx.strokeStyle = "#fff";
-      ctx.stroke();
-     }
-
-     ctx.restore();
-    }
-
-    takeDamage(amt) {
-     this.hp -= amt;
-     this.hitTimer = 3;
-     if (this.hp <= 0) {
-      this.active = false;
-      createParticles(this.x, this.y, this.type === "BOSS" ? 50 : 15, this.hasItem ? "#e74c3c" : "#fff");
-      game.score += this.type === "BOSS" ? 5000 : 100;
-
-      if (this.hasItem) {
-       game.entities.items.push(new Item(this.x, this.y));
-      }
-
-      if (this.type === "BOSS") {
-       stageClear();
+      if (nColor === EMPTY) {
+       liberties.add(nIdx);
+      } else if (nColor === color && !visited.has(nIdx)) {
+       visited.add(nIdx);
+       group.add(nIdx);
+       queue.push([nx, ny]);
       }
      }
     }
-   }
 
-   class Particle {
-    constructor(x, y, color) {
-     this.x = x;
-     this.y = y;
-     this.vx = (Math.random() - 0.5) * 8;
-     this.vy = (Math.random() - 0.5) * 8;
-     this.life = 30 + Math.random() * 20;
-     this.maxLife = this.life;
-     this.color = color;
-     this.active = true;
-    }
-    update() {
-     this.x += this.vx;
-     this.y += this.vy;
-     this.life--;
-     if (this.life <= 0) this.active = false;
-    }
-    draw() {
-     ctx.globalAlpha = this.life / this.maxLife;
-     ctx.fillStyle = this.color;
-     ctx.beginPath();
-     ctx.arc(this.x, this.y, 2 + (this.life / this.maxLife) * 3, 0, Math.PI * 2);
-     ctx.fill();
-     ctx.globalAlpha = 1.0;
-    }
-   }
-
-   function createParticles(x, y, count, color) {
-    for (let i = 0; i < count; i++) {
-     game.entities.particles.push(new Particle(x, y, color));
-    }
-   }
-
-   function checkCollisions() {
-    const player = game.entities.player;
-    const enemies = game.entities.enemies;
-    const bullets = game.entities.bullets;
-    const items = game.entities.items;
-
-    // 簡単な矩形・円形ハイブリッド判定
-    const isCollide = (obj1, obj2) => {
-     return Math.abs(obj1.x - obj2.x) < (obj1.width / 2 + obj2.width / 2) &&
-      Math.abs(obj1.y - obj2.y) < (obj1.height / 2 + obj2.height / 2);
+    return {
+     group: Array.from(group),
+     liberties: Array.from(liberties)
     };
+   }
 
-    // プレイヤー弾 vs 敵
-    bullets.filter(b => !b.isEnemy).forEach(bullet => {
-     enemies.forEach(enemy => {
-      if (bullet.active && enemy.active && isCollide(bullet, enemy)) {
-       enemy.takeDamage(bullet.type === "LASER" ? 0.5 : 1);
-       if (bullet.type !== "LASER") bullet.active = false; // レーザーは貫通
+   // 指定した盤面状態を文字列化（コウ判定用）
+   function getBoardHash(b) {
+    return b.join('');
+   }
+
+   // 石を置く処理（合法手かどうかのチェックと石の獲得を含む）
+   // checkOnly=true の場合は状態を変更せず合法手かだけ返す
+   function tryMove(x, y, color, currentBoard, checkOnly = false) {
+    if (isOutOfBounds(x, y) || currentBoard[getIndex(x, y)] !== EMPTY) {
+     return false; // すでに石があるか盤外
+    }
+
+    // 一時的に石を置く
+    const testBoard = [...currentBoard];
+    const idx = getIndex(x, y);
+    testBoard[idx] = color;
+    const opponentColor = color === BLACK ? WHITE : BLACK;
+
+    let capturedStones = [];
+
+    // 1. 敵石を取れるかチェック
+    const neighbors = getNeighbors(x, y);
+    for (const [nx, ny] of neighbors) {
+     if (testBoard[getIndex(nx, ny)] === opponentColor) {
+      const oppGroupInfo = getGroupAndLiberties(nx, ny, testBoard);
+      if (oppGroupInfo && oppGroupInfo.liberties.length === 0) {
+       // 敵の石を取れる
+       capturedStones = capturedStones.concat(oppGroupInfo.group);
       }
-     });
-    });
-
-    if (!player || player.dead || player.invincibleTime > 0) return;
-
-    // 敵・敵弾 vs プレイヤー
-    let hitPlayer = false;
-
-    enemies.forEach(enemy => {
-     if (enemy.active && isCollide(player, enemy)) hitPlayer = true;
-    });
-
-    bullets.filter(b => b.isEnemy).forEach(bullet => {
-     if (bullet.active && isCollide(player, bullet)) {
-      hitPlayer = true;
-      bullet.active = false;
-     }
-    });
-
-    if (hitPlayer) {
-     if (player.shield > 0) {
-      player.shield--;
-      player.invincibleTime = 30; // 被弾後少し無敵
-      createParticles(player.x, player.y, 10, "#e67e22");
-     } else {
-      killPlayer();
      }
     }
 
-    // アイテム vs プレイヤー
-    items.forEach(item => {
-     if (item.active && isCollide(player, item)) {
-      item.active = false;
-      if (player.powerUpGauge < 6) {
-       player.powerUpGauge++;
+    // 取れる石は盤面から取り除く
+    for (const cIdx of capturedStones) {
+     testBoard[cIdx] = EMPTY;
+    }
+
+    // 2. 自殺手（着手禁止点）のチェック
+    // 敵石を取っておらず、かつ自分の呼吸点が0になる場合は自殺手
+    if (capturedStones.length === 0) {
+     const myGroupInfo = getGroupAndLiberties(x, y, testBoard);
+     if (myGroupInfo && myGroupInfo.liberties.length === 0) {
+      return false; // 自殺手
+     }
+    }
+
+    // 3. コウ（同型反復）のチェック
+    const newBoardHash = getBoardHash(testBoard);
+    // 2手前の状態と同じならコウとみなす
+    if (boardHistory.length >= 2 && boardHistory[boardHistory.length - 2] === newBoardHash) {
+     return false; // コウ
+    }
+
+    if (checkOnly) {
+     return { valid: true, captures: capturedStones.length, boardAfter: testBoard };
+    }
+
+    // 実際に盤面を更新
+    board = testBoard;
+    boardHistory.push(newBoardHash);
+    // 履歴が長くなりすぎないように保持（最新10手程度で十分）
+    if (boardHistory.length > 10) boardHistory.shift();
+
+    return capturedStones.length; // 獲得した石の数を返す
+   }
+
+
+   // メッセージ表示
+   function showMessage(msg, isError = false) {
+    msgBox.textContent = msg;
+    if (isError) {
+     msgBox.classList.replace('bg-amber-50', 'bg-red-50');
+     msgBox.classList.replace('text-slate-700', 'text-red-700');
+     msgBox.classList.replace('border-amber-200', 'border-red-200');
+     setTimeout(() => {
+      msgBox.classList.replace('bg-red-50', 'bg-amber-50');
+      msgBox.classList.replace('text-red-700', 'text-slate-700');
+      msgBox.classList.replace('border-red-200', 'border-amber-200');
+     }, 1500);
+    }
+   }
+
+   // ターン更新UI
+   function updateTurnUI() {
+    if (currentTurn === BLACK) {
+     turnIndicator.textContent = "あなた(黒)の番です";
+     turnIndicator.className = "text-sm font-bold px-3 py-1 bg-gray-800 text-white rounded-full shadow";
+    } else {
+     turnIndicator.textContent = "CPU(白)が思考中...";
+     turnIndicator.className = "text-sm font-bold px-3 py-1 bg-white text-gray-800 border border-gray-300 rounded-full shadow animate-pulse";
+    }
+    pCapturesEl.textContent = `アゲハマ: ${playerCaptures}`;
+    cCapturesEl.textContent = `アゲハマ: ${cpuCaptures}`;
+    drawBoard();
+   }
+
+   // プレイヤーのパス
+   function playerPass() {
+    if (gameOver || currentTurn !== BLACK || isProcessing) return;
+    isProcessing = true;
+
+    consecutivePasses++;
+    showMessage("あなたはパスしました。");
+
+    if (consecutivePasses >= 2) {
+     endGame();
+     return;
+    }
+
+    currentTurn = WHITE;
+    updateTurnUI();
+
+    setTimeout(cpuMove, 500); // CPUのターンへ
+   }
+
+   // キャンバスクリック/タップ処理
+   canvas.addEventListener('click', (e) => {
+    if (gameOver || currentTurn !== BLACK || isProcessing) return;
+
+    const rect = canvas.getBoundingClientRect();
+    // キャンバス内の相対座標（スケール考慮）
+    const scaleX = canvas.width / (rect.width * (window.devicePixelRatio || 1));
+    const scaleY = canvas.height / (rect.height * (window.devicePixelRatio || 1));
+
+    const x = (e.clientX - rect.left) * scaleX;
+    const y = (e.clientY - rect.top) * scaleY;
+
+    // 座標をグリッドインデックスに変換（マージンを引いてセルサイズで割る、四捨五入）
+    let gridX = Math.round((x - MARGIN) / CELL_SIZE);
+    let gridY = Math.round((y - MARGIN) / CELL_SIZE);
+
+    // タップのブレを考慮して少し範囲を広げる
+    if (gridX >= 0 && gridX < BOARD_SIZE && gridY >= 0 && gridY < BOARD_SIZE) {
+     handlePlayerMove(gridX, gridY);
+    }
+   });
+
+   function handlePlayerMove(x, y) {
+    const captures = tryMove(x, y, BLACK, board);
+
+    if (captures === false) {
+     showMessage("そこには置けません（反則）", true);
+     return;
+    }
+
+    // 合法手
+    isProcessing = true;
+    consecutivePasses = 0; // パスカウントリセット
+    playerCaptures += captures;
+    currentTurn = WHITE;
+    showMessage("CPUの番です...");
+    updateTurnUI();
+
+    // CPUの思考時間を少し設ける（UI更新のため）
+    setTimeout(cpuMove, Math.random() * 500 + 300);
+   }
+
+
+   // CPUの手を決定する
+   function cpuMove() {
+    if (gameOver) return;
+
+    const validMoves = [];
+
+    // すべての空きマスに対して評価を行う
+    for (let y = 0; y < BOARD_SIZE; y++) {
+     for (let x = 0; x < BOARD_SIZE; x++) {
+      const result = tryMove(x, y, WHITE, board, true);
+      if (result) {
+       // 評価値を計算
+       const score = evaluateMove(x, y, result, difficulty);
+       validMoves.push({ x, y, score, captures: result.captures });
       }
-      game.score += 500;
      }
-    });
-   }
+    }
 
-   function killPlayer() {
-    const player = game.entities.player;
-    createParticles(player.x, player.y, 100, "#ff0");
-    player.dead = true;
-    game.lives--;
+    if (validMoves.length === 0) {
+     // 合法手がない場合はパス
+     consecutivePasses++;
+     showMessage("CPUはパスしました。");
+     if (consecutivePasses >= 2) {
+      endGame();
+      return;
+     }
+    } else {
+     // スコアが高い順にソート
+     validMoves.sort((a, b) => b.score - a.score);
 
-    setTimeout(() => {
-     if (game.lives >= 0) {
-      respawnPlayer();
+     let bestMove = validMoves[0];
+
+     // 難易度に応じた調整
+     if (difficulty === 'easy') {
+      // ランダムに手を選ぶ（上位80%から）
+      const maxIdx = Math.max(1, Math.floor(validMoves.length * 0.8));
+      bestMove = validMoves[Math.floor(Math.random() * maxIdx)];
+     } else if (difficulty === 'normal') {
+      // 時々上位3手からランダム（同じ展開を避ける）
+      const maxIdx = Math.min(3, validMoves.length);
+      if (Math.random() > 0.5) {
+       bestMove = validMoves[Math.floor(Math.random() * maxIdx)];
+      }
+     }
+     // hard は常に最高スコアを選択
+
+     // もし最高スコアが極端に低く（マイナス）、パスの方がマシな場合（簡易的な終局判定）
+     if (bestMove.score < -50 && difficulty !== 'easy') {
+      consecutivePasses++;
+      showMessage("CPUはパスしました。");
+      if (consecutivePasses >= 2) {
+       endGame();
+       return;
+      }
      } else {
-      gameOver();
+      // 実際に手を打つ
+      const captures = tryMove(bestMove.x, bestMove.y, WHITE, board);
+      cpuCaptures += captures;
+      consecutivePasses = 0;
+      showMessage(`CPUが打機ました。あなたの番です。`);
      }
-    }, 1500);
+    }
+
+    currentTurn = BLACK;
+    isProcessing = false;
+    updateTurnUI();
    }
 
-   function respawnPlayer() {
-    game.entities.player = new Player();
-    game.entities.player.invincibleTime = 120; // 復活時無敵
-    game.entities.options = []; // オプション没収
-    // パワーアップ状態もリセット（Gradius仕様）
-   }
+   // 手の評価関数（AIのコア）
+   function evaluateMove(x, y, moveResult, diffLevel) {
+    let score = 0;
+    const testBoard = moveResult.boardAfter;
 
-   function spawnEnemies() {
-    if (game.bossActive || game.state !== STATE.PLAYING) return;
+    // 1. 石を取れる手は高評価
+    score += moveResult.captures * 100;
 
-    // スクロールに応じた出現パターン
-    const scroll = game.scrollX;
+    // 打った石のグループの呼吸点を確認
+    const myGroup = getGroupAndLiberties(x, y, testBoard);
+    const myLiberties = myGroup ? myGroup.liberties.length : 0;
 
-    // ステージ1のシーケンス例 (ループさせるためにモジュロを使用)
-    const timeline = scroll % 8000;
-
-    if (timeline % 100 === 0 && timeline < 2000) {
-     game.entities.enemies.push(new Enemy(GAME_WIDTH + 20, Math.random() * GAME_HEIGHT * 0.8 + 20, "BASIC"));
+    // 2. 自滅に近い手（呼吸点が1）は大きなマイナス（取れる場合は別）
+    if (myLiberties === 1 && moveResult.captures === 0) {
+     score -= 80;
+    } else {
+     score += myLiberties * 5; // 呼吸点が多いほど良い
     }
 
-    if (timeline % 150 === 0 && timeline > 1000 && timeline < 3000) {
-     game.entities.enemies.push(new Enemy(GAME_WIDTH + 20, GAME_HEIGHT * 0.2, "SINE"));
-     game.entities.enemies.push(new Enemy(GAME_WIDTH + 20, GAME_HEIGHT * 0.8, "SINE"));
-    }
-
-    if (timeline % 300 === 0 && timeline > 2000 && timeline < 5000) {
-     // パワーアップ持ち編隊
-     game.entities.enemies.push(new Enemy(GAME_WIDTH + 20, 100, "BASIC", true));
-    }
-
-    if (timeline % 800 === 0 && timeline > 4000 && timeline < 7000) {
-     // 地上砲台（画面下と上）出現頻度を1/4に削減
-     game.entities.enemies.push(new Enemy(GAME_WIDTH + 20, GAME_HEIGHT - 20, "TURRET"));
-     if (Math.random() > 0.5) game.entities.enemies.push(new Enemy(GAME_WIDTH + 20, 20, "TURRET"));
-    }
-
-    // ボス出現
-    if (scroll >= 8000 * game.stage && !game.bossActive) {
-     game.bossActive = true;
-     game.entities.enemies.push(new Enemy(GAME_WIDTH + 100, GAME_HEIGHT / 2, "BOSS"));
-    }
-   }
-
-   function stageClear() {
-    game.state = STATE.STAGECLEAR;
-    setTimeout(() => {
-     game.stage++;
-     game.bossActive = false;
-     game.scrollX = 0; // スクロールリセットして次のステージへ（難易度上昇）
-     game.entities.enemies = [];
-     game.entities.bullets = [];
-     game.state = STATE.PLAYING;
-    }, 3000);
-   }
-
-   function gameOver() {
-    game.state = STATE.GAMEOVER;
-    document.getElementById('game-over').style.display = 'flex';
-    document.getElementById('final-score').innerText = `Score: ${game.score}`;
-   }
-
-   function update() {
-    if (game.state !== STATE.PLAYING) return;
-
-    game.frame++;
-    if (!game.bossActive) {
-     game.scrollX += 1;
-    }
-
-    // 背景の星更新
-    game.stars.forEach(star => {
-     star.x -= star.speed;
-     if (star.x < 0) {
-      star.x = GAME_WIDTH;
-      star.y = Math.random() * GAME_HEIGHT;
+    // 強い難易度の場合の追加ヒューリスティクス
+    if (diffLevel === 'hard' || diffLevel === 'normal') {
+     // 3. 敵の石をアタリ（呼吸点1）にする手は高評価
+     const neighbors = getNeighbors(x, y);
+     for (const [nx, ny] of neighbors) {
+      if (testBoard[getIndex(nx, ny)] === BLACK) {
+       const enemyGroup = getGroupAndLiberties(nx, ny, testBoard);
+       if (enemyGroup && enemyGroup.liberties.length === 1) {
+        score += 50;
+       }
+      }
      }
-    });
 
-    if (game.entities.player && !game.entities.player.dead) {
-     game.entities.player.update();
+     // 4. 自分のアタリを逃げる手は高評価
+     // （打つ前に呼吸点1だった隣接する自分の石があれば、それを助けたことになる）
+     let savedSelf = false;
+     for (const [nx, ny] of neighbors) {
+      if (board[getIndex(nx, ny)] === WHITE) {
+       const preGroup = getGroupAndLiberties(nx, ny, board);
+       if (preGroup && preGroup.liberties.length === 1 && myLiberties > 1) {
+        score += 90; // 逃げ出し成功
+        savedSelf = true;
+       }
+      }
+     }
+
+     // 5. 盤面の端へのペナルティ（序盤・中盤用）
+     // 中央（4,4）からの距離で評価
+     const distFromCenter = Math.abs(x - 4) + Math.abs(y - 4);
+     if (diffLevel === 'hard') {
+      score -= distFromCenter * 2;
+
+      // 1線の価値は低い
+      if (x === 0 || x === BOARD_SIZE - 1 || y === 0 || y === BOARD_SIZE - 1) {
+       score -= 10;
+      }
+     }
     }
 
-    game.entities.options.forEach(opt => opt.update());
+    // 少しランダム性を入れてAIの動きをばらけさせる
+    score += Math.random() * 5;
 
-    game.entities.bullets.forEach(b => b.update());
-    game.entities.enemies.forEach(e => e.update());
-    game.entities.particles.forEach(p => p.update());
-    game.entities.items.forEach(i => i.update());
-
-    // ゴミ掃除
-    game.entities.bullets = game.entities.bullets.filter(b => b.active);
-    game.entities.enemies = game.entities.enemies.filter(e => e.active);
-    game.entities.particles = game.entities.particles.filter(p => p.active);
-    game.entities.items = game.entities.items.filter(i => i.active);
-
-    spawnEnemies();
-    checkCollisions();
+    return score;
    }
 
-   function drawUI() {
-    // スコアと残機
-    ctx.fillStyle = "white";
-    ctx.font = "12px 'Press Start 2P', monospace";
-    ctx.textAlign = "left";
-    ctx.fillText(`SCORE:${game.score}`, 10, 20);
-    ctx.fillText(`STAGE:${game.stage}`, 10, 40);
 
-    ctx.textAlign = "right";
-    ctx.fillText(`LIVES:${game.lives}`, GAME_WIDTH - 10, 20);
+   // 終局処理（中国ルールベースの簡易地合い計算）
+   function endGame() {
+    gameOver = true;
+    isProcessing = true;
 
-    // パワーアップゲージの描画
-    const barWidth = 100;
-    const barHeight = 25;
-    const startX = (GAME_WIDTH - (POWERUP_TYPES.length * barWidth)) / 2;
-    const startY = GAME_HEIGHT - barHeight - 10;
+    let blackScore = playerCaptures; // アゲハマも加算（日本ルール寄りだが簡易化のため）
+    let whiteScore = cpuCaptures;
 
-    const player = game.entities.player;
-    if (!player) return;
+    let blackTerritory = 0;
+    let whiteTerritory = 0;
 
-    POWERUP_TYPES.forEach((pu, index) => {
-     const x = startX + index * barWidth;
+    // 簡易的な領地計算（Flood Fill）
+    // 空きマスがどの色の石に囲まれているか判定する
+    const visited = new Set();
 
-     // 枠
-     ctx.strokeStyle = "#444";
-     ctx.lineWidth = 2;
-     if (player.powerUpGauge === index + 1) {
-      // 現在選択中
-      ctx.fillStyle = "#f39c12";
-      ctx.strokeStyle = "#fff";
-      // 点滅
-      if (game.frame % 10 < 5) ctx.fillStyle = "#e67e22";
+    for (let y = 0; y < BOARD_SIZE; y++) {
+     for (let x = 0; x < BOARD_SIZE; x++) {
+      const idx = getIndex(x, y);
+
+      if (board[idx] === BLACK) blackScore++;
+      else if (board[idx] === WHITE) whiteScore++;
+      else if (board[idx] === EMPTY && !visited.has(idx)) {
+       // 空き地の探索
+       const region = [];
+       const queue = [[x, y]];
+       let touchesBlack = false;
+       let touchesWhite = false;
+
+       visited.add(idx);
+       region.push(idx);
+
+       while (queue.length > 0) {
+        const [cx, cy] = queue.shift();
+
+        for (const [nx, ny] of getNeighbors(cx, cy)) {
+         const nIdx = getIndex(nx, ny);
+         const nColor = board[nIdx];
+
+         if (nColor === BLACK) touchesBlack = true;
+         else if (nColor === WHITE) touchesWhite = true;
+         else if (nColor === EMPTY && !visited.has(nIdx)) {
+          visited.add(nIdx);
+          region.push(nIdx);
+          queue.push([nx, ny]);
+         }
+        }
+       }
+
+       // 黒のみに囲まれていれば黒地
+       if (touchesBlack && !touchesWhite) blackTerritory += region.length;
+       // 白のみに囲まれていれば白地
+       else if (touchesWhite && !touchesBlack) whiteTerritory += region.length;
+      }
+     }
+    }
+
+    blackScore += blackTerritory;
+    whiteScore += whiteTerritory;
+
+    // コミ（白にハンデ。9路盤なのでコミは少なめの5.5目とする）
+    const komi = 5.5;
+    whiteScore += komi;
+
+    let resultMsg = `黒(あなた): ${blackScore}目<br>白(CPU): ${whiteScore}目 (コミ5.5含む)<br><br>`;
+
+    if (blackScore > whiteScore) {
+     resultMsg += `<span class="text-yellow-300 font-bold text-2xl">あなたの勝ち！</span>`;
+    } else {
+     resultMsg += `<span class="text-blue-300 font-bold text-2xl">CPUの勝ち</span>`;
+    }
+
+    resultText.innerHTML = resultMsg;
+    resultOverlay.classList.remove('hidden');
+    resultOverlay.classList.add('flex');
+
+    showMessage("終局しました。");
+   }
+
+   // ゲームのリセット
+   function resetGame() {
+    board = new Array(BOARD_SIZE * BOARD_SIZE).fill(EMPTY);
+    currentTurn = BLACK;
+    playerCaptures = 0;
+    cpuCaptures = 0;
+    gameOver = false;
+    boardHistory = [];
+    consecutivePasses = 0;
+    isProcessing = false;
+
+    resultOverlay.classList.add('hidden');
+    resultOverlay.classList.remove('flex');
+
+    showMessage("対局を開始します。黒番（あなた）からどうぞ。");
+    updateTurnUI();
+   }
+
+   // 難易度変更UI処理
+   function setDifficulty(level) {
+    difficulty = level;
+    // UI更新
+    Object.keys(difficulties).forEach(key => {
+     const btn = document.getElementById(difficulties[key].element);
+     if (key === level) {
+      btn.classList.replace('bg-gray-200', 'bg-blue-500');
+      btn.classList.replace('text-gray-700', 'text-white');
+      btn.classList.add('shadow');
      } else {
-      ctx.fillStyle = "rgba(0,0,0,0.5)";
+      btn.classList.replace('bg-blue-500', 'bg-gray-200');
+      btn.classList.replace('text-white', 'text-gray-700');
+      btn.classList.remove('shadow');
      }
-
-     ctx.fillRect(x, startY, barWidth - 4, barHeight);
-     ctx.strokeRect(x, startY, barWidth - 4, barHeight);
-
-     // テキスト
-     ctx.fillStyle = (player.powerUpGauge === index + 1) ? "#000" : pu.color;
-     ctx.font = "10px 'Press Start 2P', monospace";
-     ctx.textAlign = "center";
-     ctx.fillText(pu.name, x + barWidth / 2, startY + 8);
     });
-
-    // 取得済み装備の表示
-    ctx.fillStyle = "#fff";
-    ctx.textAlign = "left";
-    let statusText = `SPD:${player.speedLevel}  WPN:${player.weapon}`;
-    if (player.hasMissile) statusText += ` MSL`;
-    if (player.optionsCount > 0) statusText += ` OPT:${player.optionsCount}`;
-    ctx.fillText(statusText, 10, GAME_HEIGHT - 20);
-
-    // ボス警告
-    if (game.bossActive && game.frame % 60 < 30 && game.entities.enemies.some(e => e.type === "BOSS")) {
-     ctx.fillStyle = "red";
-     ctx.font = "24px 'Press Start 2P', monospace";
-     ctx.textAlign = "center";
-     ctx.fillText("WARNING!! BOSS APPROACHING", GAME_WIDTH / 2, GAME_HEIGHT / 2 - 50);
-    }
-
-    // ステージクリア
-    if (game.state === STATE.STAGECLEAR) {
-     ctx.fillStyle = "white";
-     ctx.font = "30px 'Press Start 2P', monospace";
-     ctx.textAlign = "center";
-     ctx.fillText("STAGE CLEAR", GAME_WIDTH / 2, GAME_HEIGHT / 2);
-    }
+    // 進行中ならリセットする
+    resetGame();
    }
 
-   function draw() {
-    // 背景クリア
-    ctx.fillStyle = "#050510";
-    ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
-
-    // 星描画
-    game.stars.forEach(star => {
-     ctx.fillStyle = `rgba(255,255,255,${star.brightness})`;
-     ctx.fillRect(star.x, star.y, star.size, star.size);
-    });
-
-    // エンティティ描画
-    game.entities.items.forEach(i => i.draw());
-    game.entities.enemies.forEach(e => e.draw());
-    game.entities.bullets.forEach(b => b.draw());
-    game.entities.particles.forEach(p => p.draw());
-
-    game.entities.options.forEach(opt => opt.draw());
-    if (game.entities.player) game.entities.player.draw();
-
-    if (game.state === STATE.PLAYING || game.state === STATE.STAGECLEAR) {
-     drawUI();
-    }
-   }
-
-   function gameLoop() {
-    update();
-    draw();
-    requestAnimationFrame(gameLoop);
-   }
-
-   function initGame() {
-    game.state = STATE.PLAYING;
-    game.score = 0;
-    game.lives = 3;
-    game.stage = 1;
-    game.scrollX = 0;
-    game.frame = 0;
-    game.bossActive = false;
-
-    game.entities.bullets = [];
-    game.entities.enemies = [];
-    game.entities.particles = [];
-    game.entities.items = [];
-    game.entities.options = [];
-
-    // 星の初期化
-    game.stars = [];
-    for (let i = 0; i < 100; i++) {
-     game.stars.push({
-      x: Math.random() * GAME_WIDTH,
-      y: Math.random() * GAME_HEIGHT,
-      size: Math.random() * 2 + 1,
-      speed: Math.random() * 2 + 0.1,
-      brightness: Math.random()
-     });
-    }
-
-    respawnPlayer();
-
-    document.getElementById('title-screen').style.display = 'none';
-    document.getElementById('game-over').style.display = 'none';
-   }
-
-   // --- キーボード入力 ---
-   window.addEventListener('keydown', (e) => {
-    if (game.keys.hasOwnProperty(e.key)) {
-     game.keys[e.key] = true;
-     if (e.key === 'x') {
-      if (game.entities.player && !game.entities.player.dead) game.entities.player.activatePowerUp();
-     }
-    }
-    // z,xキー対応 (小文字大文字)
-    if (e.key.toLowerCase() === 'z') game.keys['z'] = true;
-    if (e.key.toLowerCase() === 'x') {
-     game.keys['x'] = true;
-     if (game.entities.player && !game.entities.player.dead) game.entities.player.activatePowerUp();
-    }
-   });
-
-   window.addEventListener('keyup', (e) => {
-    if (game.keys.hasOwnProperty(e.key)) game.keys[e.key] = false;
-    if (e.key.toLowerCase() === 'z') game.keys['z'] = false;
-    if (e.key.toLowerCase() === 'x') game.keys['x'] = false;
-   });
-
-   // --- タッチ入力 ---
-   const touchArea = document.getElementById('touch-area-left');
-
-   touchArea.addEventListener('touchstart', (e) => {
-    e.preventDefault();
-    const touch = e.changedTouches[0];
-    game.touch.active = true;
-    game.touch.originX = touch.clientX;
-    game.touch.originY = touch.clientY;
-    game.touch.x = touch.clientX;
-    game.touch.y = touch.clientY;
-
-    if (game.entities.player && !game.entities.player.dead) {
-     game.touch.playerOriginX = game.entities.player.x;
-     game.touch.playerOriginY = game.entities.player.y;
-    }
-   });
-
-   touchArea.addEventListener('touchmove', (e) => {
-    e.preventDefault();
-    const touch = e.changedTouches[0];
-    game.touch.x = touch.clientX;
-    game.touch.y = touch.clientY;
-   });
-
-   touchArea.addEventListener('touchend', (e) => {
-    e.preventDefault();
-    game.touch.active = false;
-   });
-
-   // --- モバイルボタン ---
-   const btnShoot = document.getElementById('btn-shoot');
-   const btnPowerUp = document.getElementById('btn-powerup');
-
-   // Shoot (押しっぱなし対応)
-   btnShoot.addEventListener('touchstart', (e) => { e.preventDefault(); game.shooting = true; });
-   btnShoot.addEventListener('touchend', (e) => { e.preventDefault(); game.shooting = false; });
-
-   // PowerUp
-   btnPowerUp.addEventListener('touchstart', (e) => {
-    e.preventDefault();
-    if (game.entities.player && !game.entities.player.dead) game.entities.player.activatePowerUp();
-   });
-
-   // --- UI ボタン ---
-   document.getElementById('start-btn').addEventListener('click', initGame);
-   document.getElementById('restart-btn').addEventListener('click', initGame);
-
-   // 起動
+   // 初期化
    window.onload = () => {
-    // タイトル画面用の星描画など静的処理のため一度drawを呼ぶ
-    gameLoop();
+    resizeCanvas();
+    resetGame();
    };
 
   </script>
