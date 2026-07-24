@@ -2,468 +2,705 @@
 <html lang="ja">
  <head>
   <meta charset="UTF-8">
-  <!-- スマホでの拡大縮小を防止し、全画面にフィットさせる -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Survive the Swarm</title>
+  <title>Vampire Survivors Style Game</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Rajdhani:wght@600;700&display=swap"
+   rel="stylesheet">
   <style>
-   body,
-   html {
-    margin: 0;
-    padding: 0;
-    width: 100%;
-    height: 100%;
-    overflow: hidden;
-    background-color: #1a202c;
-    /* Tailwind bg-gray-900 */
-    touch-action: none;
-    /* スマホでのスワイプによるリロードやスクロールを無効化 */
+   * {
     user-select: none;
     -webkit-user-select: none;
+    touch-action: none;
    }
 
-   #gameCanvas {
-    display: block;
-    width: 100%;
-    height: 100%;
+   body {
+    margin: 0;
+    overflow: hidden;
+    background-color: #0d0e15;
+    font-family: 'Rajdhani', sans-serif;
    }
 
-   /* UIオーバーレイのスタイル */
-   .ui-layer {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    pointer-events: none;
-    /* 基本はクリックを透過 */
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
+   .pixel-font {
+    font-family: 'Press Start 2P', monospace;
    }
 
-   .pointer-events-auto {
-    pointer-events: auto;
+   /* Custom Glowing Card Animations */
+   .card-glow {
+    transition: all 0.2s ease-in-out;
+    box-shadow: 0 0 15px rgba(139, 92, 246, 0.3);
    }
 
-   /* ジョイスティックのスタイル */
-   #joystick-zone {
-    position: absolute;
-    bottom: 20px;
-    left: 20px;
-    width: 150px;
-    height: 150px;
-    pointer-events: auto;
-    border-radius: 50%;
-    display: none;
-    /* PCでは非表示、スマホでタッチ時に表示 */
+   .card-glow:active,
+   .card-glow:hover {
+    transform: translateY(-4px) scale(1.02);
+    box-shadow: 0 0 25px rgba(168, 85, 247, 0.6);
    }
 
-   #joystick-base {
-    position: absolute;
-    width: 100px;
-    height: 100px;
-    background: rgba(255, 255, 255, 0.2);
-    border: 2px solid rgba(255, 255, 255, 0.5);
-    border-radius: 50%;
-    transform: translate(-50%, -50%);
-    display: none;
-    pointer-events: none;
-   }
-
-   #joystick-stick {
-    position: absolute;
-    width: 40px;
-    height: 40px;
-    background: rgba(255, 255, 255, 0.7);
-    border-radius: 50%;
-    transform: translate(-50%, -50%);
-    display: none;
-    pointer-events: none;
-   }
-
-   /* レベルアップカードのホバーエフェクト */
-   .upgrade-card {
-    transition: transform 0.1s, box-shadow 0.1s;
-   }
-
-   .upgrade-card:hover {
-    transform: scale(1.05);
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+   /* Scanline effect overlay */
+   .scanline {
+    background: linear-gradient(rgba(18, 16, 16, 0) 50%,
+      rgba(0, 0, 0, 0.25) 50%);
+    background-size: 100% 4px;
    }
   </style>
  </head>
- <body class="text-white font-sans antialiased">
+ <body class="w-screen h-screen relative bg-slate-950 text-white select-none">
 
-  <!-- ゲームを描画するキャンバス -->
-  <canvas id="gameCanvas"></canvas>
+  <!-- Game Canvas -->
+  <canvas id="gameCanvas" class="w-full h-full block cursor-crosshair"></canvas>
 
-  <!-- UI: トップバー (HP, レベル, 経験値, 時間) -->
-  <div id="top-ui" class="absolute top-0 left-0 w-full p-4 flex flex-col gap-2 pointer-events-none z-10">
-   <div class="flex justify-between items-center w-full">
-    <div class="text-xl font-bold text-yellow-400 drop-shadow-md">LV. <span id="ui-level">1</span></div>
-    <div class="text-2xl font-mono font-bold drop-shadow-md" id="ui-time">00:00</div>
-    <div class="text-right">
-     <div class="text-sm text-red-400 font-bold">HP</div>
-     <div class="w-32 h-4 bg-gray-700 rounded overflow-hidden border border-gray-600">
-      <div id="ui-hp-bar" class="h-full bg-red-500 transition-all duration-200" style="width: 100%;"></div>
-     </div>
+  <!-- Scanline Visual Overlay for retro atmosphere -->
+  <div class="scanline pointer-events-none absolute inset-0 z-10 opacity-30"></div>
+
+  <!-- Top HUD Interface -->
+  <div id="hud" class="absolute top-0 left-0 w-full p-3 z-20 pointer-events-none flex flex-col gap-2">
+   <!-- Experience Bar Container -->
+   <div
+    class="w-full bg-slate-900/80 border border-slate-700/80 rounded-full h-5 p-0.5 shadow-lg backdrop-blur-sm relative overflow-hidden">
+    <div id="expBar"
+     class="bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-500 h-full rounded-full transition-all duration-150 w-0">
+    </div>
+    <div id="levelText"
+     class="absolute inset-0 flex items-center justify-center text-xs font-bold tracking-wider text-cyan-200 drop-shadow-md">
+     LVL <span id="levelValue" class="ml-1 text-yellow-300">1</span>
     </div>
    </div>
-   <!-- 経験値バー -->
-   <div class="w-full h-2 bg-gray-800 rounded-full overflow-hidden border border-gray-600 shadow-inner">
-    <div id="ui-exp-bar" class="h-full bg-blue-500 transition-all duration-300" style="width: 0%;"></div>
+
+   <!-- Upper Info Bar: Time, Kills, HP -->
+   <div class="flex justify-between items-center px-2">
+    <!-- HP Bar -->
+    <div
+     class="flex items-center gap-2 bg-slate-900/80 px-3 py-1.5 rounded-xl border border-slate-800 shadow-md backdrop-blur-sm">
+     <span class="text-red-400 font-bold text-sm">HP</span>
+     <div class="w-28 sm:w-40 bg-slate-800 h-3.5 rounded-full overflow-hidden border border-red-950">
+      <div id="hpBar" class="bg-gradient-to-r from-red-600 to-rose-400 h-full w-full transition-all duration-150"></div>
+     </div>
+     <span id="hpText" class="text-xs font-bold text-slate-300">100/100</span>
+    </div>
+
+    <!-- Timer -->
+    <div
+     class="pixel-font text-yellow-400 text-sm sm:text-lg bg-slate-900/80 px-4 py-1.5 rounded-xl border border-yellow-900/50 shadow-md backdrop-blur-sm">
+     <span id="timerText">00:00</span>
+    </div>
+
+    <!-- Kills Count -->
+    <div
+     class="flex items-center gap-1.5 bg-slate-900/80 px-3 py-1.5 rounded-xl border border-slate-800 shadow-md backdrop-blur-sm">
+     <svg class="w-4 h-4 text-purple-400" fill="currentColor" viewBox="0 0 20 20">
+      <path fill-rule="evenodd"
+       d="M10 2a1 1 0 011 1v1.323l3.954 1.582 1.599-.8a1 1 0 011.342 1.258l-.8 1.6 1.582 3.954A1 1 0 0118 11h-1.323l-1.582 3.954 1.6.8a1 1 0 01-1.258 1.342l-1.6-.8-3.954 1.582A1 1 0 0110 18v-1.323l-3.954-1.582-1.599.8a1 1 0 01-1.342-1.258l.8-1.6L2.323 11A1 1 0 013 10h1.323l1.582-3.954-1.6-.8a1 1 0 011.258-1.342l1.6.8L9 3.323V3a1 1 0 011-1z"
+       clip-rule="evenodd" />
+     </svg>
+     <span id="killText" class="font-bold text-sm text-slate-200">0</span>
+    </div>
    </div>
   </div>
 
-  <!-- ジョイスティック (スマホ用) -->
-  <div id="joystick-zone"></div>
-  <div id="joystick-base"></div>
-  <div id="joystick-stick"></div>
-
-  <!-- UI: スタート画面 -->
-  <div id="start-screen" class="ui-layer bg-black bg-opacity-80 pointer-events-auto z-50">
-   <h1
-    class="text-5xl md:text-7xl font-black text-transparent bg-clip-text bg-gradient-to-r from-red-500 to-yellow-500 mb-8 drop-shadow-lg text-center">
-    SURVIVE<br>THE SWARM</h1>
-   <p class="mb-8 text-gray-300 text-center max-w-md px-4">
-    PC: WASD または 矢印キー<br>
-    スマホ: 画面左下をタッチ＆ドラッグ<br>
-    攻撃は自動で行われます。経験値(青い宝石)を集めてレベルアップ！
-   </p>
-   <button id="start-btn"
-    class="px-8 py-4 bg-red-600 hover:bg-red-500 text-white font-bold rounded-full text-xl shadow-[0_0_15px_rgba(220,38,38,0.7)] transition-colors">
-    GAME START
-   </button>
+  <!-- Active Weapons & Passives HUD Display -->
+  <div id="equipmentHud" class="absolute bottom-4 left-4 z-20 pointer-events-none flex flex-col gap-1">
+   <div id="weaponsList" class="flex gap-1"></div>
+   <div id="passivesList" class="flex gap-1"></div>
   </div>
 
-  <!-- UI: レベルアップ画面 -->
-  <div id="levelup-screen" class="ui-layer bg-black bg-opacity-70 pointer-events-auto z-40 hidden backdrop-blur-sm">
-   <h2 class="text-4xl font-bold text-yellow-400 mb-6 drop-shadow-md animate-bounce">LEVEL UP!</h2>
-   <p class="text-white mb-6">アップグレードを選択してください</p>
-   <div id="upgrade-container" class="flex flex-col md:flex-row gap-4 w-full max-w-3xl px-4">
-    <!-- カードはJSで動的に生成 -->
+  <!-- Start Screen Modal -->
+  <div id="startModal"
+   class="absolute inset-0 z-50 flex items-center justify-center bg-slate-950/90 backdrop-blur-md p-4">
+   <div
+    class="max-w-md w-full bg-slate-900 border-2 border-purple-600 rounded-2xl p-6 shadow-2xl text-center relative overflow-hidden">
+    <div class="absolute -top-10 -right-10 w-32 h-32 bg-purple-600/20 rounded-full blur-2xl"></div>
+    <h1
+     class="pixel-font text-2xl sm:text-3xl text-transparent bg-clip-text bg-gradient-to-r from-red-500 via-purple-400 to-cyan-400 mb-2">
+     SURVIVOR<br><span class="text-xs text-purple-300 tracking-widest">NIGHTMARE</span></h1>
+    <p class="text-slate-400 text-sm mb-6">敵の大群を倒し、パワーアップを獲得して生き残れ！</p>
+
+    <div class="bg-slate-950/60 rounded-xl p-4 border border-slate-800 mb-6 text-left text-xs text-slate-300 space-y-2">
+     <div class="flex items-center gap-2">
+      <span class="bg-purple-900/50 text-purple-300 px-2 py-0.5 rounded border border-purple-700">PC</span>
+      <span>[WASD] または [矢印キー] で移動</span>
+     </div>
+     <div class="flex items-center gap-2">
+      <span class="bg-cyan-900/50 text-cyan-300 px-2 py-0.5 rounded border border-cyan-700">スマホ</span>
+      <span>画面内をタッチ＆ドラッグで移動</span>
+     </div>
+     <div class="flex items-center gap-2">
+      <span class="bg-yellow-900/50 text-yellow-300 px-2 py-0.5 rounded border border-yellow-700">自動攻撃</span>
+      <span>攻撃は全自動で発動します</span>
+     </div>
+    </div>
+
+    <button id="startButton"
+     class="w-full py-3.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 active:scale-95 transition rounded-xl font-bold text-lg shadow-lg border border-purple-400/30 text-white cursor-pointer">
+     ゲーム開始
+    </button>
    </div>
   </div>
 
-  <!-- UI: ゲームオーバー画面 -->
-  <div id="gameover-screen" class="ui-layer bg-black bg-opacity-90 pointer-events-auto z-50 hidden">
-   <h1 class="text-6xl font-black text-red-600 mb-4 drop-shadow-[0_0_10px_rgba(220,38,38,0.8)]">GAME OVER</h1>
-   <div class="text-2xl mb-2">生存時間: <span id="result-time" class="font-mono text-yellow-400">00:00</span></div>
-   <div class="text-xl mb-8">到達レベル: <span id="result-level" class="text-blue-400">1</span></div>
-   <button id="restart-btn"
-    class="px-8 py-4 bg-gray-700 hover:bg-gray-600 text-white font-bold rounded-full text-xl shadow-lg transition-colors border border-gray-500">
-    もう一度プレイ
-   </button>
+  <!-- Level Up Selection Modal -->
+  <div id="levelUpModal"
+   class="hidden absolute inset-0 z-40 flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4">
+   <div class="max-w-md w-full bg-slate-900 border-2 border-cyan-500/80 rounded-2xl p-5 shadow-2xl">
+    <div class="text-center mb-4">
+     <span class="pixel-font text-xs text-cyan-400 tracking-widest">LEVEL UP!</span>
+     <h2 class="text-xl font-bold text-white">強化カードを選択してください</h2>
+    </div>
+
+    <div id="upgradeOptionsContainer" class="flex flex-col gap-3">
+     <!-- Upgrade option cards will be dynamically injected here -->
+    </div>
+   </div>
+  </div>
+
+  <!-- Game Over / Victory Modal -->
+  <div id="gameOverModal"
+   class="hidden absolute inset-0 z-50 flex items-center justify-center bg-slate-950/90 backdrop-blur-md p-4">
+   <div class="max-w-md w-full bg-slate-900 border-2 border-red-600 rounded-2xl p-6 shadow-2xl text-center">
+    <h2 id="gameOverTitle" class="pixel-font text-2xl text-red-500 mb-2">GAME OVER</h2>
+    <p id="gameOverSub" class="text-slate-400 text-sm mb-6">闇に飲み込まれてしまった...</p>
+
+    <div class="grid grid-cols-2 gap-3 mb-6">
+     <div class="bg-slate-950/80 p-3 rounded-xl border border-slate-800">
+      <div class="text-xs text-slate-400">生存時間</div>
+      <div id="finalTime" class="text-lg font-bold text-yellow-400">00:00</div>
+     </div>
+     <div class="bg-slate-950/80 p-3 rounded-xl border border-slate-800">
+      <div class="text-xs text-slate-400">撃破数</div>
+      <div id="finalKills" class="text-lg font-bold text-cyan-400">0</div>
+     </div>
+     <div class="bg-slate-950/80 p-3 rounded-xl border border-slate-800">
+      <div class="text-xs text-slate-400">到達レベル</div>
+      <div id="finalLevel" class="text-lg font-bold text-purple-400">1</div>
+     </div>
+     <div class="bg-slate-950/80 p-3 rounded-xl border border-slate-800">
+      <div class="text-xs text-slate-400">獲得経験値</div>
+      <div id="finalExp" class="text-lg font-bold text-emerald-400">0</div>
+     </div>
+    </div>
+
+    <button id="restartButton"
+     class="w-full py-3.5 bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 active:scale-95 transition rounded-xl font-bold text-lg shadow-lg border border-red-400/30 text-white cursor-pointer">
+     もう一度挑戦
+    </button>
+   </div>
   </div>
 
   <script>
+   // Web Audio Sound Generator for zero-dependency retro SFX
+   class SoundFX {
+    constructor() {
+     this.ctx = null;
+    }
+
+    init() {
+     if (!this.ctx) {
+      this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+     }
+    }
+
+    playHit() {
+     if (!this.ctx) return;
+     const osc = this.ctx.createOscillator();
+     const gain = this.ctx.createGain();
+     osc.type = 'sawtooth';
+     osc.frequency.setValueAtTime(180, this.ctx.currentTime);
+     osc.frequency.exponentialRampToValueAtTime(40, this.ctx.currentTime + 0.08);
+     gain.gain.setValueAtTime(0.15, this.ctx.currentTime);
+     gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.08);
+     osc.connect(gain);
+     gain.connect(this.ctx.destination);
+     osc.start();
+     osc.stop(this.ctx.currentTime + 0.08);
+    }
+
+    playGem() {
+     if (!this.ctx) return;
+     const osc = this.ctx.createOscillator();
+     const gain = this.ctx.createGain();
+     osc.type = 'sine';
+     osc.frequency.setValueAtTime(600, this.ctx.currentTime);
+     osc.frequency.exponentialRampToValueAtTime(1200, this.ctx.currentTime + 0.06);
+     gain.gain.setValueAtTime(0.08, this.ctx.currentTime);
+     gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.06);
+     osc.connect(gain);
+     gain.connect(this.ctx.destination);
+     osc.start();
+     osc.stop(this.ctx.currentTime + 0.06);
+    }
+
+    playLevelUp() {
+     if (!this.ctx) return;
+     const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+     notes.forEach((freq, idx) => {
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.1, this.ctx.currentTime + idx * 0.07);
+      gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + idx * 0.07 + 0.15);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(this.ctx.currentTime + idx * 0.07);
+      osc.stop(this.ctx.currentTime + idx * 0.07 + 0.15);
+     });
+    }
+
+    playShoot() {
+     if (!this.ctx) return;
+     const osc = this.ctx.createOscillator();
+     const gain = this.ctx.createGain();
+     osc.type = 'square';
+     osc.frequency.setValueAtTime(400, this.ctx.currentTime);
+     osc.frequency.exponentialRampToValueAtTime(100, this.ctx.currentTime + 0.05);
+     gain.gain.setValueAtTime(0.05, this.ctx.currentTime);
+     gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.05);
+     osc.connect(gain);
+     gain.connect(this.ctx.destination);
+     osc.start();
+     osc.stop(this.ctx.currentTime + 0.05);
+    }
+
+    playThunder() {
+     if (!this.ctx) return;
+     const osc = this.ctx.createOscillator();
+     const gain = this.ctx.createGain();
+     osc.type = 'sawtooth';
+     osc.frequency.setValueAtTime(100, this.ctx.currentTime);
+     osc.frequency.exponentialRampToValueAtTime(30, this.ctx.currentTime + 0.2);
+     gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
+     gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.2);
+     osc.connect(gain);
+     gain.connect(this.ctx.destination);
+     osc.start();
+     osc.stop(this.ctx.currentTime + 0.2);
+    }
+   }
+
+   const sfx = new SoundFX();
+
    const canvas = document.getElementById('gameCanvas');
    const ctx = canvas.getContext('2d');
 
-   // UI Elements
-   const uiHpBar = document.getElementById('ui-hp-bar');
-   const uiExpBar = document.getElementById('ui-exp-bar');
-   const uiLevel = document.getElementById('ui-level');
-   const uiTime = document.getElementById('ui-time');
-   const startScreen = document.getElementById('start-screen');
-   const levelupScreen = document.getElementById('levelup-screen');
-   const gameoverScreen = document.getElementById('gameover-screen');
-   const upgradeContainer = document.getElementById('upgrade-container');
-
-   // Game State Enum
-   const STATE = { START: 0, PLAYING: 1, LEVELUP: 2, GAMEOVER: 3 };
-   let gameState = STATE.START;
-
-   // Global Game Variables
-   let lastTime = 0;
-   let gameTime = 0;
-   let camera = { x: 0, y: 0 };
-   let frameCount = 0;
-
-   // Entities
-   let player;
-   let enemies = [];
-   let gems = [];
-   let projectiles = [];
-   let particles = [];
-   let damageTexts = [];
-
-   // Input
-   const keys = { w: false, a: false, s: false, d: false, ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false };
-   let joystick = { active: false, dx: 0, dy: 0, originX: 0, originY: 0, touchId: null };
-
-   // Constants
-   const MAP_SIZE = 4000; // 仮想マップの広さ（これを超えると敵が再配置されるなど、無限ループのように見せる）
-   const TILE_SIZE = 100;
-
-   function resize() {
+   function resizeCanvas() {
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
    }
-   window.addEventListener('resize', resize);
-   resize();
+   window.addEventListener('resize', resizeCanvas);
+   resizeCanvas();
 
-   // Keyboard Input
+   // Input Controller (Keyboard & Touch Joystick)
+   const keys = {};
+   const touchState = {
+    active: false,
+    startX: 0,
+    startY: 0,
+    currentX: 0,
+    currentY: 0,
+    dx: 0,
+    dy: 0
+   };
+
    window.addEventListener('keydown', (e) => {
-    if (keys.hasOwnProperty(e.key)) keys[e.key] = true;
+    keys[e.code] = true;
    });
    window.addEventListener('keyup', (e) => {
-    if (keys.hasOwnProperty(e.key)) keys[e.key] = false;
+    keys[e.code] = false;
    });
 
-   // Joystick Input (Touch)
-   const joyBase = document.getElementById('joystick-base');
-   const joyStick = document.getElementById('joystick-stick');
+   // Touch Joystick Controls
+   window.addEventListener('touchstart', (e) => {
+    if (gameState.isLevelUp || gameState.isGameOver || !gameState.started) return;
+    const touch = e.touches[0];
+    touchState.active = true;
+    touchState.startX = touch.clientX;
+    touchState.startY = touch.clientY;
+    touchState.currentX = touch.clientX;
+    touchState.currentY = touch.clientY;
+    touchState.dx = 0;
+    touchState.dy = 0;
+   });
 
-   // タッチ操作は画面全体で受け付けるが、左半分でジョイスティック起動
-   document.addEventListener('touchstart', (e) => {
-    if (gameState !== STATE.PLAYING) return;
-    for (let i = 0; i < e.changedTouches.length; i++) {
-     const touch = e.changedTouches[i];
-     if (!joystick.active && touch.clientX < window.innerWidth / 2) {
-      joystick.active = true;
-      joystick.touchId = touch.identifier;
-      joystick.originX = touch.clientX;
-      joystick.originY = touch.clientY;
+   window.addEventListener('touchmove', (e) => {
+    if (!touchState.active) return;
+    const touch = e.touches[0];
+    touchState.currentX = touch.clientX;
+    touchState.currentY = touch.clientY;
 
-      joyBase.style.display = 'block';
-      joyStick.style.display = 'block';
-      joyBase.style.left = `${joystick.originX}px`;
-      joyBase.style.top = `${joystick.originY}px`;
-      joyStick.style.left = `${joystick.originX}px`;
-      joyStick.style.top = `${joystick.originY}px`;
-      joystick.dx = 0;
-      joystick.dy = 0;
-     }
+    const diffX = touchState.currentX - touchState.startX;
+    const diffY = touchState.currentY - touchState.startY;
+    const dist = Math.hypot(diffX, diffY);
+    const maxDist = 50;
+
+    if (dist > 0) {
+     touchState.dx = (diffX / Math.max(dist, maxDist));
+     touchState.dy = (diffY / Math.max(dist, maxDist));
     }
-   }, { passive: false });
+   });
 
-   document.addEventListener('touchmove', (e) => {
-    if (gameState !== STATE.PLAYING || !joystick.active) return;
-    for (let i = 0; i < e.changedTouches.length; i++) {
-     const touch = e.changedTouches[i];
-     if (touch.identifier === joystick.touchId) {
-      e.preventDefault(); // スクロール防止
-      let dx = touch.clientX - joystick.originX;
-      let dy = touch.clientY - joystick.originY;
-      const distance = Math.hypot(dx, dy);
-      const maxDist = 50; // ジョイスティックの最大可動範囲
+   const resetTouch = () => {
+    touchState.active = false;
+    touchState.dx = 0;
+    touchState.dy = 0;
+   };
+   window.addEventListener('touchend', resetTouch);
+   window.addEventListener('touchcancel', resetTouch);
 
-      if (distance > maxDist) {
-       dx = (dx / distance) * maxDist;
-       dy = (dy / distance) * maxDist;
-      }
+   const gameState = {
+    started: false,
+    isGameOver: false,
+    isLevelUp: false,
+    time: 0,
+    kills: 0,
+    totalExpGained: 0
+   };
 
-      joyStick.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
-
-      // 正規化して-1.0 ~ 1.0の範囲にする
-      joystick.dx = dx / maxDist;
-      joystick.dy = dy / maxDist;
-     }
-    }
-   }, { passive: false });
-
-   const endTouch = (e) => {
-    for (let i = 0; i < e.changedTouches.length; i++) {
-     if (e.changedTouches[i].identifier === joystick.touchId) {
-      joystick.active = false;
-      joystick.touchId = null;
-      joystick.dx = 0;
-      joystick.dy = 0;
-      joyBase.style.display = 'none';
-      joyStick.style.display = 'none';
-     }
+   // Upgrade Catalog Definitions
+   const UPGRADES = {
+    // Weapons
+    magicWand: {
+     id: 'magicWand',
+     type: 'weapon',
+     name: '魔法の杖',
+     icon: '🪄',
+     desc: '一番近くの敵へ自動的に魔弾を発射する'
+    },
+    knife: {
+     id: 'knife',
+     type: 'weapon',
+     name: '連射ナイフ',
+     icon: '🗡️',
+     desc: '移動している方向にナイフを連続投擲'
+    },
+    orbs: {
+     id: 'orbs',
+     type: 'weapon',
+     name: 'ガーディアンオーブ',
+     icon: '🔮',
+     desc: '周囲を旋回して近づく敵をなぎ払う'
+    },
+    garlic: {
+     id: 'garlic',
+     type: 'weapon',
+     name: '聖なるフィールド',
+     icon: '🧄',
+     desc: '自分の周囲に常にダメージ領域を展開'
+    },
+    lightning: {
+     id: 'lightning',
+     type: 'weapon',
+     name: 'サンダーボルト',
+     icon: '⚡',
+     desc: 'ランダムな敵の頭上へ落雷攻撃'
+    },
+    // Passives
+    might: {
+     id: 'might',
+     type: 'passive',
+     name: '攻撃力UP',
+     icon: '💥',
+     desc: '全ての武器の与えるダメージ +20%'
+    },
+    speed: {
+     id: 'speed',
+     type: 'passive',
+     name: '移動速度UP',
+     icon: '👟',
+     desc: 'プレイヤーの移動速度 +15%'
+    },
+    magnet: {
+     id: 'magnet',
+     type: 'passive',
+     name: '磁力UP',
+     icon: '🧲',
+     desc: 'ジェムを引き寄せる範囲 +35%'
+    },
+    recovery: {
+     id: 'recovery',
+     type: 'passive',
+     name: 'HPリジェネ',
+     icon: '💖',
+     desc: '秒間毎にHPが自動回復する'
     }
    };
-   document.addEventListener('touchend', endTouch);
-   document.addEventListener('touchcancel', endTouch);
 
    class Player {
     constructor() {
      this.x = 0;
      this.y = 0;
      this.radius = 16;
-     this.speed = 200; // pixels per second
+     this.speed = 3.2;
      this.maxHp = 100;
-     this.hp = this.maxHp;
+     this.hp = 100;
      this.level = 1;
      this.exp = 0;
-     this.expToNext = 10;
-     this.magnetRadius = 80;
-     this.vx = 0;
-     this.vy = 0;
-     this.facing = 1; // 1 for right, -1 for left
+     this.nextExp = 10;
+     this.magnetRadius = 90;
+     this.damageMultiplier = 1.0;
+     this.regen = 0;
+
+     // Facing direction
+     this.facingX = 1;
+     this.facingY = 0;
+
+     // Weapon Levels (0 = Not acquired)
      this.weapons = {
-      wand: { level: 1, cooldown: 1.5, timer: 0, damage: 10, speed: 400, pierce: 1 },
-      aura: { level: 0, radius: 80, damage: 5, timer: 0, cooldown: 0.5 }, // 0 means inactive
-      whip: { level: 0, cooldown: 2.0, timer: 0, damage: 20, range: 120 }
+      magicWand: 1,
+      knife: 0,
+      orbs: 0,
+      garlic: 0,
+      lightning: 0
      };
-     this.damageFlash = 0;
+
+     // Passive Levels
+     this.passives = {
+      might: 0,
+      speed: 0,
+      magnet: 0,
+      recovery: 0
+     };
+
+     // Timers for auto-attacks
+     this.timers = {
+      magicWand: 0,
+      knife: 0,
+      lightning: 0,
+      regen: 0
+     };
+
+     // Orbit angle for Orb weapon
+     this.orbAngle = 0;
     }
 
     update(dt) {
-     // Movement
-     this.vx = 0;
-     this.vy = 0;
+     // Determine movement direction from input
+     let moveX = 0;
+     let moveY = 0;
 
-     if (keys.w || keys.ArrowUp) this.vy -= 1;
-     if (keys.s || keys.ArrowDown) this.vy += 1;
-     if (keys.a || keys.ArrowLeft) this.vx -= 1;
-     if (keys.d || keys.ArrowRight) this.vx += 1;
+     if (keys['KeyW'] || keys['ArrowUp']) moveY -= 1;
+     if (keys['KeyS'] || keys['ArrowDown']) moveY += 1;
+     if (keys['KeyA'] || keys['ArrowLeft']) moveX -= 1;
+     if (keys['KeyD'] || keys['ArrowRight']) moveX += 1;
 
-     if (joystick.active) {
-      this.vx = joystick.dx;
-      this.vy = joystick.dy;
-     } else {
-      // 正規化 (斜め移動時の速度補正)
-      const length = Math.hypot(this.vx, this.vy);
-      if (length > 0) {
-       this.vx /= length;
-       this.vy /= length;
+     // Add Touch input
+     if (touchState.active) {
+      moveX = touchState.dx;
+      moveY = touchState.dy;
+     }
+
+     // Normalize vector if diagonal
+     const length = Math.hypot(moveX, moveY);
+     if (length > 0) {
+      const currentSpeed = this.speed * (1 + this.passives.speed * 0.15);
+      const normX = moveX / (length > 1 ? length : 1);
+      const normY = moveY / (length > 1 ? length : 1);
+
+      this.x += normX * currentSpeed;
+      this.y += normY * currentSpeed;
+
+      this.facingX = normX;
+      this.facingY = normY;
+     }
+
+     // Health Regeneration
+     if (this.passives.recovery > 0) {
+      this.timers.regen += dt;
+      if (this.timers.regen >= 1.0) {
+       this.timers.regen = 0;
+       this.heal(this.passives.recovery * 0.8);
       }
      }
 
-     if (this.vx > 0) this.facing = 1;
-     else if (this.vx < 0) this.facing = -1;
+     // Update Orb Angles
+     this.orbAngle += 0.04;
 
-     this.x += this.vx * this.speed * dt;
-     this.y += this.vy * this.speed * dt;
-
-     // ダメージフラッシュ減衰
-     if (this.damageFlash > 0) this.damageFlash -= dt * 5;
-
-     // 武器の更新と発射
+     // Trigger Weapons
      this.updateWeapons(dt);
-
-     // UI更新
-     uiHpBar.style.width = `${Math.max(0, (this.hp / this.maxHp) * 100)}%`;
-     uiExpBar.style.width = `${(this.exp / this.expToNext) * 100}%`;
     }
 
-    updateWeapons(dt) {
-     // Magic Wand: Nearest target
-     if (this.weapons.wand.level > 0) {
-      this.weapons.wand.timer -= dt;
-      if (this.weapons.wand.timer <= 0) {
-       this.weapons.wand.timer = this.weapons.wand.cooldown;
-       let target = this.getNearestEnemy(300);
-       if (target) {
-        let angle = Math.atan2(target.y - this.y, target.x - this.x);
-        // レベルに応じて複数発射
-        let count = 1 + Math.floor(this.weapons.wand.level / 3);
-        for (let i = 0; i < count; i++) {
-         setTimeout(() => {
-          if (gameState === STATE.PLAYING) {
-           projectiles.push(new WandProjectile(this.x, this.y, angle, this.weapons.wand));
-          }
-         }, i * 150);
-        }
-       }
-      }
-     }
-
-     // Garlic (Aura): Constant area damage around player
-     if (this.weapons.aura.level > 0) {
-      this.weapons.aura.timer -= dt;
-      if (this.weapons.aura.timer <= 0) {
-       this.weapons.aura.timer = this.weapons.aura.cooldown;
-       // 円内の敵にダメージ
-       enemies.forEach(enemy => {
-        const dist = Math.hypot(enemy.x - this.x, enemy.y - this.y);
-        if (dist < this.weapons.aura.radius + enemy.radius) {
-         enemy.takeDamage(this.weapons.aura.damage);
-         createHitEffect(enemy.x, enemy.y, '#a855f7');
-        }
-       });
-      }
-     }
-
-     // Whip: Horizontal slash
-     if (this.weapons.whip.level > 0) {
-      this.weapons.whip.timer -= dt;
-      if (this.weapons.whip.timer <= 0) {
-       this.weapons.whip.timer = this.weapons.whip.cooldown;
-       projectiles.push(new WhipSlash(this.x, this.y, this.facing, this.weapons.whip));
-       // レベルが高い場合は後ろにも発射
-       if (this.weapons.whip.level >= 4) {
-        projectiles.push(new WhipSlash(this.x, this.y, -this.facing, this.weapons.whip));
-       }
-      }
-     }
-    }
-
-    getNearestEnemy(range) {
-     let nearest = null;
-     let minDist = range;
-     enemies.forEach(enemy => {
-      const dist = Math.hypot(enemy.x - this.x, enemy.y - this.y);
-      if (dist < minDist) {
-       minDist = dist;
-       nearest = enemy;
-      }
-     });
-     return nearest;
-    }
-
-    draw(ctx) {
-     // オーラ(Garlic)の描画
-     if (this.weapons.aura.level > 0) {
-      ctx.beginPath();
-      ctx.arc(this.x - camera.x, this.y - camera.y, this.weapons.aura.radius, 0, Math.PI * 2);
-      ctx.fillStyle = `rgba(168, 85, 247, 0.2)`; // 紫色の半透明
-      ctx.fill();
-      ctx.strokeStyle = `rgba(168, 85, 247, 0.5)`;
-      ctx.lineWidth = 2;
-      ctx.stroke();
-     }
-
-     // プレイヤー自身の描画 (絵文字で代用)
-     ctx.save();
-     ctx.translate(this.x - camera.x, this.y - camera.y);
-     if (this.facing === -1) ctx.scale(-1, 1); // 左向き時は反転
-
-     ctx.font = '30px Arial';
-     ctx.textAlign = 'center';
-     ctx.textBaseline = 'middle';
-
-     // ダメージ時の赤フラッシュ
-     if (this.damageFlash > 0) {
-      ctx.filter = 'brightness(200%) sepia(100%) hue-rotate(-50deg) saturate(500%)';
-     }
-
-     ctx.fillText('🧙‍♂️', 0, 0); // 魔法使い
-     ctx.restore();
+    heal(amount) {
+     this.hp = Math.min(this.maxHp, this.hp + amount);
+     updateHpUI();
     }
 
     takeDamage(amount) {
-     if (this.damageFlash > 0) return; // 無敵時間(短)
      this.hp -= amount;
-     this.damageFlash = 1;
-     createDamageText(this.x, this.y - 20, Math.ceil(amount), '#ef4444');
+     sfx.playHit();
+     updateHpUI();
+
      if (this.hp <= 0) {
-      gameOver();
+      this.hp = 0;
+      triggerGameOver();
      }
     }
 
     addExp(amount) {
      this.exp += amount;
-     if (this.exp >= this.expToNext) {
-      this.exp -= this.expToNext;
-      this.levelUp();
+     gameState.totalExpGained += amount;
+
+     if (this.exp >= this.nextExp) {
+      this.exp -= this.nextExp;
+      this.level++;
+      this.nextExp = Math.floor(this.nextExp * 1.35) + 5;
+      sfx.playLevelUp();
+      showLevelUpModal();
+     }
+     updateExpUI();
+    }
+
+    updateWeapons(dt) {
+     const totalDamageMult = this.damageMultiplier * (1 + this.passives.might * 0.2);
+
+     // 1. Magic Wand Attack
+     if (this.weapons.magicWand > 0) {
+      this.timers.magicWand += dt;
+      const cooldown = Math.max(0.2, 0.8 - (this.weapons.magicWand * 0.08));
+      if (this.timers.magicWand >= cooldown) {
+       this.timers.magicWand = 0;
+       const target = getClosestEnemy(this.x, this.y);
+       if (target) {
+        const angle = Math.atan2(target.y - this.y, target.x - this.x);
+        const count = Math.min(4, 1 + Math.floor(this.weapons.magicWand / 2));
+        for (let i = 0; i < count; i++) {
+         const spreadAngle = angle + (i - (count - 1) / 2) * 0.15;
+         projectiles.push(new Projectile(
+          this.x, this.y,
+          Math.cos(spreadAngle) * 7, Math.sin(spreadAngle) * 7,
+          12 * totalDamageMult, 120, 'magicWand'
+         ));
+        }
+        sfx.playShoot();
+       }
+      }
+     }
+
+     // 2. Knife Attack
+     if (this.weapons.knife > 0) {
+      this.timers.knife += dt;
+      const cooldown = Math.max(0.15, 0.6 - (this.weapons.knife * 0.06));
+      if (this.timers.knife >= cooldown) {
+       this.timers.knife = 0;
+       const baseAngle = Math.atan2(this.facingY, this.facingX);
+       const count = this.weapons.knife;
+       for (let i = 0; i < count; i++) {
+        const offset = (i - (count - 1) / 2) * 12;
+        const perpX = -this.facingY * offset;
+        const perpY = this.facingX * offset;
+        projectiles.push(new Projectile(
+         this.x + perpX, this.y + perpY,
+         this.facingX * 9, this.facingY * 9,
+         16 * totalDamageMult, 180, 'knife'
+        ));
+       }
+       sfx.playShoot();
+      }
+     }
+
+     // 3. Garlic Field Damage Check
+     if (this.weapons.garlic > 0) {
+      const radius = 50 + this.weapons.garlic * 12;
+      const damage = (0.3 + this.weapons.garlic * 0.25) * totalDamageMult;
+      enemies.forEach(e => {
+       const dist = Math.hypot(e.x - this.x, e.y - this.y);
+       if (dist < radius + e.radius) {
+        e.takeDamage(damage, false);
+       }
+      });
+     }
+
+     // 4. Lightning Strike
+     if (this.weapons.lightning > 0) {
+      this.timers.lightning += dt;
+      const cooldown = Math.max(0.5, 2.0 - (this.weapons.lightning * 0.25));
+      if (this.timers.lightning >= cooldown) {
+       this.timers.lightning = 0;
+       const count = this.weapons.lightning;
+       for (let i = 0; i < count; i++) {
+        const target = getRandomEnemy();
+        if (target) {
+         target.takeDamage(45 * totalDamageMult, true);
+         particles.push(new Particle(target.x, target.y, 'lightning'));
+         floatingTexts.push(new FloatingText(target.x, target.y - 15, Math.floor(45 * totalDamageMult), '#facc15'));
+        }
+       }
+       if (count > 0) sfx.playThunder();
+      }
      }
     }
 
-    levelUp() {
-     this.level++;
-     this.expToNext = Math.floor(this.expToNext * 1.5);
-     uiLevel.innerText = this.level;
+    draw(ctx, camera) {
+     const screenX = this.x - camera.x;
+     const screenY = this.y - camera.y;
 
-     // 少しHP回復
-     this.hp = Math.min(this.maxHp, this.hp + this.maxHp * 0.2);
+     // Render Garlic Field Aura
+     if (this.weapons.garlic > 0) {
+      const radius = 50 + this.weapons.garlic * 12;
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(screenX, screenY, radius, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(234, 179, 8, 0.12)';
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(234, 179, 8, 0.4)';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.restore();
+     }
 
-     triggerLevelUpMenu();
+     // Render Guardian Orbs
+     if (this.weapons.orbs > 0) {
+      const orbCount = 1 + this.weapons.orbs;
+      const radius = 65;
+      const totalDamageMult = this.damageMultiplier * (1 + this.passives.might * 0.2);
+
+      for (let i = 0; i < orbCount; i++) {
+       const angle = this.orbAngle + (i * Math.PI * 2 / orbCount);
+       const ox = this.x + Math.cos(angle) * radius;
+       const oy = this.y + Math.sin(angle) * radius;
+       const oScreenX = ox - camera.x;
+       const oScreenY = oy - camera.y;
+
+       ctx.save();
+       ctx.beginPath();
+       ctx.arc(oScreenX, oScreenY, 8, 0, Math.PI * 2);
+       ctx.fillStyle = '#c084fc';
+       ctx.shadowColor = '#a855f7';
+       ctx.shadowBlur = 12;
+       ctx.fill();
+       ctx.restore();
+
+       // Collision Check with Enemies
+       enemies.forEach(e => {
+        if (Math.hypot(e.x - ox, e.y - oy) < e.radius + 8) {
+         e.takeDamage(1.2 * totalDamageMult, false);
+        }
+       });
+      }
+     }
+
+     // Render Player Body
+     ctx.save();
+     ctx.translate(screenX, screenY);
+
+     // Body glow
+     ctx.beginPath();
+     ctx.arc(0, 0, this.radius + 4, 0, Math.PI * 2);
+     ctx.fillStyle = 'rgba(56, 189, 248, 0.25)';
+     ctx.fill();
+
+     // Character Base
+     ctx.beginPath();
+     ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+     ctx.fillStyle = '#38bdf8';
+     ctx.fill();
+     ctx.strokeStyle = '#0284c7';
+     ctx.lineWidth = 3;
+     ctx.stroke();
+
+     // Eyes / Visor
+     ctx.fillStyle = '#ffffff';
+     const eyeOffset = this.facingX * 5;
+     ctx.fillRect(eyeOffset - 3, -4, 6, 4);
+
+     ctx.restore();
     }
    }
 
@@ -473,578 +710,586 @@
      this.y = y;
      this.type = type;
 
-     // 種類によるステータス設定
+     // Stats based on enemy type
      if (type === 'zombie') {
-      this.emoji = '🧟';
       this.radius = 14;
-      this.speed = 40 + Math.random() * 20;
-      this.maxHp = 15 + Math.floor(gameTime / 60) * 10;
-      this.damage = 10;
+      this.hp = 20;
+      this.maxHp = 20;
+      this.speed = 1.6;
+      this.damage = 8;
+      this.color = '#4ade80';
+      this.expValue = 1;
      } else if (type === 'bat') {
-      this.emoji = '🦇';
-      this.radius = 12;
-      this.speed = 100 + Math.random() * 30;
-      this.maxHp = 5 + Math.floor(gameTime / 60) * 5;
+      this.radius = 10;
+      this.hp = 10;
+      this.maxHp = 10;
+      this.speed = 2.8;
       this.damage = 5;
+      this.color = '#f43f5e';
+      this.expValue = 1;
+     } else if (type === 'skeleton') {
+      this.radius = 16;
+      this.hp = 55;
+      this.maxHp = 55;
+      this.speed = 1.9;
+      this.damage = 14;
+      this.color = '#e2e8f0';
+      this.expValue = 3;
      } else if (type === 'boss') {
-      this.emoji = '👹';
-      this.radius = 24;
-      this.speed = 60;
-      this.maxHp = 200 + Math.floor(gameTime / 60) * 100;
-      this.damage = 30;
+      this.radius = 32;
+      this.hp = 800;
+      this.maxHp = 800;
+      this.speed = 1.1;
+      this.damage = 25;
+      this.color = '#a855f7';
+      this.expValue = 25;
      }
 
-     this.hp = this.maxHp;
-     this.flash = 0;
-     this.facing = 1;
+     this.flashTimer = 0;
     }
 
-    update(dt) {
-     // プレイヤーに向かって移動
-     const dx = player.x - this.x;
-     const dy = player.y - this.y;
-     const dist = Math.hypot(dx, dy);
+    update(player, dt) {
+     // Flash on hit decay
+     if (this.flashTimer > 0) this.flashTimer -= dt;
 
-     if (dist > 0) {
-      this.x += (dx / dist) * this.speed * dt;
-      this.y += (dy / dist) * this.speed * dt;
-      this.facing = dx > 0 ? 1 : -1;
-     }
+     // Move towards player
+     const angle = Math.atan2(player.y - this.y, player.x - this.x);
+     this.x += Math.cos(angle) * this.speed;
+     this.y += Math.sin(angle) * this.speed;
 
-     if (this.flash > 0) this.flash -= dt * 10;
-
-     // プレイヤーとの衝突(ダメージ)
-     if (dist < this.radius + player.radius) {
-      player.takeDamage(this.damage);
-      // ノックバック
-      this.x -= (dx / dist) * 10;
-      this.y -= (dy / dist) * 10;
+     // Player collision check
+     const dist = Math.hypot(player.x - this.x, player.y - this.y);
+     if (dist < player.radius + this.radius) {
+      player.takeDamage(this.damage * dt * 2);
      }
     }
 
-    draw(ctx) {
-     ctx.save();
-     ctx.translate(this.x - camera.x, this.y - camera.y);
-     if (this.facing === -1) ctx.scale(-1, 1);
-
-     if (this.flash > 0) {
-      ctx.filter = 'brightness(200%)';
-     }
-
-     ctx.font = `${this.radius * 2}px Arial`;
-     ctx.textAlign = 'center';
-     ctx.textBaseline = 'middle';
-     ctx.fillText(this.emoji, 0, 0);
-
-     // Boss HP Bar
-     if (this.type === 'boss' && this.hp < this.maxHp) {
-      ctx.fillStyle = 'black';
-      ctx.fillRect(-20, -30, 40, 5);
-      ctx.fillStyle = 'red';
-      ctx.fillRect(-20, -30, 40 * (this.hp / this.maxHp), 5);
-     }
-     ctx.restore();
-    }
-
-    takeDamage(amount) {
+    takeDamage(amount, showText = true) {
      this.hp -= amount;
-     this.flash = 1;
-     createDamageText(this.x, this.y - this.radius, Math.ceil(amount), '#ffffff');
+     this.flashTimer = 0.1;
+
+     if (showText && amount >= 1) {
+      floatingTexts.push(new FloatingText(this.x, this.y - 10, Math.floor(amount), '#ffffff'));
+     }
+
      if (this.hp <= 0) {
       this.die();
      }
     }
 
     die() {
-     // 経験値ジェムをドロップ
-     const expVal = this.type === 'boss' ? 20 : (this.type === 'zombie' ? 2 : 1);
-     gems.push(new Gem(this.x, this.y, expVal));
-     createHitEffect(this.x, this.y, '#ef4444');
-    }
-   }
+     const idx = enemies.indexOf(this);
+     if (idx !== -1) {
+      enemies.splice(idx, 1);
+      gameState.kills++;
+      updateKillUI();
 
-   class Gem {
-    constructor(x, y, value) {
-     this.x = x;
-     this.y = y;
-     this.value = value;
-     this.radius = value > 5 ? 8 : 5;
-     this.color = value > 5 ? '#ef4444' : '#3b82f6'; // 赤ジェムか青ジェム
-     this.isMagnetic = false;
-     this.speed = 0;
-    }
+      // Drop EXP Gem
+      gems.push(new ExpGem(this.x, this.y, this.expValue));
 
-    update(dt) {
-     const dx = player.x - this.x;
-     const dy = player.y - this.y;
-     const dist = Math.hypot(dx, dy);
-
-     if (dist < player.magnetRadius) {
-      this.isMagnetic = true;
-     }
-
-     if (this.isMagnetic) {
-      this.speed += 500 * dt; // 加速してプレイヤーに向かう
-      if (dist > 0) {
-       this.x += (dx / dist) * this.speed * dt;
-       this.y += (dy / dist) * this.speed * dt;
+      // Death particle effects
+      for (let i = 0; i < 6; i++) {
+       particles.push(new Particle(this.x, this.y, 'blood', this.color));
       }
      }
-
-     // 回収
-     if (dist < player.radius + this.radius + 10) {
-      player.addExp(this.value);
-      return true; // 削除フラグ
-     }
-     return false;
     }
 
-    draw(ctx) {
-     ctx.beginPath();
-     ctx.arc(this.x - camera.x, this.y - camera.y, this.radius, 0, Math.PI * 2);
-     ctx.fillStyle = this.color;
-     ctx.fill();
-     ctx.shadowBlur = 10;
-     ctx.shadowColor = this.color;
-     ctx.shadowBlur = 0; // 他の描画に影響しないように戻す
-    }
-   }
+    draw(ctx, camera) {
+     const screenX = this.x - camera.x;
+     const screenY = this.y - camera.y;
 
-   class WandProjectile {
-    constructor(x, y, angle, stats) {
-     this.x = x;
-     this.y = y;
-     this.vx = Math.cos(angle) * stats.speed;
-     this.vy = Math.sin(angle) * stats.speed;
-     this.damage = stats.damage + (stats.level * 2);
-     this.pierce = stats.pierce + Math.floor(stats.level / 3);
-     this.hitList = []; // 同じ敵に複数回当たらないように
-     this.lifeTime = 2.0;
-     this.radius = 6;
-    }
-
-    update(dt) {
-     this.x += this.vx * dt;
-     this.y += this.vy * dt;
-     this.lifeTime -= dt;
-
-     // 衝突判定
-     for (let i = 0; i < enemies.length; i++) {
-      let enemy = enemies[i];
-      if (this.hitList.includes(enemy)) continue;
-
-      if (Math.hypot(enemy.x - this.x, enemy.y - this.y) < enemy.radius + this.radius) {
-       enemy.takeDamage(this.damage);
-       createHitEffect(this.x, this.y, '#60a5fa');
-       this.hitList.push(enemy);
-       this.pierce--;
-       if (this.pierce <= 0) return true; // 消滅
-      }
-     }
-     return this.lifeTime <= 0;
-    }
-
-    draw(ctx) {
-     ctx.beginPath();
-     ctx.arc(this.x - camera.x, this.y - camera.y, this.radius, 0, Math.PI * 2);
-     ctx.fillStyle = '#60a5fa'; // 水色
-     ctx.fill();
-     ctx.shadowBlur = 10;
-     ctx.shadowColor = '#60a5fa';
-     ctx.shadowBlur = 0;
-    }
-   }
-
-   class WhipSlash {
-    constructor(x, y, dir, stats) {
-     this.x = x + (dir * 40); // プレイヤーの少し前
-     this.y = y;
-     this.dir = dir; // 1 or -1
-     this.damage = stats.damage + (stats.level * 5);
-     this.width = stats.range + (stats.level * 10);
-     this.height = 40;
-     this.lifeTime = 0.2; // 0.2秒だけ判定が存在
-     this.maxLife = 0.2;
-     this.hitList = [];
-    }
-
-    update(dt) {
-     // プレイヤーに追従
-     this.x = player.x + (this.dir * 40);
-     this.y = player.y;
-
-     // 矩形による衝突判定
-     const left = this.x - this.width / 2;
-     const right = this.x + this.width / 2;
-     const top = this.y - this.height / 2;
-     const bottom = this.y + this.height / 2;
-
-     enemies.forEach(enemy => {
-      if (this.hitList.includes(enemy)) return;
-
-      if (enemy.x + enemy.radius > left && enemy.x - enemy.radius < right &&
-       enemy.y + enemy.radius > top && enemy.y - enemy.radius < bottom) {
-       enemy.takeDamage(this.damage);
-       createHitEffect(enemy.x, enemy.y, '#f87171');
-       this.hitList.push(enemy);
-      }
-     });
-
-     this.lifeTime -= dt;
-     return this.lifeTime <= 0;
-    }
-
-    draw(ctx) {
-     const alpha = this.lifeTime / this.maxLife;
      ctx.save();
-     ctx.translate(this.x - camera.x, this.y - camera.y);
-     ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
-     // スラッシュの軌跡のような形
+     ctx.translate(screenX, screenY);
+
      ctx.beginPath();
-     ctx.ellipse(0, 0, this.width / 2, this.height / 2, 0, 0, Math.PI * 2);
+     ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+     ctx.fillStyle = this.flashTimer > 0 ? '#ffffff' : this.color;
      ctx.fill();
+
+     if (this.type === 'boss') {
+      ctx.strokeStyle = '#f43f5e';
+      ctx.lineWidth = 4;
+      ctx.stroke();
+
+      // Health bar overhead for Boss
+      const hpPercent = this.hp / this.maxHp;
+      ctx.fillStyle = '#1e293b';
+      ctx.fillRect(-25, -40, 50, 6);
+      ctx.fillStyle = '#ef4444';
+      ctx.fillRect(-25, -40, 50 * hpPercent, 6);
+     }
+
      ctx.restore();
     }
    }
 
-   // 視覚エフェクトとテキスト
-   function createHitEffect(x, y, color) {
-    for (let i = 0; i < 5; i++) {
-     particles.push({
-      x: x, y: y,
-      vx: (Math.random() - 0.5) * 100,
-      vy: (Math.random() - 0.5) * 100,
-      life: 0.2 + Math.random() * 0.2,
-      color: color
-     });
+   class Projectile {
+    constructor(x, y, vx, vy, damage, range, type) {
+     this.x = x;
+     this.y = y;
+     this.vx = vx;
+     this.vy = vy;
+     this.damage = damage;
+     this.range = range;
+     this.distanceTraveled = 0;
+     this.type = type;
+     this.radius = type === 'knife' ? 5 : 6;
+    }
+
+    update(dt) {
+     this.x += this.vx;
+     this.y += this.vy;
+     this.distanceTraveled += Math.hypot(this.vx, this.vy);
+
+     // Enemy collision check
+     for (let i = enemies.length - 1; i >= 0; i--) {
+      const e = enemies[i];
+      if (Math.hypot(e.x - this.x, e.y - this.y) < e.radius + this.radius) {
+       e.takeDamage(this.damage);
+
+       // Destroy projectile unless piercing
+       if (this.type !== 'lightning') {
+        const idx = projectiles.indexOf(this);
+        if (idx !== -1) projectiles.splice(idx, 1);
+        break;
+       }
+      }
+     }
+
+     // Range expiration
+     if (this.distanceTraveled >= this.range) {
+      const idx = projectiles.indexOf(this);
+      if (idx !== -1) projectiles.splice(idx, 1);
+     }
+    }
+
+    draw(ctx, camera) {
+     const screenX = this.x - camera.x;
+     const screenY = this.y - camera.y;
+
+     ctx.save();
+     ctx.translate(screenX, screenY);
+
+     if (this.type === 'magicWand') {
+      ctx.beginPath();
+      ctx.arc(0, 0, 6, 0, Math.PI * 2);
+      ctx.fillStyle = '#38bdf8';
+      ctx.shadowColor = '#0284c7';
+      ctx.shadowBlur = 10;
+      ctx.fill();
+     } else if (this.type === 'knife') {
+      const angle = Math.atan2(this.vy, this.vx);
+      ctx.rotate(angle);
+      ctx.fillStyle = '#f1f5f9';
+      ctx.fillRect(-8, -2, 16, 4);
+     }
+
+     ctx.restore();
     }
    }
 
-   function createDamageText(x, y, text, color) {
-    damageTexts.push({
-     x: x + (Math.random() - 0.5) * 20,
-     y: y,
-     text: text,
-     color: color,
-     life: 0.8,
-     vy: -30
-    });
-   }
-
-   function spawnEnemies() {
-    // 画面外にスポーンさせる
-    const maxEnemies = 150 + Math.floor(gameTime / 30) * 10; // 時間経過で最大数増加 (上限を設けて重くならないように)
-    if (enemies.length >= Math.min(maxEnemies, 300)) return;
-
-    // スポーン頻度
-    const spawnRate = Math.max(0.1, 1.0 - (gameTime / 120)); // 最小0.1秒に1回
-    if (frameCount % Math.max(1, Math.floor(spawnRate * 60)) !== 0) return;
-
-    const angle = Math.random() * Math.PI * 2;
-    // 画面の少し外側にスポーン (対角線より少し長いくらい)
-    const dist = Math.hypot(canvas.width, canvas.height) / 2 + 100;
-    const sx = player.x + Math.cos(angle) * dist;
-    const sy = player.y + Math.sin(angle) * dist;
-
-    let type = 'zombie';
-    if (gameTime > 30 && Math.random() < 0.3) type = 'bat';
-
-    enemies.push(new Enemy(sx, sy, type));
-   }
-
-   function spawnBoss() {
-    const angle = Math.random() * Math.PI * 2;
-    const dist = 600;
-    const sx = player.x + Math.cos(angle) * dist;
-    const sy = player.y + Math.sin(angle) * dist;
-    enemies.push(new Enemy(sx, sy, 'boss'));
-   }
-
-   // 時間フォーマット (MM:SS)
-   function formatTime(seconds) {
-    const m = Math.floor(seconds / 60).toString().padStart(2, '0');
-    const s = Math.floor(seconds % 60).toString().padStart(2, '0');
-    return `${m}:${s}`;
-   }
-
-   function update(dt) {
-    gameTime += dt;
-    frameCount++;
-
-    // 1分ごとにボススポーン
-    if (Math.floor(gameTime) > 0 && Math.floor(gameTime) % 60 === 0 && Math.floor(gameTime - dt) % 60 !== 0) {
-     spawnBoss();
+   class ExpGem {
+    constructor(x, y, value) {
+     this.x = x;
+     this.y = y;
+     this.value = value;
+     this.radius = 5;
     }
 
-    uiTime.innerText = formatTime(gameTime);
+    update(player, dt) {
+     const currentMagnetRadius = player.magnetRadius * (1 + player.passives.magnet * 0.35);
+     const dist = Math.hypot(player.x - this.x, player.y - this.y);
 
-    player.update(dt);
+     // Magnet suction effect
+     if (dist < currentMagnetRadius) {
+      const angle = Math.atan2(player.y - this.y, player.x - this.x);
+      const speed = 7 + (1 - dist / currentMagnetRadius) * 6;
+      this.x += Math.cos(angle) * speed;
+      this.y += Math.sin(angle) * speed;
+     }
 
-    // カメラの追従
-    camera.x = player.x - canvas.width / 2;
-    camera.y = player.y - canvas.height / 2;
+     // Picked up
+     if (dist < player.radius + this.radius) {
+      player.addExp(this.value);
+      sfx.playGem();
+      const idx = gems.indexOf(this);
+      if (idx !== -1) gems.splice(idx, 1);
+     }
+    }
 
-    // 敵の更新
-    for (let i = enemies.length - 1; i >= 0; i--) {
-     enemies[i].update(dt);
-     if (enemies[i].hp <= 0) {
-      enemies[i].die();
-      enemies.splice(i, 1);
+    draw(ctx, camera) {
+     const screenX = this.x - camera.x;
+     const screenY = this.y - camera.y;
+
+     ctx.save();
+     ctx.translate(screenX, screenY);
+     ctx.rotate(Math.PI / 4);
+
+     ctx.fillStyle = this.value >= 10 ? '#a855f7' : (this.value >= 3 ? '#38bdf8' : '#22c55e');
+     ctx.fillRect(-4, -4, 8, 8);
+
+     ctx.restore();
+    }
+   }
+
+   class Particle {
+    constructor(x, y, type, color = '#ffffff') {
+     this.x = x;
+     this.y = y;
+     this.type = type;
+     this.color = color;
+     this.life = 1.0;
+     this.decay = Math.random() * 0.05 + 0.03;
+     this.vx = (Math.random() - 0.5) * 6;
+     this.vy = (Math.random() - 0.5) * 6;
+    }
+
+    update() {
+     this.x += this.vx;
+     this.y += this.vy;
+     this.life -= this.decay;
+    }
+
+    draw(ctx, camera) {
+     if (this.life <= 0) return;
+     const screenX = this.x - camera.x;
+     const screenY = this.y - camera.y;
+
+     ctx.save();
+     ctx.globalAlpha = Math.max(0, this.life);
+
+     if (this.type === 'lightning') {
+      ctx.strokeStyle = '#facc15';
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.moveTo(screenX, screenY - 150);
+      ctx.lineTo(screenX, screenY);
+      ctx.stroke();
      } else {
-      // プレイヤーから離れすぎた敵は消す(リソース節約)
-      if (Math.hypot(enemies[i].x - player.x, enemies[i].y - player.y) > 2000) {
-       enemies.splice(i, 1);
-      }
+      ctx.fillStyle = this.color;
+      ctx.fillRect(screenX - 2, screenY - 2, 4, 4);
      }
-    }
 
-    // 敵同士の重なり解消 (簡易的)
-    for (let i = 0; i < enemies.length; i++) {
-     for (let j = i + 1; j < enemies.length; j++) {
-      const dx = enemies[i].x - enemies[j].x;
-      const dy = enemies[i].y - enemies[j].y;
-      const dist = Math.hypot(dx, dy);
-      const minDist = enemies[i].radius + enemies[j].radius;
-      if (dist < minDist && dist > 0) {
-       const overlap = (minDist - dist) / 2;
-       const nx = (dx / dist) * overlap;
-       const ny = (dy / dist) * overlap;
-       enemies[i].x += nx; enemies[i].y += ny;
-       enemies[j].x -= nx; enemies[j].y -= ny;
-      }
-     }
+     ctx.restore();
     }
-
-    // ジェムの更新
-    for (let i = gems.length - 1; i >= 0; i--) {
-     if (gems[i].update(dt)) {
-      gems.splice(i, 1);
-     } else {
-      // 離れすぎたジェムを消す
-      if (Math.hypot(gems[i].x - player.x, gems[i].y - player.y) > 3000) {
-       gems.splice(i, 1);
-      }
-     }
-    }
-
-    // 発射物の更新
-    for (let i = projectiles.length - 1; i >= 0; i--) {
-     if (projectiles[i].update(dt)) {
-      projectiles.splice(i, 1);
-     }
-    }
-
-    // パーティクルの更新
-    for (let i = particles.length - 1; i >= 0; i--) {
-     particles[i].x += particles[i].vx * dt;
-     particles[i].y += particles[i].vy * dt;
-     particles[i].life -= dt;
-     if (particles[i].life <= 0) particles.splice(i, 1);
-    }
-
-    // ダメージテキストの更新
-    for (let i = damageTexts.length - 1; i >= 0; i--) {
-     damageTexts[i].y += damageTexts[i].vy * dt;
-     damageTexts[i].life -= dt;
-     if (damageTexts[i].life <= 0) damageTexts.splice(i, 1);
-    }
-
-    spawnEnemies();
    }
 
-   function draw() {
-    // 背景のクリア
-    ctx.fillStyle = '#1a202c'; // bg-gray-900
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    // タイル状の背景（動いている感を出すため）
-    ctx.strokeStyle = '#2d3748'; // bg-gray-800
-    ctx.lineWidth = 2;
-    const offsetX = -(camera.x % TILE_SIZE);
-    const offsetY = -(camera.y % TILE_SIZE);
-
-    ctx.beginPath();
-    for (let x = offsetX - TILE_SIZE; x < canvas.width; x += TILE_SIZE) {
-     ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height);
+   class FloatingText {
+    constructor(x, y, text, color) {
+     this.x = x;
+     this.y = y;
+     this.text = text;
+     this.color = color;
+     this.life = 1.0;
+     this.vy = -1.2;
     }
-    for (let y = offsetY - TILE_SIZE; y < canvas.height; y += TILE_SIZE) {
-     ctx.moveTo(0, y); ctx.lineTo(canvas.width, y);
+
+    update() {
+     this.y += this.vy;
+     this.life -= 0.025;
     }
-    ctx.stroke();
 
-    // プレイヤーが初期化される前（スタート画面など）はここで描画を終了
-    if (!player) return;
+    draw(ctx, camera) {
+     if (this.life <= 0) return;
+     const screenX = this.x - camera.x;
+     const screenY = this.y - camera.y;
 
-    // 描画順：ジェム -> 敵 -> 発射物 -> プレイヤー -> エフェクト
-    gems.forEach(g => g.draw(ctx));
+     ctx.save();
+     ctx.globalAlpha = Math.max(0, this.life);
+     ctx.font = 'bold 14px Rajdhani';
+     ctx.fillStyle = this.color;
+     ctx.fillText(this.text, screenX, screenY);
+     ctx.restore();
+    }
+   }
 
-    // 敵をY座標でソートして描画（奥のものが下になるように）
-    enemies.sort((a, b) => a.y - b.y);
-    enemies.forEach(e => e.draw(ctx));
+   let player = new Player();
+   let enemies = [];
+   let projectiles = [];
+   let gems = [];
+   let particles = [];
+   let floatingTexts = [];
+   let camera = { x: 0, y: 0 };
+   let spawnTimer = 0;
+   let lastTimestamp = 0;
 
-    projectiles.forEach(p => p.draw(ctx));
-    player.draw(ctx);
+   function getClosestEnemy(x, y) {
+    let closest = null;
+    let minDist = Infinity;
+    enemies.forEach(e => {
+     const d = Math.hypot(e.x - x, e.y - y);
+     if (d < minDist) {
+      minDist = d;
+      closest = e;
+     }
+    });
+    return closest;
+   }
 
-    // パーティクル
-    particles.forEach(p => {
-     ctx.globalAlpha = p.life * 2; // フェードアウト
-     ctx.fillStyle = p.color;
-     ctx.fillRect(p.x - camera.x, p.y - camera.y, 4, 4);
-     ctx.globalAlpha = 1.0;
+   function getRandomEnemy() {
+    if (enemies.length === 0) return null;
+    return enemies[Math.floor(Math.random() * enemies.length)];
+   }
+
+   // Enemy Spawner System based on elapsed time
+   function handleEnemySpawning(dt) {
+    spawnTimer += dt;
+    const spawnInterval = Math.max(0.15, 1.2 - (gameState.time / 180));
+
+    if (spawnTimer >= spawnInterval) {
+     spawnTimer = 0;
+
+     // Determine spawn position around player screen boundaries
+     const angle = Math.random() * Math.PI * 2;
+     const spawnDist = Math.max(canvas.width, canvas.height) / 2 + 50;
+     const spawnX = player.x + Math.cos(angle) * spawnDist;
+     const spawnY = player.y + Math.sin(angle) * spawnDist;
+
+     // Enemy Type Selection by timer
+     let type = 'zombie';
+     const rand = Math.random();
+
+     if (gameState.time > 60 && rand < 0.3) {
+      type = 'bat';
+     } else if (gameState.time > 120 && rand < 0.25) {
+      type = 'skeleton';
+     }
+
+     enemies.push(new Enemy(spawnX, spawnY, type));
+
+     // Spawn Boss every 3 minutes
+     if (Math.floor(gameState.time) > 0 && Math.floor(gameState.time) % 180 === 0 && rand < 0.05) {
+      enemies.push(new Enemy(spawnX, spawnY, 'boss'));
+     }
+    }
+   }
+
+   function updateHpUI() {
+    const hpBar = document.getElementById('hpBar');
+    const hpText = document.getElementById('hpText');
+    const percent = Math.max(0, (player.hp / player.maxHp) * 100);
+    hpBar.style.width = `${percent}%`;
+    hpText.textContent = `${Math.ceil(player.hp)}/${player.maxHp}`;
+   }
+
+   function updateExpUI() {
+    const expBar = document.getElementById('expBar');
+    const levelValue = document.getElementById('levelValue');
+    const percent = Math.min(100, (player.exp / player.nextExp) * 100);
+    expBar.style.width = `${percent}%`;
+    levelValue.textContent = player.level;
+   }
+
+   function updateKillUI() {
+    document.getElementById('killText').textContent = gameState.kills;
+   }
+
+   function updateEquipmentUI() {
+    const weaponsList = document.getElementById('weaponsList');
+    const passivesList = document.getElementById('passivesList');
+
+    weaponsList.innerHTML = '';
+    passivesList.innerHTML = '';
+
+    Object.entries(player.weapons).forEach(([id, lvl]) => {
+     if (lvl > 0) {
+      const badge = document.createElement('div');
+      badge.className = 'w-7 h-7 bg-slate-800/90 border border-cyan-500/50 rounded-lg flex items-center justify-center text-xs shadow';
+      badge.textContent = UPGRADES[id].icon;
+      badge.title = `${UPGRADES[id].name} (Lvl ${lvl})`;
+      weaponsList.appendChild(badge);
+     }
     });
 
-    // ダメージテキスト
-    ctx.font = 'bold 16px Arial';
-    ctx.textAlign = 'center';
-    damageTexts.forEach(d => {
-     ctx.globalAlpha = Math.max(0, d.life);
-     ctx.fillStyle = d.color;
-     ctx.strokeStyle = 'black';
-     ctx.lineWidth = 3;
-     ctx.strokeText(d.text, d.x - camera.x, d.y - camera.y);
-     ctx.fillText(d.text, d.x - camera.x, d.y - camera.y);
-     ctx.globalAlpha = 1.0;
+    Object.entries(player.passives).forEach(([id, lvl]) => {
+     if (lvl > 0) {
+      const badge = document.createElement('div');
+      badge.className = 'w-7 h-7 bg-slate-800/90 border border-purple-500/50 rounded-lg flex items-center justify-center text-xs shadow';
+      badge.textContent = UPGRADES[id].icon;
+      badge.title = `${UPGRADES[id].name} (Lvl ${lvl})`;
+      passivesList.appendChild(badge);
+     }
     });
+   }
+
+   function showLevelUpModal() {
+    gameState.isLevelUp = true;
+    const container = document.getElementById('upgradeOptionsContainer');
+    container.innerHTML = '';
+
+    // Generate 3 random upgrade choices
+    const availableKeys = Object.keys(UPGRADES);
+    const shuffled = availableKeys.sort(() => 0.5 - Math.random());
+    const choices = shuffled.slice(0, 3);
+
+    choices.forEach(key => {
+     const item = UPGRADES[key];
+     const isWeapon = item.type === 'weapon';
+     const currentLvl = isWeapon ? player.weapons[key] : player.passives[key];
+
+     const card = document.createElement('div');
+     card.className = `card-glow bg-slate-800/90 p-4 rounded-xl border ${isWeapon ? 'border-cyan-500/50' : 'border-purple-500/50'} cursor-pointer flex items-center gap-4`;
+
+     card.innerHTML = `
+                    <div class="text-3xl bg-slate-900 p-2.5 rounded-xl border border-slate-700">${item.icon}</div>
+                    <div class="flex-1">
+                        <div class="flex justify-between items-center">
+                            <h3 class="font-bold text-white text-base">${item.name}</h3>
+                            <span class="text-xs px-2 py-0.5 rounded ${isWeapon ? 'bg-cyan-950 text-cyan-400 border border-cyan-800' : 'bg-purple-950 text-purple-400 border border-purple-800'}">
+                                ${currentLvl === 0 ? '新規' : `Lvl ${currentLvl + 1}`}
+                            </span>
+                        </div>
+                        <p class="text-xs text-slate-300 mt-1">${item.desc}</p>
+                    </div>
+                `;
+
+     card.onclick = () => {
+      if (isWeapon) {
+       player.weapons[key]++;
+      } else {
+       player.passives[key]++;
+      }
+      updateEquipmentUI();
+      document.getElementById('levelUpModal').classList.add('hidden');
+      gameState.isLevelUp = false;
+     };
+
+     container.appendChild(card);
+    });
+
+    document.getElementById('levelUpModal').classList.remove('hidden');
    }
 
    function gameLoop(timestamp) {
-    if (!lastTime) lastTime = timestamp;
-    const dt = Math.min((timestamp - lastTime) / 1000, 0.1); // max dt = 0.1s to prevent huge jumps
-    lastTime = timestamp;
+    if (!lastTimestamp) lastTimestamp = timestamp;
+    const dt = Math.min(0.1, (timestamp - lastTimestamp) / 1000);
+    lastTimestamp = timestamp;
 
-    if (gameState === STATE.PLAYING) {
-     update(dt);
+    if (gameState.started && !gameState.isGameOver && !gameState.isLevelUp) {
+     gameState.time += dt;
+
+     // Update Timer UI
+     const mins = Math.floor(gameState.time / 60).toString().padStart(2, '0');
+     const secs = Math.floor(gameState.time % 60).toString().padStart(2, '0');
+     document.getElementById('timerText').textContent = `${mins}:${secs}`;
+
+     // Update Entities
+     player.update(dt);
+     handleEnemySpawning(dt);
+
+     enemies.forEach(e => e.update(player, dt));
+     projectiles.forEach(p => p.update(dt));
+     gems.forEach(g => g.update(player, dt));
+     particles.forEach(p => p.update());
+     floatingTexts.forEach(ft => ft.update());
+
+     // Filter dead particles / floating texts
+     particles = particles.filter(p => p.life > 0);
+     floatingTexts = floatingTexts.filter(ft => ft.life > 0);
+
+     // Update Camera to center player
+     camera.x = player.x - canvas.width / 2;
+     camera.y = player.y - canvas.height / 2;
     }
 
-    if (gameState === STATE.PLAYING || gameState === STATE.LEVELUP) {
-     draw();
+    // --- RENDER SECTION ---
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Draw Background Grid Pattern
+    ctx.save();
+    ctx.strokeStyle = '#1e293b';
+    ctx.lineWidth = 1;
+    const gridSize = 64;
+    const startX = -camera.x % gridSize;
+    const startY = -camera.y % gridSize;
+
+    for (let x = startX; x < canvas.width; x += gridSize) {
+     ctx.beginPath();
+     ctx.moveTo(x, 0);
+     ctx.lineTo(x, canvas.height);
+     ctx.stroke();
+    }
+    for (let y = startY; y < canvas.height; y += gridSize) {
+     ctx.beginPath();
+     ctx.moveTo(0, y);
+     ctx.lineTo(canvas.width, y);
+     ctx.stroke();
+    }
+    ctx.restore();
+
+    // Render Entities
+    gems.forEach(g => g.draw(ctx, camera));
+    enemies.forEach(e => e.draw(ctx, camera));
+    projectiles.forEach(p => p.draw(ctx, camera));
+    if (gameState.started) player.draw(ctx, camera);
+    particles.forEach(p => p.draw(ctx, camera));
+    floatingTexts.forEach(ft => ft.draw(ctx, camera));
+
+    // Render Touch Joystick Visualizer (if active)
+    if (touchState.active && gameState.started) {
+     ctx.save();
+     ctx.beginPath();
+     ctx.arc(touchState.startX, touchState.startY, 45, 0, Math.PI * 2);
+     ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
+     ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+     ctx.lineWidth = 2;
+     ctx.fill();
+     ctx.stroke();
+
+     ctx.beginPath();
+     ctx.arc(touchState.currentX, touchState.currentY, 20, 0, Math.PI * 2);
+     ctx.fillStyle = 'rgba(56, 189, 248, 0.5)';
+     ctx.fill();
+     ctx.restore();
     }
 
     requestAnimationFrame(gameLoop);
    }
 
-
-   const UPGRADES = [
-    { id: 'wand', name: 'マジックワンド', desc: '近くの敵に魔法弾を放つ', icon: '🪄' },
-    { id: 'aura', name: 'ニンニクオーラ', desc: '周囲の敵に継続ダメージ', icon: '🧄' },
-    { id: 'whip', name: 'ムチ', desc: '前方に強力な薙ぎ払い', icon: '🪢' },
-    { id: 'speed', name: '靴', desc: '移動速度アップ', icon: '👢' },
-    { id: 'hp', name: '命の器', desc: '最大HPアップ & 全回復', icon: '❤️' },
-    { id: 'magnet', name: '磁石', desc: '経験値の回収範囲アップ', icon: '🧲' }
-   ];
-
-   function triggerLevelUpMenu() {
-    gameState = STATE.LEVELUP;
-    levelupScreen.classList.remove('hidden');
-    upgradeContainer.innerHTML = '';
-
-    // ランダムに3つのアップグレードを選ぶ
-    let shuffled = [...UPGRADES].sort(() => 0.5 - Math.random());
-    let choices = shuffled.slice(0, 3);
-
-    choices.forEach(upg => {
-     const card = document.createElement('div');
-     card.className = 'upgrade-card flex-1 bg-gray-800 border-2 border-gray-600 rounded-xl p-6 cursor-pointer flex flex-col items-center text-center';
-
-     let currentLv = 0;
-     if (upg.id === 'wand' || upg.id === 'aura' || upg.id === 'whip') currentLv = player.weapons[upg.id].level;
-
-     let lvText = currentLv > 0 ? `Lv ${currentLv} ➔ ${currentLv + 1}` : '新規取得';
-     if (['speed', 'hp', 'magnet'].includes(upg.id)) lvText = 'ステータスUP';
-
-     card.innerHTML = `
-            <div class="text-5xl mb-4">${upg.icon}</div>
-            <h3 class="text-xl font-bold text-yellow-400 mb-2">${upg.name}</h3>
-            <div class="text-sm text-blue-300 mb-4">${lvText}</div>
-            <p class="text-sm text-gray-300">${upg.desc}</p>
-        `;
-
-     card.onclick = () => applyUpgrade(upg.id);
-     upgradeContainer.appendChild(card);
-    });
-   }
-
-   function applyUpgrade(id) {
-    switch (id) {
-     case 'wand':
-      player.weapons.wand.level++;
-      if (player.weapons.wand.cooldown > 0.3) player.weapons.wand.cooldown -= 0.1;
-      break;
-     case 'aura':
-      player.weapons.aura.level++;
-      player.weapons.aura.radius += 10;
-      player.weapons.aura.damage += 2;
-      break;
-     case 'whip':
-      player.weapons.whip.level++;
-      break;
-     case 'speed':
-      player.speed += 20;
-      break;
-     case 'hp':
-      player.maxHp += 20;
-      player.hp = player.maxHp;
-      break;
-     case 'magnet':
-      player.magnetRadius += 40;
-      break;
-    }
-
-    // 再開
-    levelupScreen.classList.add('hidden');
-    gameState = STATE.PLAYING;
-    // タッチ状態リセット
-    joystick.active = false;
-    joyBase.style.display = 'none';
-    joyStick.style.display = 'none';
-   }
-
-   function initGame() {
+   function startGame() {
+    sfx.init();
     player = new Player();
     enemies = [];
-    gems = [];
     projectiles = [];
+    gems = [];
     particles = [];
-    damageTexts = [];
-    gameTime = 0;
-    frameCount = 0;
-    camera = { x: 0, y: 0 };
+    floatingTexts = [];
 
-    uiLevel.innerText = '1';
-    uiHpBar.style.width = '100%';
-    uiExpBar.style.width = '0%';
+    gameState.time = 0;
+    gameState.kills = 0;
+    gameState.totalExpGained = 0;
+    gameState.isGameOver = false;
+    gameState.isLevelUp = false;
+    gameState.started = true;
 
-    gameState = STATE.PLAYING;
-    lastTime = performance.now();
+    updateHpUI();
+    updateExpUI();
+    updateKillUI();
+    updateEquipmentUI();
 
-    // タッチ状態リセット
-    joystick.active = false;
-    joyBase.style.display = 'none';
-    joyStick.style.display = 'none';
+    document.getElementById('startModal').classList.add('hidden');
+    document.getElementById('gameOverModal').classList.add('hidden');
    }
 
-   function gameOver() {
-    gameState = STATE.GAMEOVER;
-    document.getElementById('result-time').innerText = formatTime(gameTime);
-    document.getElementById('result-level').innerText = player.level;
-    gameoverScreen.classList.remove('hidden');
+   function triggerGameOver() {
+    gameState.isGameOver = true;
+
+    const mins = Math.floor(gameState.time / 60).toString().padStart(2, '0');
+    const secs = Math.floor(gameState.time % 60).toString().padStart(2, '0');
+
+    document.getElementById('finalTime').textContent = `${mins}:${secs}`;
+    document.getElementById('finalKills').textContent = gameState.kills;
+    document.getElementById('finalLevel').textContent = player.level;
+    document.getElementById('finalExp').textContent = gameState.totalExpGained;
+
+    document.getElementById('gameOverModal').classList.remove('hidden');
    }
 
-   // Event Listeners for UI
-   document.getElementById('start-btn').addEventListener('click', () => {
-    startScreen.classList.add('hidden');
-    initGame();
-    requestAnimationFrame(gameLoop);
-   });
+   document.getElementById('startButton').onclick = startGame;
+   document.getElementById('restartButton').onclick = startGame;
 
-   document.getElementById('restart-btn').addEventListener('click', () => {
-    gameoverScreen.classList.add('hidden');
-    initGame();
-   });
-
-   // 最初は描画だけしておく
-   draw();
-
+   // Kickoff game loop rendering
+   requestAnimationFrame(gameLoop);
   </script>
  </body>
 </html>

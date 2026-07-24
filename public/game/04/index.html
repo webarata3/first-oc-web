@@ -3,762 +3,1009 @@
  <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Web 囲碁 (9路盤)</title>
+  <title>Web囲碁 (CPU対戦 & スマホ対応)</title>
+  <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
-   @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&display=swap');
+   @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap');
 
    body {
     font-family: 'Noto Sans JP', sans-serif;
-    background-color: #f3f4f6;
     touch-action: manipulation;
-    /* スマホでのダブルタップズーム防止 */
-    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+    -webkit-user-select: none;
    }
 
-   /* 碁盤の質感 */
-   #go-board {
-    background-color: #dcb35c;
-    background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.05' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100' height='100' filter='url(%23noise)' opacity='0.15'/%3E%3C/svg%3E");
-    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.1), inset 0 0 10px rgba(0, 0, 0, 0.1);
-    border-radius: 4px;
-    max-width: 100%;
-    display: block;
-    margin: 0 auto;
+   /* Custom board background and shadow effects */
+   .board-container {
+    background-color: #e4aa62;
+    background-image: radial-gradient(#efc389 1px, transparent 0);
+    background-size: 16px 16px;
+    box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.25), 0 10px 25px rgba(0, 0, 0, 0.3);
    }
 
-   /* カスタムスクロールバー等 */
-   .btn-game {
-    transition: all 0.2s;
+   .btn-action {
+    transition: all 0.15s ease-in-out;
    }
 
-   .btn-game:active {
-    transform: translateY(2px);
+   .btn-action:active {
+    transform: scale(0.95);
+   }
+
+   /* Glassmorphism modals */
+   .glass-panel {
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: blur(8px);
    }
   </style>
  </head>
- <body class="min-h-screen flex flex-col items-center py-6 px-4">
+ <body
+  class="bg-slate-900 text-slate-100 min-h-screen flex flex-col justify-between overflow-x-hidden selection:bg-amber-500">
 
-  <div class="w-full max-w-md bg-white rounded-xl shadow-xl overflow-hidden">
-   <div class="bg-slate-800 text-white py-4 px-6 text-center relative">
-    <h1 class="text-2xl font-bold tracking-wider">囲碁 <span class="text-sm font-normal text-slate-300 ml-2">9路盤</span>
-    </h1>
+  <!-- Header -->
+  <header class="bg-slate-800 border-b border-slate-700 py-3 px-4 shadow-md sticky top-0 z-20">
+   <div class="max-w-3xl mx-auto flex justify-between items-center">
+    <div class="flex items-center space-x-2">
+     <i class="fa-solid fa-circle-dot text-amber-500 text-xl"></i>
+     <h1 class="text-lg md:text-xl font-bold tracking-wide">Web 囲碁対局</h1>
+    </div>
+    <div class="flex items-center space-x-2">
+     <button id="btn-sound" class="p-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-200 transition"
+      title="効果音 ON/OFF">
+      <i class="fa-solid fa-volume-high text-lg" id="icon-sound"></i>
+     </button>
+     <button id="btn-settings" class="p-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-200 transition"
+      title="設定">
+      <i class="fa-solid fa-gear text-lg"></i>
+     </button>
+    </div>
+   </div>
+  </header>
+
+  <!-- Main Game Area -->
+  <main class="flex-grow flex flex-col items-center justify-center p-2 sm:p-4 max-w-2xl mx-auto w-full">
+
+   <!-- Status Panel -->
+   <div
+    class="w-full bg-slate-800/80 rounded-xl p-3 mb-3 border border-slate-700 shadow-lg flex justify-between items-center text-sm">
+    <!-- Player Black -->
+    <div class="flex items-center space-x-2" id="player-black-card">
+     <div class="relative">
+      <div class="w-7 h-7 rounded-full bg-black border-2 border-slate-600 flex items-center justify-center shadow">
+       <div class="w-2 h-2 rounded-full bg-white opacity-40"></div>
+      </div>
+      <span id="indicator-black"
+       class="absolute -top-1 -right-1 w-3 h-3 bg-emerald-500 rounded-full border-2 border-slate-800"></span>
+     </div>
+     <div>
+      <div class="font-bold flex items-center space-x-1">
+       <span id="name-black">あなた (黒)</span>
+      </div>
+      <div class="text-xs text-slate-400">アゲハマ: <span id="captures-black" class="font-semibold text-slate-200">0</span>
+      </div>
+     </div>
+    </div>
+
+    <!-- Turn & Game Status Indicator -->
+    <div class="text-center px-2">
+     <div id="status-badge"
+      class="px-3 py-1 rounded-full text-xs font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30">
+      黒番の番です
+     </div>
+     <div id="move-counter" class="text-[10px] text-slate-400 mt-1">手数: 0手</div>
+    </div>
+
+    <!-- Player White -->
+    <div class="flex items-center space-x-2" id="player-white-card">
+     <div class="text-right">
+      <div class="font-bold flex items-center justify-end space-x-1">
+       <span id="name-white">CPU (白)</span>
+      </div>
+      <div class="text-xs text-slate-400">アゲハマ: <span id="captures-white" class="font-semibold text-slate-200">0</span>
+      </div>
+     </div>
+     <div class="relative">
+      <div class="w-7 h-7 rounded-full bg-slate-100 border-2 border-slate-300 flex items-center justify-center shadow">
+       <div class="w-2 h-2 rounded-full bg-black opacity-10"></div>
+      </div>
+      <span id="indicator-white"
+       class="absolute -top-1 -right-1 w-3 h-3 bg-emerald-500 rounded-full border-2 border-slate-800 hidden"></span>
+     </div>
+    </div>
    </div>
 
-   <div class="p-4 md:p-6 flex flex-col gap-4">
+   <!-- Go Board Container -->
+   <div class="w-full flex justify-center items-center relative my-auto">
+    <div
+     class="board-container p-2 sm:p-4 rounded-xl border-4 border-amber-800/80 max-w-full flex justify-center items-center relative">
+     <canvas id="go-board" class="cursor-pointer block touch-none"></canvas>
+    </div>
+   </div>
 
-    <!-- ステータス・スコア表示 -->
-    <div class="flex justify-between items-center bg-slate-50 p-3 rounded-lg border border-slate-200">
-     <div class="flex items-center gap-2">
-      <div class="w-6 h-6 rounded-full bg-black shadow-inner flex items-center justify-center border border-gray-700">
-      </div>
-      <div class="flex flex-col">
-       <span class="text-xs text-gray-500 font-bold">あなた (黒)</span>
-       <span id="player-captures" class="text-sm font-bold">アゲハマ: 0</span>
-      </div>
-     </div>
+   <!-- Game Controls -->
+   <div class="w-full grid grid-cols-4 gap-2 mt-3">
+    <button id="btn-pass"
+     class="btn-action bg-slate-700 hover:bg-slate-600 text-slate-200 font-bold py-2.5 px-1 rounded-lg text-xs sm:text-sm flex flex-col sm:flex-row items-center justify-center space-y-1 sm:space-y-0 sm:space-x-1 border border-slate-600 shadow">
+     <i class="fa-solid fa-forward"></i>
+     <span>パス</span>
+    </button>
+    <button id="btn-undo"
+     class="btn-action bg-slate-700 hover:bg-slate-600 text-slate-200 font-bold py-2.5 px-1 rounded-lg text-xs sm:text-sm flex flex-col sm:flex-row items-center justify-center space-y-1 sm:space-y-0 sm:space-x-1 border border-slate-600 shadow">
+     <i class="fa-solid fa-rotate-left"></i>
+     <span>待った</span>
+    </button>
+    <button id="btn-score"
+     class="btn-action bg-amber-600 hover:bg-amber-500 text-white font-bold py-2.5 px-1 rounded-lg text-xs sm:text-sm flex flex-col sm:flex-row items-center justify-center space-y-1 sm:space-y-0 sm:space-x-1 border border-amber-500 shadow">
+     <i class="fa-solid fa-chart-pie"></i>
+     <span>形勢判断</span>
+    </button>
+    <button id="btn-resign"
+     class="btn-action bg-rose-700 hover:bg-rose-600 text-white font-bold py-2.5 px-1 rounded-lg text-xs sm:text-sm flex flex-col sm:flex-row items-center justify-center space-y-1 sm:space-y-0 sm:space-x-1 border border-rose-600 shadow">
+     <i class="fa-solid fa-flag"></i>
+     <span>投了</span>
+    </button>
+   </div>
+  </main>
 
-     <div class="text-center">
-      <div id="turn-indicator" class="text-sm font-bold px-3 py-1 bg-blue-100 text-blue-800 rounded-full animate-pulse">
-       黒の番です
-      </div>
-     </div>
+  <!-- Footer -->
+  <footer class="bg-slate-950 py-2 text-center text-xs text-slate-500 border-t border-slate-800">
+   Web Go Game &copy; 2026 - HTML5 Canvas & Smart AI
+  </footer>
 
-     <div class="flex items-center gap-2">
-      <div class="flex flex-col text-right">
-       <span class="text-xs text-gray-500 font-bold">CPU (白)</span>
-       <span id="cpu-captures" class="text-sm font-bold">アゲハマ: 0</span>
-      </div>
-      <div class="w-6 h-6 rounded-full bg-white shadow-inner flex items-center justify-center border border-gray-300">
-      </div>
+  <!-- Settings Modal -->
+  <div id="modal-settings"
+   class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+   <div class="glass-panel text-slate-800 rounded-2xl p-6 max-w-md w-full shadow-2xl border border-white/40">
+    <h2 class="text-xl font-bold mb-4 flex items-center space-x-2 text-slate-900">
+     <i class="fa-solid fa-sliders text-amber-600"></i>
+     <span>対局設定</span>
+    </h2>
+
+    <!-- Board Size Selection -->
+    <div class="mb-5">
+     <label class="block text-sm font-semibold mb-2 text-slate-700">路盤サイズ</label>
+     <div class="grid grid-cols-3 gap-2">
+      <button
+       class="btn-size py-2 px-3 rounded-lg border border-slate-300 font-bold text-sm bg-amber-500 text-white border-amber-600"
+       data-size="9">9路盤 (初心者向け)</button>
+      <button
+       class="btn-size py-2 px-3 rounded-lg border border-slate-300 font-bold text-sm bg-white text-slate-700 hover:bg-slate-100"
+       data-size="13">13路盤 (標準)</button>
+      <button
+       class="btn-size py-2 px-3 rounded-lg border border-slate-300 font-bold text-sm bg-white text-slate-700 hover:bg-slate-100"
+       data-size="19">19路盤 (本格)</button>
      </div>
     </div>
 
-    <!-- メッセージエリア -->
-    <div id="message-box"
-     class="h-8 flex items-center justify-center text-sm font-bold text-slate-700 bg-amber-50 rounded border border-amber-200 transition-opacity duration-300">
-     対局を開始します。黒番（あなた）からどうぞ。
+    <!-- Difficulty Selection -->
+    <div class="mb-5">
+     <label class="block text-sm font-semibold mb-2 text-slate-700">CPUの強さ</label>
+     <div class="grid grid-cols-3 gap-2">
+      <button
+       class="btn-diff py-2 px-3 rounded-lg border border-slate-300 font-bold text-sm bg-white text-slate-700 hover:bg-slate-100"
+       data-diff="easy">初級</button>
+      <button
+       class="btn-diff py-2 px-3 rounded-lg border border-slate-300 font-bold text-sm bg-amber-500 text-white border-amber-600"
+       data-diff="medium">中級</button>
+      <button
+       class="btn-diff py-2 px-3 rounded-lg border border-slate-300 font-bold text-sm bg-white text-slate-700 hover:bg-slate-100"
+       data-diff="hard">上級</button>
+     </div>
     </div>
 
-    <!-- 碁盤キャンバス -->
-    <div class="w-full relative touch-none">
-     <canvas id="go-board" width="400" height="400"></canvas>
-
-     <!-- 結果オーバーレイ -->
-     <div id="result-overlay"
-      class="absolute inset-0 bg-black/70 hidden flex-col items-center justify-center rounded text-white z-10 backdrop-blur-sm">
-      <h2 class="text-3xl font-bold mb-2">終局</h2>
-      <p id="result-text" class="text-lg mb-6 text-center px-4"></p>
-      <button onclick="resetGame()"
-       class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-6 rounded-full shadow-lg btn-game">
-       もう一度遊ぶ
+    <!-- Player Color -->
+    <div class="mb-6">
+     <label class="block text-sm font-semibold mb-2 text-slate-700">手番 (プレイヤーの色)</label>
+     <div class="grid grid-cols-2 gap-2">
+      <button
+       class="btn-color py-2.5 px-3 rounded-lg border border-slate-300 font-bold text-sm bg-amber-500 text-white border-amber-600 flex items-center justify-center space-x-2"
+       data-color="black">
+       <span class="w-4 h-4 rounded-full bg-black inline-block"></span>
+       <span>黒番 (先手)</span>
+      </button>
+      <button
+       class="btn-color py-2.5 px-3 rounded-lg border border-slate-300 font-bold text-sm bg-white text-slate-700 hover:bg-slate-100 flex items-center justify-center space-x-2"
+       data-color="white">
+       <span class="w-4 h-4 rounded-full bg-white border border-slate-400 inline-block"></span>
+       <span>白番 (後手/コミ6.5目)</span>
       </button>
      </div>
     </div>
 
-    <!-- コントロールパネル -->
-    <div class="grid grid-cols-2 gap-3 mt-2">
-     <div class="col-span-2 flex justify-between items-center bg-gray-50 p-2 rounded border">
-      <span class="text-sm font-bold text-gray-700 ml-2">CPUの強さ:</span>
-      <div class="flex gap-1">
-       <button onclick="setDifficulty('easy')" id="diff-easy"
-        class="px-3 py-1 text-xs font-bold rounded bg-gray-200 text-gray-700 hover:bg-gray-300 transition-colors">弱い</button>
-       <button onclick="setDifficulty('normal')" id="diff-normal"
-        class="px-3 py-1 text-xs font-bold rounded bg-blue-500 text-white shadow transition-colors">普通</button>
-       <button onclick="setDifficulty('hard')" id="diff-hard"
-        class="px-3 py-1 text-xs font-bold rounded bg-gray-200 text-gray-700 hover:bg-gray-300 transition-colors">強い</button>
-      </div>
-     </div>
-
-     <button onclick="playerPass()" id="btn-pass"
-      class="bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 font-bold py-3 rounded-lg shadow-sm btn-game text-sm flex items-center justify-center gap-1">
-      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7"></path>
-      </svg>
-      パスする
+    <!-- Action buttons -->
+    <div class="flex space-x-3">
+     <button id="btn-close-settings"
+      class="w-1/2 py-2.5 rounded-xl border border-slate-300 text-slate-600 font-bold hover:bg-slate-100 transition">
+      キャンセル
      </button>
-     <button onclick="resetGame()"
-      class="bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 font-bold py-3 rounded-lg shadow-sm btn-game text-sm flex items-center justify-center gap-1">
-      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-        d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15">
-       </path>
-      </svg>
-      はじめから
+     <button id="btn-apply-settings"
+      class="w-1/2 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold transition shadow-md">
+      新しい対局を開始
      </button>
-    </div>
-
-    <div class="text-xs text-gray-400 mt-2 text-center">
-     ※中国ルール（陣地＋生き石の数）で簡易判定します。<br>
-     ※双方がパスをすると終局（判定）となります。
     </div>
    </div>
   </div>
 
-  <script>
-   const canvas = document.getElementById('go-board');
-   const ctx = canvas.getContext('2d');
+  <!-- Game Result Modal -->
+  <div id="modal-result"
+   class="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+   <div
+    class="glass-panel text-slate-800 rounded-2xl p-6 max-w-sm w-full shadow-2xl text-center border border-white/40">
+    <div
+     class="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-3 text-amber-600 text-2xl">
+     <i class="fa-solid fa-trophy"></i>
+    </div>
+    <h2 id="result-title" class="text-2xl font-black text-slate-900 mb-1">終局</h2>
+    <p id="result-subtitle" class="text-slate-600 text-sm mb-4">結果の判定が行われました</p>
 
-   // 囲碁の定数
-   const BOARD_SIZE = 9;
+    <div class="bg-slate-100/80 rounded-xl p-4 mb-5 border border-slate-200">
+     <div class="flex justify-between items-center text-sm py-1 border-b border-slate-200">
+      <span class="font-bold text-slate-700">黒の地 + 揚げ駒:</span>
+      <span id="score-black-detail" class="font-mono font-bold text-slate-900">0</span>
+     </div>
+     <div class="flex justify-between items-center text-sm py-1 border-b border-slate-200">
+      <span class="font-bold text-slate-700">白の地 + 揚げ駒 + コミ:</span>
+      <span id="score-white-detail" class="font-mono font-bold text-slate-900">0</span>
+     </div>
+     <div class="mt-3 text-lg font-black text-amber-700" id="result-winner">
+      黒の勝ち
+     </div>
+    </div>
+
+    <button id="btn-restart-game"
+     class="w-full py-3 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold transition shadow-lg">
+     もう一度遊ぶ
+    </button>
+   </div>
+  </div>
+
+  <script>
+   // Game Configuration & State Variables
    const EMPTY = 0;
    const BLACK = 1;
    const WHITE = 2;
 
-   // UI定数
-   const MARGIN = 20; // キャンバスの余白
-   let CELL_SIZE = 0; // 描画時のマス目のサイズ（レスポンシブ対応）
+   let boardSize = 9; // Default 9x9
+   let difficulty = 'medium'; // easy, medium, hard
+   let humanPlayer = BLACK; // BLACK or WHITE
+   let aiPlayer = WHITE;
 
-   // ゲーム状態
-   let board = new Array(BOARD_SIZE * BOARD_SIZE).fill(EMPTY);
-   let currentTurn = BLACK; // 1: プレイヤー(黒), 2: CPU(白)
-   let playerCaptures = 0;
-   let cpuCaptures = 0;
-   let gameOver = false;
-   let boardHistory = []; // コウ（Ko）判定用
+   let board = []; // 2D Array [row][col]
+   let history = []; // Stack of previous board states
+   let captures = { [BLACK]: 0, [WHITE]: 0 };
+   let currentTurn = BLACK;
    let consecutivePasses = 0;
-   let difficulty = 'normal';
-   let isProcessing = false; // 連続タップ防止
+   let gameOver = false;
+   let lastMove = null; // {r, c}
+   let soundEnabled = true;
+   let isAiThinking = false;
+   let komi = 6.5;
 
-   // 難易度設定の初期化
-   const difficulties = {
-    'easy': { element: 'diff-easy' },
-    'normal': { element: 'diff-normal' },
-    'hard': { element: 'diff-hard' }
-   };
+   // UI Canvas & Context
+   const canvas = document.getElementById('go-board');
+   const ctx = canvas.getContext('2d');
+   let cellSize = 0;
+   let boardPadding = 0;
 
-   // UI要素
-   const msgBox = document.getElementById('message-box');
-   const turnIndicator = document.getElementById('turn-indicator');
-   const pCapturesEl = document.getElementById('player-captures');
-   const cCapturesEl = document.getElementById('cpu-captures');
-   const resultOverlay = document.getElementById('result-overlay');
-   const resultText = document.getElementById('result-text');
+   // Audio Context for sound synthesis
+   let audioCtx = null;
 
-
-   // 画面リサイズ対応
-   function resizeCanvas() {
-    const container = canvas.parentElement;
-    const size = Math.min(container.clientWidth, 500); // 最大500px
-
-    // 高解像度ディスプレイ対応
-    const dpr = window.devicePixelRatio || 1;
-    canvas.width = size * dpr;
-    canvas.height = size * dpr;
-    canvas.style.width = `${size}px`;
-    canvas.style.height = `${size}px`;
-
-    ctx.scale(dpr, dpr);
-
-    CELL_SIZE = (size - MARGIN * 2) / (BOARD_SIZE - 1);
-    drawBoard();
-   }
-
-   window.addEventListener('resize', resizeCanvas);
-
-   // 盤面描画
-   function drawBoard() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    // 罫線を描画
-    ctx.beginPath();
-    ctx.strokeStyle = '#000000';
-    ctx.lineWidth = 1.2;
-
-    for (let i = 0; i < BOARD_SIZE; i++) {
-     const pos = MARGIN + i * CELL_SIZE;
-     // 縦線
-     ctx.moveTo(pos, MARGIN);
-     ctx.lineTo(pos, MARGIN + (BOARD_SIZE - 1) * CELL_SIZE);
-     // 横線
-     ctx.moveTo(MARGIN, pos);
-     ctx.lineTo(MARGIN + (BOARD_SIZE - 1) * CELL_SIZE, pos);
-    }
-    ctx.stroke();
-
-    // 星（9路盤の場合、中心と四隅）を描画
-    if (BOARD_SIZE === 9) {
-     const starPoints = [[2, 2], [6, 2], [4, 4], [2, 6], [6, 6]];
-     ctx.fillStyle = '#000000';
-     starPoints.forEach(p => {
-      ctx.beginPath();
-      ctx.arc(MARGIN + p[0] * CELL_SIZE, MARGIN + p[1] * CELL_SIZE, 3, 0, 2 * Math.PI);
-      ctx.fill();
-     });
-    }
-
-    // 石を描画
-    for (let y = 0; y < BOARD_SIZE; y++) {
-     for (let x = 0; x < BOARD_SIZE; x++) {
-      const idx = y * BOARD_SIZE + x;
-      if (board[idx] !== EMPTY) {
-       drawStone(x, y, board[idx]);
-      }
-     }
+   function initAudio() {
+    if (!audioCtx) {
+     const AudioContext = window.AudioContext || window.webkitAudioContext;
+     if (AudioContext) audioCtx = new AudioContext();
     }
    }
 
-   // 石の描画（立体感を持たせる）
-   function drawStone(x, y, color) {
-    const cx = MARGIN + x * CELL_SIZE;
-    const cy = MARGIN + y * CELL_SIZE;
-    const radius = CELL_SIZE * 0.45; // 石の大きさ
+   // Play realistic stone placement sound using Web Audio API
+   function playStoneSound() {
+    if (!soundEnabled) return;
+    initAudio();
+    if (!audioCtx) return;
 
-    ctx.beginPath();
-    ctx.arc(cx, cy, radius, 0, 2 * Math.PI);
+    try {
+     const osc = audioCtx.createOscillator();
+     const gain = audioCtx.createGain();
+     const now = audioCtx.currentTime;
 
-    // グラデーションで立体感を表現
-    const gradient = ctx.createRadialGradient(
-     cx - radius * 0.3, cy - radius * 0.3, radius * 0.1,
-     cx, cy, radius
-    );
+     // Sound pitch and envelope mimicking clack on wooden board
+     osc.type = 'sine';
+     osc.frequency.setValueAtTime(450 + Math.random() * 80, now);
+     osc.frequency.exponentialRampToValueAtTime(120, now + 0.08);
 
-    if (color === BLACK) {
-     gradient.addColorStop(0, '#555');
-     gradient.addColorStop(1, '#000');
-     ctx.fillStyle = gradient;
-    } else if (color === WHITE) {
-     gradient.addColorStop(0, '#fff');
-     gradient.addColorStop(1, '#ccc');
-     ctx.fillStyle = gradient;
+     gain.gain.setValueAtTime(0.7, now);
+     gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+
+     osc.connect(gain);
+     gain.connect(audioCtx.destination);
+
+     osc.start(now);
+     osc.stop(now + 0.08);
+    } catch (e) {
+     console.error("Audio error:", e);
     }
+   }
 
-    // 影を追加
-    ctx.shadowColor = 'rgba(0, 0, 0, 0.4)';
-    ctx.shadowBlur = 4;
-    ctx.shadowOffsetX = 2;
-    ctx.shadowOffsetY = 2;
+   // Initialize Game State
+   function initGame() {
+    board = Array(boardSize).fill(null).map(() => Array(boardSize).fill(EMPTY));
+    history = [];
+    captures = { [BLACK]: 0, [WHITE]: 0 };
+    currentTurn = BLACK;
+    consecutivePasses = 0;
+    gameOver = false;
+    lastMove = null;
+    isAiThinking = false;
 
-    ctx.fill();
+    updateUI();
+    resizeCanvas();
 
-    // 影をリセット
-    ctx.shadowColor = 'transparent';
-    ctx.shadowBlur = 0;
-    ctx.shadowOffsetX = 0;
-    ctx.shadowOffsetY = 0;
-
-    // 境界線（白石は見やすくするため）
-    if (color === WHITE) {
-     ctx.lineWidth = 1;
-     ctx.strokeStyle = '#999';
-     ctx.stroke();
+    // If AI goes first
+    if (currentTurn === aiPlayer) {
+     makeAiMove();
     }
-
-    // 最新の手にはマークをつける（オプション）
-    // 実装簡略化のため省略
    }
 
-
-   // 座標からインデックスに変換
-   function getIndex(x, y) {
-    return y * BOARD_SIZE + x;
+   // Deep copy board helper
+   function copyBoard(b) {
+    return b.map(row => [...row]);
    }
 
-   // 盤外判定
-   function isOutOfBounds(x, y) {
-    return x < 0 || x >= BOARD_SIZE || y < 0 || y >= BOARD_SIZE;
+   // Check if coordinate is inside grid
+   function inBounds(r, c) {
+    return r >= 0 && r < boardSize && c >= 0 && c < boardSize;
    }
 
-   // 隣接する座標を取得
-   function getNeighbors(x, y) {
+   // Get adjacent cells
+   function getNeighbors(r, c) {
     const neighbors = [];
-    if (y > 0) neighbors.push([x, y - 1]);
-    if (y < BOARD_SIZE - 1) neighbors.push([x, y + 1]);
-    if (x > 0) neighbors.push([x - 1, y]);
-    if (x < BOARD_SIZE - 1) neighbors.push([x + 1, y]);
+    const dirs = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+    for (let [dr, dc] of dirs) {
+     const nr = r + dr;
+     const nc = c + dc;
+     if (inBounds(nr, nc)) neighbors.push({ r: nr, c: nc });
+    }
     return neighbors;
    }
 
-   // 連（繋がった石のグループ）と呼吸点（ダメ）を探索する
-   function getGroupAndLiberties(x, y, currentBoard) {
-    const color = currentBoard[getIndex(x, y)];
+   // Find string (group of connected stones) and its liberties
+   function getGroup(b, r, c) {
+    const color = b[r][c];
     if (color === EMPTY) return null;
 
-    const group = new Set();
+    const group = [];
     const liberties = new Set();
-    const queue = [[x, y]];
-    const visited = new Set();
-
-    group.add(getIndex(x, y));
-    visited.add(getIndex(x, y));
+    const visited = Array(boardSize).fill(null).map(() => Array(boardSize).fill(false));
+    const queue = [{ r, c }];
+    visited[r][c] = true;
 
     while (queue.length > 0) {
-     const [cx, cy] = queue.shift();
+     const curr = queue.shift();
+     group.push(curr);
 
-     const neighbors = getNeighbors(cx, cy);
-     for (const [nx, ny] of neighbors) {
-      const nIdx = getIndex(nx, ny);
-      const nColor = currentBoard[nIdx];
-
-      if (nColor === EMPTY) {
-       liberties.add(nIdx);
-      } else if (nColor === color && !visited.has(nIdx)) {
-       visited.add(nIdx);
-       group.add(nIdx);
-       queue.push([nx, ny]);
+     for (let n of getNeighbors(curr.r, curr.c)) {
+      if (b[n.r][n.c] === EMPTY) {
+       liberties.add(`${n.r},${n.c}`);
+      } else if (b[n.r][n.c] === color && !visited[n.r][n.c]) {
+       visited[n.r][n.c] = true;
+       queue.push(n);
       }
      }
     }
 
-    return {
-     group: Array.from(group),
-     liberties: Array.from(liberties)
-    };
+    return { color, group, libertiesCount: liberties.size, liberties };
    }
 
-   // 指定した盤面状態を文字列化（コウ判定用）
-   function getBoardHash(b) {
-    return b.join('');
-   }
+   // Validate and execute a move on a target board
+   function applyMove(b, r, c, color) {
+    if (b[r][c] !== EMPTY) return null;
 
-   // 石を置く処理（合法手かどうかのチェックと石の獲得を含む）
-   // checkOnly=true の場合は状態を変更せず合法手かだけ返す
-   function tryMove(x, y, color, currentBoard, checkOnly = false) {
-    if (isOutOfBounds(x, y) || currentBoard[getIndex(x, y)] !== EMPTY) {
-     return false; // すでに石があるか盤外
-    }
+    const nextBoard = copyBoard(b);
+    nextBoard[r][c] = color;
+    const opponent = color === BLACK ? WHITE : BLACK;
+    let capturedStones = 0;
 
-    // 一時的に石を置く
-    const testBoard = [...currentBoard];
-    const idx = getIndex(x, y);
-    testBoard[idx] = color;
-    const opponentColor = color === BLACK ? WHITE : BLACK;
-
-    let capturedStones = [];
-
-    // 1. 敵石を取れるかチェック
-    const neighbors = getNeighbors(x, y);
-    for (const [nx, ny] of neighbors) {
-     if (testBoard[getIndex(nx, ny)] === opponentColor) {
-      const oppGroupInfo = getGroupAndLiberties(nx, ny, testBoard);
-      if (oppGroupInfo && oppGroupInfo.liberties.length === 0) {
-       // 敵の石を取れる
-       capturedStones = capturedStones.concat(oppGroupInfo.group);
+    // Check adjacent opponent groups for capture
+    for (let n of getNeighbors(r, c)) {
+     if (nextBoard[n.r][n.c] === opponent) {
+      const g = getGroup(nextBoard, n.r, n.c);
+      if (g && g.libertiesCount === 0) {
+       // Remove captured group
+       for (let s of g.group) {
+        nextBoard[s.r][s.c] = EMPTY;
+        capturedStones++;
+       }
       }
      }
     }
 
-    // 取れる石は盤面から取り除く
-    for (const cIdx of capturedStones) {
-     testBoard[cIdx] = EMPTY;
+    // Check suicide rule
+    const ownGroup = getGroup(nextBoard, r, c);
+    if (ownGroup.libertiesCount === 0) {
+     return null; // Illegal suicide move
     }
 
-    // 2. 自殺手（着手禁止点）のチェック
-    // 敵石を取っておらず、かつ自分の呼吸点が0になる場合は自殺手
-    if (capturedStones.length === 0) {
-     const myGroupInfo = getGroupAndLiberties(x, y, testBoard);
-     if (myGroupInfo && myGroupInfo.liberties.length === 0) {
-      return false; // 自殺手
+    return { board: nextBoard, captured: capturedStones };
+   }
+
+   // Check Ko rule (prohibit repeating previous exact board state)
+   function isKo(nextBoard) {
+    if (history.length === 0) return false;
+    const prev = history[history.length - 1].board;
+    for (let r = 0; r < boardSize; r++) {
+     for (let c = 0; c < boardSize; c++) {
+      if (nextBoard[r][c] !== prev[r][c]) return false;
      }
     }
-
-    // 3. コウ（同型反復）のチェック
-    const newBoardHash = getBoardHash(testBoard);
-    // 2手前の状態と同じならコウとみなす
-    if (boardHistory.length >= 2 && boardHistory[boardHistory.length - 2] === newBoardHash) {
-     return false; // コウ
-    }
-
-    if (checkOnly) {
-     return { valid: true, captures: capturedStones.length, boardAfter: testBoard };
-    }
-
-    // 実際に盤面を更新
-    board = testBoard;
-    boardHistory.push(newBoardHash);
-    // 履歴が長くなりすぎないように保持（最新10手程度で十分）
-    if (boardHistory.length > 10) boardHistory.shift();
-
-    return capturedStones.length; // 獲得した石の数を返す
+    return true;
    }
 
+   // Execute player turn
+   function playStone(r, c) {
+    if (gameOver || isAiThinking) return false;
+    if (board[r][c] !== EMPTY) return false;
 
-   // メッセージ表示
-   function showMessage(msg, isError = false) {
-    msgBox.textContent = msg;
-    if (isError) {
-     msgBox.classList.replace('bg-amber-50', 'bg-red-50');
-     msgBox.classList.replace('text-slate-700', 'text-red-700');
-     msgBox.classList.replace('border-amber-200', 'border-red-200');
-     setTimeout(() => {
-      msgBox.classList.replace('bg-red-50', 'bg-amber-50');
-      msgBox.classList.replace('text-red-700', 'text-slate-700');
-      msgBox.classList.replace('border-red-200', 'border-amber-200');
-     }, 1500);
+    const res = applyMove(board, r, c, currentTurn);
+    if (!res) return false; // Invalid move
+
+    if (isKo(res.board)) {
+     alert("コウのため、すぐには打てません。");
+     return false;
     }
+
+    // Save history
+    history.push({
+     board: copyBoard(board),
+     captures: { ...captures },
+     lastMove: lastMove ? { ...lastMove } : null,
+     currentTurn: currentTurn
+    });
+
+    // Update board state
+    board = res.board;
+    captures[currentTurn] += res.captured;
+    lastMove = { r, c };
+    consecutivePasses = 0;
+
+    playStoneSound();
+
+    // Switch turn
+    currentTurn = currentTurn === BLACK ? WHITE : BLACK;
+    updateUI();
+    drawBoard();
+
+    // Trigger AI if CPU's turn
+    if (!gameOver && currentTurn === aiPlayer) {
+     setTimeout(makeAiMove, 400);
+    }
+
+    return true;
    }
 
-   // ターン更新UI
-   function updateTurnUI() {
-    if (currentTurn === BLACK) {
-     turnIndicator.textContent = "あなた(黒)の番です";
-     turnIndicator.className = "text-sm font-bold px-3 py-1 bg-gray-800 text-white rounded-full shadow";
+   // Pass function
+   function passTurn() {
+    if (gameOver || isAiThinking) return;
+
+    history.push({
+     board: copyBoard(board),
+     captures: { ...captures },
+     lastMove: lastMove ? { ...lastMove } : null,
+     currentTurn: currentTurn
+    });
+
+    consecutivePasses++;
+    currentTurn = currentTurn === BLACK ? WHITE : BLACK;
+
+    if (consecutivePasses >= 2) {
+     endGame("両者パスにより対局が終了しました。");
     } else {
-     turnIndicator.textContent = "CPU(白)が思考中...";
-     turnIndicator.className = "text-sm font-bold px-3 py-1 bg-white text-gray-800 border border-gray-300 rounded-full shadow animate-pulse";
+     updateUI();
+     drawBoard();
+     if (currentTurn === aiPlayer) {
+      setTimeout(makeAiMove, 400);
+     }
     }
-    pCapturesEl.textContent = `アゲハマ: ${playerCaptures}`;
-    cCapturesEl.textContent = `アゲハマ: ${cpuCaptures}`;
+   }
+
+   // Undo function
+   function undoMove() {
+    if (history.length === 0 || isAiThinking) return;
+
+    // Undo until it's human player turn again (or single move if human vs human)
+    let lastState = history.pop();
+    if (lastState.currentTurn === aiPlayer && history.length > 0) {
+     lastState = history.pop();
+    }
+
+    board = lastState.board;
+    captures = lastState.captures;
+    lastMove = lastState.lastMove;
+    currentTurn = lastState.currentTurn;
+    consecutivePasses = 0;
+    gameOver = false;
+
+    updateUI();
     drawBoard();
    }
 
-   // プレイヤーのパス
-   function playerPass() {
-    if (gameOver || currentTurn !== BLACK || isProcessing) return;
-    isProcessing = true;
-
-    consecutivePasses++;
-    showMessage("あなたはパスしました。");
-
-    if (consecutivePasses >= 2) {
-     endGame();
-     return;
-    }
-
-    currentTurn = WHITE;
-    updateTurnUI();
-
-    setTimeout(cpuMove, 500); // CPUのターンへ
-   }
-
-   // キャンバスクリック/タップ処理
-   canvas.addEventListener('click', (e) => {
-    if (gameOver || currentTurn !== BLACK || isProcessing) return;
-
-    const rect = canvas.getBoundingClientRect();
-    // キャンバス内の相対座標（スケール考慮）
-    const scaleX = canvas.width / (rect.width * (window.devicePixelRatio || 1));
-    const scaleY = canvas.height / (rect.height * (window.devicePixelRatio || 1));
-
-    const x = (e.clientX - rect.left) * scaleX;
-    const y = (e.clientY - rect.top) * scaleY;
-
-    // 座標をグリッドインデックスに変換（マージンを引いてセルサイズで割る、四捨五入）
-    let gridX = Math.round((x - MARGIN) / CELL_SIZE);
-    let gridY = Math.round((y - MARGIN) / CELL_SIZE);
-
-    // タップのブレを考慮して少し範囲を広げる
-    if (gridX >= 0 && gridX < BOARD_SIZE && gridY >= 0 && gridY < BOARD_SIZE) {
-     handlePlayerMove(gridX, gridY);
-    }
-   });
-
-   function handlePlayerMove(x, y) {
-    const captures = tryMove(x, y, BLACK, board);
-
-    if (captures === false) {
-     showMessage("そこには置けません（反則）", true);
-     return;
-    }
-
-    // 合法手
-    isProcessing = true;
-    consecutivePasses = 0; // パスカウントリセット
-    playerCaptures += captures;
-    currentTurn = WHITE;
-    showMessage("CPUの番です...");
-    updateTurnUI();
-
-    // CPUの思考時間を少し設ける（UI更新のため）
-    setTimeout(cpuMove, Math.random() * 500 + 300);
-   }
-
-
-   // CPUの手を決定する
-   function cpuMove() {
+   // Resign
+   function resignGame() {
     if (gameOver) return;
+    const winner = currentTurn === BLACK ? "白" : "黒";
+    endGame(`${currentTurn === BLACK ? "黒" : "白"}が投了しました。${winner}の勝ちです。`, winner === "黒" ? BLACK : WHITE);
+   }
 
+   // AI Logic Engine
+   function makeAiMove() {
+    if (gameOver || currentTurn !== aiPlayer) return;
+    isAiThinking = true;
+    updateStatusText("CPUが思考中...");
+
+    setTimeout(() => {
+     const move = calculateAiMove();
+     isAiThinking = false;
+
+     if (!move) {
+      passTurn();
+     } else {
+      playStone(move.r, move.c);
+     }
+    }, 300);
+   }
+
+   function calculateAiMove() {
     const validMoves = [];
 
-    // すべての空きマスに対して評価を行う
-    for (let y = 0; y < BOARD_SIZE; y++) {
-     for (let x = 0; x < BOARD_SIZE; x++) {
-      const result = tryMove(x, y, WHITE, board, true);
-      if (result) {
-       // 評価値を計算
-       const score = evaluateMove(x, y, result, difficulty);
-       validMoves.push({ x, y, score, captures: result.captures });
+    // Gather all valid legal moves
+    for (let r = 0; r < boardSize; r++) {
+     for (let c = 0; c < boardSize; c++) {
+      if (board[r][c] === EMPTY) {
+       const res = applyMove(board, r, c, aiPlayer);
+       if (res && !isKo(res.board)) {
+        validMoves.push({ r, c, captured: res.captured });
+       }
       }
      }
     }
 
-    if (validMoves.length === 0) {
-     // 合法手がない場合はパス
-     consecutivePasses++;
-     showMessage("CPUはパスしました。");
-     if (consecutivePasses >= 2) {
-      endGame();
-      return;
-     }
-    } else {
-     // スコアが高い順にソート
-     validMoves.sort((a, b) => b.score - a.score);
+    if (validMoves.length === 0) return null; // Pass
 
-     let bestMove = validMoves[0];
+    // EASY DIFFICULTY: Random selection with basic eye-prevention
+    if (difficulty === 'easy') {
+     const filtered = validMoves.filter(m => !isTrueEye(board, m.r, m.c, aiPlayer));
+     const pool = filtered.length > 0 ? filtered : validMoves;
+     return pool[Math.floor(Math.random() * pool.length)];
+    }
 
-     // 難易度に応じた調整
-     if (difficulty === 'easy') {
-      // ランダムに手を選ぶ（上位80%から）
-      const maxIdx = Math.max(1, Math.floor(validMoves.length * 0.8));
-      bestMove = validMoves[Math.floor(Math.random() * maxIdx)];
-     } else if (difficulty === 'normal') {
-      // 時々上位3手からランダム（同じ展開を避ける）
-      const maxIdx = Math.min(3, validMoves.length);
-      if (Math.random() > 0.5) {
-       bestMove = validMoves[Math.floor(Math.random() * maxIdx)];
-      }
-     }
-     // hard は常に最高スコアを選択
+    // MEDIUM / HARD DIFFICULTY: Heuristic evaluation
+    let bestMove = null;
+    let bestScore = -Infinity;
 
-     // もし最高スコアが極端に低く（マイナス）、パスの方がマシな場合（簡易的な終局判定）
-     if (bestMove.score < -50 && difficulty !== 'easy') {
-      consecutivePasses++;
-      showMessage("CPUはパスしました。");
-      if (consecutivePasses >= 2) {
-       endGame();
-       return;
-      }
-     } else {
-      // 実際に手を打つ
-      const captures = tryMove(bestMove.x, bestMove.y, WHITE, board);
-      cpuCaptures += captures;
-      consecutivePasses = 0;
-      showMessage(`CPUが打機ました。あなたの番です。`);
+    for (let move of validMoves) {
+     let score = evaluateMove(move.r, move.c, move.captured);
+
+     // Add small random noise for variety
+     score += Math.random() * (difficulty === 'medium' ? 4 : 1);
+
+     if (score > bestScore) {
+      bestScore = score;
+      bestMove = move;
      }
     }
 
-    currentTurn = BLACK;
-    isProcessing = false;
-    updateTurnUI();
+    // If top score is very low or negative in late game, consider passing
+    if (bestScore < -50 && history.length > boardSize * boardSize * 0.6) {
+     return null;
+    }
+
+    return bestMove || validMoves[Math.floor(Math.random() * validMoves.length)];
    }
 
-   // 手の評価関数（AIのコア）
-   function evaluateMove(x, y, moveResult, diffLevel) {
+   // Evaluate heuristic quality of a single move
+   function evaluateMove(r, c, captured) {
     let score = 0;
-    const testBoard = moveResult.boardAfter;
+    const res = applyMove(board, r, c, aiPlayer);
+    if (!res) return -999;
 
-    // 1. 石を取れる手は高評価
-    score += moveResult.captures * 100;
+    // 1. Capture Bonus
+    score += captured * 25;
 
-    // 打った石のグループの呼吸点を確認
-    const myGroup = getGroupAndLiberties(x, y, testBoard);
-    const myLiberties = myGroup ? myGroup.liberties.length : 0;
-
-    // 2. 自滅に近い手（呼吸点が1）は大きなマイナス（取れる場合は別）
-    if (myLiberties === 1 && moveResult.captures === 0) {
-     score -= 80;
-    } else {
-     score += myLiberties * 5; // 呼吸点が多いほど良い
+    // 2. Liberties check of the newly formed group
+    const g = getGroup(res.board, r, c);
+    if (g) {
+     if (g.libertiesCount === 1) score -= 30; // Self-ataris (dangerous)
+     else if (g.libertiesCount === 2) score -= 5;
+     else score += g.libertiesCount * 3;
     }
 
-    // 強い難易度の場合の追加ヒューリスティクス
-    if (diffLevel === 'hard' || diffLevel === 'normal') {
-     // 3. 敵の石をアタリ（呼吸点1）にする手は高評価
-     const neighbors = getNeighbors(x, y);
-     for (const [nx, ny] of neighbors) {
-      if (testBoard[getIndex(nx, ny)] === BLACK) {
-       const enemyGroup = getGroupAndLiberties(nx, ny, testBoard);
-       if (enemyGroup && enemyGroup.liberties.length === 1) {
-        score += 50;
-       }
-      }
-     }
-
-     // 4. 自分のアタリを逃げる手は高評価
-     // （打つ前に呼吸点1だった隣接する自分の石があれば、それを助けたことになる）
-     let savedSelf = false;
-     for (const [nx, ny] of neighbors) {
-      if (board[getIndex(nx, ny)] === WHITE) {
-       const preGroup = getGroupAndLiberties(nx, ny, board);
-       if (preGroup && preGroup.liberties.length === 1 && myLiberties > 1) {
-        score += 90; // 逃げ出し成功
-        savedSelf = true;
-       }
-      }
-     }
-
-     // 5. 盤面の端へのペナルティ（序盤・中盤用）
-     // 中央（4,4）からの距離で評価
-     const distFromCenter = Math.abs(x - 4) + Math.abs(y - 4);
-     if (diffLevel === 'hard') {
-      score -= distFromCenter * 2;
-
-      // 1線の価値は低い
-      if (x === 0 || x === BOARD_SIZE - 1 || y === 0 || y === BOARD_SIZE - 1) {
-       score -= 10;
+    // 3. Saving own stones in Atari
+    for (let n of getNeighbors(r, c)) {
+     if (board[n.r][n.c] === aiPlayer) {
+      const oldG = getGroup(board, n.r, n.c);
+      if (oldG && oldG.libertiesCount === 1) {
+       score += 35; // Rescuing own stone!
       }
      }
     }
 
-    // 少しランダム性を入れてAIの動きをばらけさせる
-    score += Math.random() * 5;
+    // 4. Putting opponent into Atari
+    const opponent = aiPlayer === BLACK ? WHITE : BLACK;
+    for (let n of getNeighbors(r, c)) {
+     if (board[n.r][n.c] === opponent) {
+      const oppGroup = getGroup(res.board, n.r, n.c);
+      if (oppGroup && oppGroup.libertiesCount === 1) {
+       score += 20; // Atari opponent
+      }
+     }
+    }
+
+    // 5. Position value (Prefer center/star points over corners/edges in early game)
+    const center = (boardSize - 1) / 2;
+    const distFromCenter = Math.abs(r - center) + Math.abs(c - center);
+    score += (boardSize - distFromCenter);
+
+    // Avoid 1st line (edges) unless capturing/defending
+    if (r === 0 || r === boardSize - 1 || c === 0 || c === boardSize - 1) {
+     if (captured === 0) score -= 8;
+    }
+
+    // Avoid filling own eyes
+    if (isTrueEye(board, r, c, aiPlayer)) {
+     score -= 40;
+    }
 
     return score;
    }
 
+   // Simple check to avoid filling real eyes
+   function isTrueEye(b, r, c, color) {
+    const neighbors = getNeighbors(r, c);
+    for (let n of neighbors) {
+     if (b[n.r][n.c] !== color) return false;
+    }
+    return true;
+   }
 
-   // 終局処理（中国ルールベースの簡易地合い計算）
-   function endGame() {
-    gameOver = true;
-    isProcessing = true;
-
-    let blackScore = playerCaptures; // アゲハマも加算（日本ルール寄りだが簡易化のため）
-    let whiteScore = cpuCaptures;
-
+   // Territory Scoring Algorithm (Flood fill)
+   function calculateScores() {
+    const visited = Array(boardSize).fill(null).map(() => Array(boardSize).fill(false));
     let blackTerritory = 0;
     let whiteTerritory = 0;
 
-    // 簡易的な領地計算（Flood Fill）
-    // 空きマスがどの色の石に囲まれているか判定する
-    const visited = new Set();
-
-    for (let y = 0; y < BOARD_SIZE; y++) {
-     for (let x = 0; x < BOARD_SIZE; x++) {
-      const idx = getIndex(x, y);
-
-      if (board[idx] === BLACK) blackScore++;
-      else if (board[idx] === WHITE) whiteScore++;
-      else if (board[idx] === EMPTY && !visited.has(idx)) {
-       // 空き地の探索
+    for (let r = 0; r < boardSize; r++) {
+     for (let c = 0; c < boardSize; c++) {
+      if (board[r][c] === EMPTY && !visited[r][c]) {
+       // Perform flood fill to check surrounding stones
        const region = [];
-       const queue = [[x, y]];
+       const queue = [{ r, c }];
+       visited[r][c] = true;
        let touchesBlack = false;
        let touchesWhite = false;
 
-       visited.add(idx);
-       region.push(idx);
-
        while (queue.length > 0) {
-        const [cx, cy] = queue.shift();
+        const curr = queue.shift();
+        region.push(curr);
 
-        for (const [nx, ny] of getNeighbors(cx, cy)) {
-         const nIdx = getIndex(nx, ny);
-         const nColor = board[nIdx];
-
-         if (nColor === BLACK) touchesBlack = true;
-         else if (nColor === WHITE) touchesWhite = true;
-         else if (nColor === EMPTY && !visited.has(nIdx)) {
-          visited.add(nIdx);
-          region.push(nIdx);
-          queue.push([nx, ny]);
+        for (let n of getNeighbors(curr.r, curr.c)) {
+         const val = board[n.r][n.c];
+         if (val === BLACK) touchesBlack = true;
+         else if (val === WHITE) touchesWhite = true;
+         else if (val === EMPTY && !visited[n.r][n.c]) {
+          visited[n.r][n.c] = true;
+          queue.push(n);
          }
         }
        }
 
-       // 黒のみに囲まれていれば黒地
-       if (touchesBlack && !touchesWhite) blackTerritory += region.length;
-       // 白のみに囲まれていれば白地
-       else if (touchesWhite && !touchesBlack) whiteTerritory += region.length;
+       if (touchesBlack && !touchesWhite) {
+        blackTerritory += region.length;
+       } else if (touchesWhite && !touchesBlack) {
+        whiteTerritory += region.length;
+       }
       }
      }
     }
 
-    blackScore += blackTerritory;
-    whiteScore += whiteTerritory;
+    const blackTotal = blackTerritory + captures[BLACK];
+    const whiteTotal = whiteTerritory + captures[WHITE] + komi;
 
-    // コミ（白にハンデ。9路盤なのでコミは少なめの5.5目とする）
-    const komi = 5.5;
-    whiteScore += komi;
+    return {
+     blackTerritory,
+     whiteTerritory,
+     blackTotal,
+     whiteTotal,
+     winner: blackTotal > whiteTotal ? BLACK : WHITE,
+     margin: Math.abs(blackTotal - whiteTotal)
+    };
+   }
 
-    let resultMsg = `黒(あなた): ${blackScore}目<br>白(CPU): ${whiteScore}目 (コミ5.5含む)<br><br>`;
+   // End Game and show dialog
+   function endGame(reason, explicitWinner = null) {
+    gameOver = true;
+    const scores = calculateScores();
+    const winner = explicitWinner || scores.winner;
 
-    if (blackScore > whiteScore) {
-     resultMsg += `<span class="text-yellow-300 font-bold text-2xl">あなたの勝ち！</span>`;
-    } else {
-     resultMsg += `<span class="text-blue-300 font-bold text-2xl">CPUの勝ち</span>`;
+    document.getElementById('result-subtitle').innerText = reason;
+    document.getElementById('score-black-detail').innerText = `${scores.blackTerritory} (地) + ${captures[BLACK]} (アゲハマ) = ${scores.blackTotal}目`;
+    document.getElementById('score-white-detail').innerText = `${scores.whiteTerritory} (地) + ${captures[WHITE]} (アゲハマ) + ${komi} (コミ) = ${scores.whiteTotal}目`;
+
+    const winnerText = winner === BLACK
+     ? `黒の勝利！ (${scores.margin > 0 ? scores.margin + '目勝ち' : ''})`
+     : `白の勝利！ (${scores.margin > 0 ? scores.margin + '目勝ち' : ''})`;
+
+    document.getElementById('result-winner').innerText = winnerText;
+    document.getElementById('modal-result').classList.remove('hidden');
+   }
+
+   // Board & Stones Drawing Engine
+   function resizeCanvas() {
+    const container = canvas.parentElement;
+    const maxW = Math.min(container.clientWidth - 16, 520); // Responsive max width
+    canvas.width = maxW;
+    canvas.height = maxW;
+
+    boardPadding = maxW / (boardSize + 1);
+    cellSize = (maxW - boardPadding * 2) / (boardSize - 1);
+
+    drawBoard();
+   }
+
+   function drawBoard() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Draw Wood Texture Lines & Grid
+    ctx.strokeStyle = '#4a2e13';
+    ctx.lineWidth = 1.5;
+
+    for (let i = 0; i < boardSize; i++) {
+     // Horizontal lines
+     ctx.beginPath();
+     ctx.moveTo(boardPadding, boardPadding + i * cellSize);
+     ctx.lineTo(canvas.width - boardPadding, boardPadding + i * cellSize);
+     ctx.stroke();
+
+     // Vertical lines
+     ctx.beginPath();
+     ctx.moveTo(boardPadding + i * cellSize, boardPadding);
+     ctx.lineTo(boardPadding + i * cellSize, canvas.height - boardPadding);
+     ctx.stroke();
     }
 
-    resultText.innerHTML = resultMsg;
-    resultOverlay.classList.remove('hidden');
-    resultOverlay.classList.add('flex');
+    // Star Points (Hoshi)
+    const hoshiPoints = getHoshiPoints(boardSize);
+    ctx.fillStyle = '#4a2e13';
+    for (let hp of hoshiPoints) {
+     const x = boardPadding + hp.c * cellSize;
+     const y = boardPadding + hp.r * cellSize;
+     ctx.beginPath();
+     ctx.arc(x, y, Math.max(3, cellSize * 0.08), 0, Math.PI * 2);
+     ctx.fill();
+    }
 
-    showMessage("終局しました。");
-   }
-
-   // ゲームのリセット
-   function resetGame() {
-    board = new Array(BOARD_SIZE * BOARD_SIZE).fill(EMPTY);
-    currentTurn = BLACK;
-    playerCaptures = 0;
-    cpuCaptures = 0;
-    gameOver = false;
-    boardHistory = [];
-    consecutivePasses = 0;
-    isProcessing = false;
-
-    resultOverlay.classList.add('hidden');
-    resultOverlay.classList.remove('flex');
-
-    showMessage("対局を開始します。黒番（あなた）からどうぞ。");
-    updateTurnUI();
-   }
-
-   // 難易度変更UI処理
-   function setDifficulty(level) {
-    difficulty = level;
-    // UI更新
-    Object.keys(difficulties).forEach(key => {
-     const btn = document.getElementById(difficulties[key].element);
-     if (key === level) {
-      btn.classList.replace('bg-gray-200', 'bg-blue-500');
-      btn.classList.replace('text-gray-700', 'text-white');
-      btn.classList.add('shadow');
-     } else {
-      btn.classList.replace('bg-blue-500', 'bg-gray-200');
-      btn.classList.replace('text-white', 'text-gray-700');
-      btn.classList.remove('shadow');
+    // Draw Stones
+    for (let r = 0; r < boardSize; r++) {
+     for (let c = 0; c < boardSize; c++) {
+      if (board[r][c] !== EMPTY) {
+       drawStone(r, c, board[r][c]);
+      }
      }
-    });
-    // 進行中ならリセットする
-    resetGame();
+    }
+
+    // Highlight Last Move
+    if (lastMove && board[lastMove.r][lastMove.c] !== EMPTY) {
+     const x = boardPadding + lastMove.c * cellSize;
+     const y = boardPadding + lastMove.r * cellSize;
+     ctx.strokeStyle = board[lastMove.r][lastMove.c] === BLACK ? '#f59e0b' : '#d97706';
+     ctx.lineWidth = 3;
+     ctx.beginPath();
+     ctx.arc(x, y, cellSize * 0.25, 0, Math.PI * 2);
+     ctx.stroke();
+    }
    }
 
-   // 初期化
-   window.onload = () => {
-    resizeCanvas();
-    resetGame();
-   };
+   // Get Hoshi positions according to board size
+   function getHoshiPoints(size) {
+    if (size === 9) {
+     return [
+      { r: 2, c: 2 }, { r: 2, c: 6 }, { r: 4, c: 4 },
+      { r: 6, c: 2 }, { r: 6, c: 6 }
+     ];
+    } else if (size === 13) {
+     return [
+      { r: 3, c: 3 }, { r: 3, c: 9 }, { r: 6, c: 6 },
+      { r: 9, c: 3 }, { r: 9, c: 9 }
+     ];
+    } else if (size === 19) {
+     return [
+      { r: 3, c: 3 }, { r: 3, c: 9 }, { r: 3, c: 15 },
+      { r: 9, c: 3 }, { r: 9, c: 9 }, { r: 9, c: 15 },
+      { r: 15, c: 3 }, { r: 15, c: 9 }, { r: 15, c: 15 }
+     ];
+    }
+    return [];
+   }
 
+   // Render individual Realistic 3D-styled Go Stone
+   function drawStone(r, c, color) {
+    const x = boardPadding + c * cellSize;
+    const y = boardPadding + r * cellSize;
+    const radius = cellSize * 0.46;
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
+
+    // Shadow
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.4)';
+    ctx.shadowBlur = 6;
+    ctx.shadowOffsetX = 2;
+    ctx.shadowOffsetY = 3;
+
+    // Radial gradient for 3D sphere look
+    const grad = ctx.createRadialGradient(
+     x - radius * 0.3, y - radius * 0.3, radius * 0.1,
+     x, y, radius
+    );
+
+    if (color === BLACK) {
+     grad.addColorStop(0, '#555');
+     grad.addColorStop(0.7, '#111');
+     grad.addColorStop(1, '#000');
+    } else {
+     grad.addColorStop(0, '#ffffff');
+     grad.addColorStop(0.8, '#e0e0e0');
+     grad.addColorStop(1, '#b0b0b0');
+    }
+
+    ctx.fillStyle = grad;
+    ctx.fill();
+    ctx.restore();
+   }
+
+   // Handle Board Clicks / Touch
+   canvas.addEventListener('click', (e) => {
+    if (gameOver || isAiThinking) return;
+    if (currentTurn !== humanPlayer) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+    const clickY = e.clientY - rect.top;
+
+    // Convert canvas pixel coordinates to board row/col
+    const c = Math.round((clickX - boardPadding) / cellSize);
+    const r = Math.round((clickY - boardPadding) / cellSize);
+
+    if (inBounds(r, c)) {
+     playStone(r, c);
+    }
+   });
+
+   // UI Update Helper
+   function updateUI() {
+    document.getElementById('captures-black').innerText = captures[BLACK];
+    document.getElementById('captures-white').innerText = captures[WHITE];
+    document.getElementById('move-counter').innerText = `手数: ${history.length}手`;
+
+    const isBlackTurn = currentTurn === BLACK;
+    document.getElementById('indicator-black').classList.toggle('hidden', !isBlackTurn);
+    document.getElementById('indicator-white').classList.toggle('hidden', isBlackTurn);
+
+    updateStatusText(isBlackTurn ? "黒番（先手）の番です" : "白番（後手）の番です");
+   }
+
+   function updateStatusText(text) {
+    document.getElementById('status-badge').innerText = text;
+   }
+
+   // Settings Modal Interaction
+   const settingsModal = document.getElementById('modal-settings');
+   document.getElementById('btn-settings').addEventListener('click', () => {
+    settingsModal.classList.remove('hidden');
+   });
+   document.getElementById('btn-close-settings').addEventListener('click', () => {
+    settingsModal.classList.add('hidden');
+   });
+
+   // Toggle buttons in Settings
+   document.querySelectorAll('.btn-size').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+     document.querySelectorAll('.btn-size').forEach(b => {
+      b.classList.remove('bg-amber-500', 'text-white', 'border-amber-600');
+      b.classList.add('bg-white', 'text-slate-700');
+     });
+     e.target.classList.add('bg-amber-500', 'text-white', 'border-amber-600');
+     e.target.classList.remove('bg-white', 'text-slate-700');
+    });
+   });
+
+   document.querySelectorAll('.btn-diff').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+     document.querySelectorAll('.btn-diff').forEach(b => {
+      b.classList.remove('bg-amber-500', 'text-white', 'border-amber-600');
+      b.classList.add('bg-white', 'text-slate-700');
+     });
+     e.target.classList.add('bg-amber-500', 'text-white', 'border-amber-600');
+     e.target.classList.remove('bg-white', 'text-slate-700');
+    });
+   });
+
+   document.querySelectorAll('.btn-color').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+     document.querySelectorAll('.btn-color').forEach(b => {
+      b.classList.remove('bg-amber-500', 'text-white', 'border-amber-600');
+      b.classList.add('bg-white', 'text-slate-700');
+     });
+     const target = e.target.closest('.btn-color');
+     target.classList.add('bg-amber-500', 'text-white', 'border-amber-600');
+     target.classList.remove('bg-white', 'text-slate-700');
+    });
+   });
+
+   // Apply Settings and Start New Game
+   document.getElementById('btn-apply-settings').addEventListener('click', () => {
+    const sizeBtn = document.querySelector('.btn-size.bg-amber-500');
+    const diffBtn = document.querySelector('.btn-diff.bg-amber-500');
+    const colorBtn = document.querySelector('.btn-color.bg-amber-500');
+
+    boardSize = parseInt(sizeBtn.dataset.size);
+    difficulty = diffBtn.dataset.diff;
+    humanPlayer = colorBtn.dataset.color === 'black' ? BLACK : WHITE;
+    aiPlayer = humanPlayer === BLACK ? WHITE : BLACK;
+
+    // Player names UI
+    if (humanPlayer === BLACK) {
+     document.getElementById('name-black').innerText = "あなた (黒)";
+     document.getElementById('name-white').innerText = `CPU [${getDiffText(difficulty)}] (白)`;
+    } else {
+     document.getElementById('name-black').innerText = `CPU [${getDiffText(difficulty)}] (黒)`;
+     document.getElementById('name-white').innerText = "あなた (白)";
+    }
+
+    settingsModal.classList.add('hidden');
+    initGame();
+   });
+
+   function getDiffText(d) {
+    if (d === 'easy') return '初級';
+    if (d === 'medium') return '中級';
+    return '上級';
+   }
+
+   // Action Buttons
+   document.getElementById('btn-pass').addEventListener('click', passTurn);
+   document.getElementById('btn-undo').addEventListener('click', undoMove);
+   document.getElementById('btn-resign').addEventListener('click', resignGame);
+   document.getElementById('btn-score').addEventListener('click', () => {
+    const scores = calculateScores();
+    alert(`【形勢判断】\n黒の地+アゲハマ: ${scores.blackTotal}目\n白の地+アゲハマ+コミ: ${scores.whiteTotal}目\n\n現在: ${scores.blackTotal > scores.whiteTotal ? '黒' : '白'}が約${scores.margin}目リード`);
+   });
+
+   // Sound Toggle
+   document.getElementById('btn-sound').addEventListener('click', () => {
+    soundEnabled = !soundEnabled;
+    const icon = document.getElementById('icon-sound');
+    if (soundEnabled) {
+     icon.className = 'fa-solid fa-volume-high text-lg';
+    } else {
+     icon.className = 'fa-solid fa-volume-xmark text-lg text-slate-400';
+    }
+   });
+
+   // Game Restart Button
+   document.getElementById('btn-restart-game').addEventListener('click', () => {
+    document.getElementById('modal-result').classList.add('hidden');
+    initGame();
+   });
+
+   // Resize Event Listener
+   window.addEventListener('resize', resizeCanvas);
+
+   // Start Game on Page Load
+   window.onload = () => {
+    initGame();
+   };
   </script>
  </body>
 </html>

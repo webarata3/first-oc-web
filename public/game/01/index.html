@@ -1,229 +1,329 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="ja" class="h-full bg-slate-900 text-slate-100">
  <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Web Othello</title>
+  <title>Web Othello - CPU対戦オセロ</title>
+  <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome for Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Google Fonts -->
+  <link
+   href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&family=Zen+Maru+Gothic:wght@500;700;900&display=swap"
+   rel="stylesheet">
+
+  <script>
+   tailwind.config = {
+    theme: {
+     extend: {
+      fontFamily: {
+       sans: ['Outfit', 'Zen Maru Gothic', 'sans-serif'],
+      },
+      colors: {
+       board: {
+        DEFAULT: '#0f5231',
+        dark: '#0a3a22',
+        grid: '#062415',
+        highlight: 'rgba(255, 215, 0, 0.35)'
+       }
+      }
+     }
+    }
+   }
+  </script>
+
   <style>
-   body {
-    font-family: 'Inter', sans-serif;
-    background-color: #0f172a;
-    /* slate-900 */
-    color: #f8fafc;
-    /* slate-50 */
-    touch-action: manipulation;
-    /* ダブルタップズーム防止 */
-    -webkit-tap-highlight-color: transparent;
+   /* 3D Flip Effects for Discs */
+   .disc-container {
+    perspective: 1000px;
    }
 
-   .board-container {
-    background-color: #064e3b;
-    /* green-900 */
-    padding: 8px;
-    border-radius: 12px;
-    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.7);
-    width: 100%;
-    max-width: 450px;
-    margin: 0 auto;
-   }
-
-   .grid-board {
-    display: grid;
-    grid-template-columns: repeat(8, 1fr);
-    gap: 2px;
-    background-color: #111;
-    /* グリッドの線になる背景 */
-    border: 2px solid #111;
-   }
-
-   .cell {
-    background-color: #15803d;
-    /* green-700 */
-    aspect-ratio: 1;
+   .disc-inner {
     position: relative;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    cursor: pointer;
-    transition: background-color 0.2s;
+    width: 100%;
+    height: 100%;
+    transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    transform-style: preserve-3d;
    }
 
-   @media (hover: hover) {
-    .cell:hover {
-     background-color: #16a34a;
-     /* green-600 */
+   .disc-inner.white {
+    transform: rotateY(180deg);
+   }
+
+   .disc-front,
+   .disc-back {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    backface-visibility: hidden;
+    box-shadow: inset 0 3px 6px rgba(255, 255, 255, 0.3), 0 4px 8px rgba(0, 0, 0, 0.4);
+   }
+
+   .disc-front {
+    /* Black Disc */
+    background: radial-gradient(circle at 35% 35%, #4a4a4a, #111111 70%, #000000);
+    border: 1px solid #333;
+   }
+
+   .disc-back {
+    /* White Disc */
+    background: radial-gradient(circle at 35% 35%, #ffffff, #e2e8f0 70%, #cbd5e1);
+    transform: rotateY(180deg);
+    border: 1px solid #94a3b8;
+   }
+
+   /* Pulse highlight for last placed move */
+   .last-move-ring {
+    animation: pulse-ring 1.5s infinite;
+   }
+
+   @keyframes pulse-ring {
+    0% {
+     transform: scale(0.85);
+     opacity: 1;
+    }
+
+    50% {
+     transform: scale(1.05);
+     opacity: 0.7;
+    }
+
+    100% {
+     transform: scale(0.85);
+     opacity: 1;
     }
    }
 
-   .disc-container {
-    width: 85%;
-    height: 85%;
-    position: relative;
-    perspective: 1000px;
-    /* 3D回転用 */
-   }
-
-   .disc {
-    width: 100%;
-    height: 100%;
-    position: absolute;
-    transform-style: preserve-3d;
-    transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s;
-    border-radius: 50%;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.5);
-    opacity: 0;
-    pointer-events: none;
-   }
-
-   /* 表面 (黒) */
-   .disc .front {
-    width: 100%;
-    height: 100%;
-    position: absolute;
-    backface-visibility: hidden;
-    border-radius: 50%;
-    background: radial-gradient(circle at 30% 30%, #4b5563, #000000);
-   }
-
-   /* 裏面 (白) */
-   .disc .back {
-    width: 100%;
-    height: 100%;
-    position: absolute;
-    backface-visibility: hidden;
-    border-radius: 50%;
-    background: radial-gradient(circle at 30% 30%, #ffffff, #9ca3af);
-    transform: rotateY(180deg);
-   }
-
-   /* 状態によるクラス */
-   .disc.state-black {
-    transform: rotateY(0deg);
-    opacity: 1;
-   }
-
-   .disc.state-white {
-    transform: rotateY(180deg);
-    opacity: 1;
-   }
-
-   /* 置ける場所のヒント表示 */
-   .hint {
-    width: 25%;
-    height: 25%;
-    border-radius: 50%;
-    background-color: rgba(0, 0, 0, 0.25);
-    position: absolute;
-    opacity: 0;
-    transition: opacity 0.2s;
-    pointer-events: none;
-   }
-
-   .cell.valid .hint {
-    opacity: 1;
-   }
-
-   /* カスタムセレクトボックスなどのスタイル調整 */
-   select {
-    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%239ca3af' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
-    background-position: right 0.5rem center;
-    background-repeat: no-repeat;
-    background-size: 1.5em 1.5em;
-   }
+   /* Prevent double-tap zoom on iOS */
+   touch-action: manipulation;
   </style>
  </head>
- <body class="min-h-screen flex flex-col items-center py-6 px-4">
+ <body class="h-full flex flex-col justify-between font-sans select-none overflow-x-hidden bg-slate-950 text-slate-100">
 
-  <header class="w-full max-w-md text-center mb-6">
-   <h1 class="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-blue-500 mb-2">
-    Web Othello</h1>
-   <p class="text-slate-400 text-sm">Play against the AI CPU</p>
+  <!-- Navigation / Header -->
+  <header class="w-full bg-slate-900/80 backdrop-blur-md border-b border-slate-800 px-4 py-3 sticky top-0 z-20">
+   <div class="max-w-md mx-auto flex items-center justify-between">
+    <div class="flex items-center space-x-2">
+     <div class="w-8 h-8 rounded-full bg-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-900/50">
+      <i class="fa-solid fa-circle-half-stroke text-slate-100 text-lg"></i>
+     </div>
+     <h1
+      class="text-xl font-extrabold tracking-tight bg-gradient-to-r from-emerald-400 to-teal-200 bg-clip-text text-transparent">
+      Web オセロ
+     </h1>
+    </div>
+
+    <div class="flex items-center space-x-2">
+     <button id="sound-btn"
+      class="w-9 h-9 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center transition-colors border border-slate-700/50"
+      title="効果音切り替え">
+      <i class="fa-solid fa-volume-high text-sm"></i>
+     </button>
+     <button id="settings-btn"
+      class="w-9 h-9 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center transition-colors border border-slate-700/50"
+      title="対戦設定">
+      <i class="fa-solid fa-gear text-sm"></i>
+     </button>
+    </div>
+   </div>
   </header>
 
-  <div
-   class="w-full max-w-md flex justify-between items-center bg-slate-800 p-4 rounded-xl shadow-lg mb-6 border border-slate-700">
-   <div class="flex flex-col items-center">
-    <div class="w-8 h-8 rounded-full bg-gradient-to-br from-gray-600 to-black shadow-md mb-1"></div>
-    <span class="text-sm font-semibold text-slate-300">Black</span>
-    <span id="score-black" class="text-2xl font-bold">2</span>
-   </div>
+  <!-- Main Game Container -->
+  <main class="flex-1 max-w-md w-full mx-auto px-3 py-2 flex flex-col justify-around items-center">
 
-   <div class="flex flex-col items-center px-4">
-    <div id="turn-indicator"
-     class="text-sm font-bold tracking-wider uppercase px-3 py-1 rounded-full bg-green-500/20 text-green-400 border border-green-500/30 mb-1">
-     Your Turn
+   <!-- Scoreboard & Player Info -->
+   <div class="w-full grid grid-cols-2 gap-3 my-2">
+    <!-- Player 1 Box (Black default) -->
+    <div id="p1-card"
+     class="bg-slate-900/90 rounded-2xl p-3 border-2 border-emerald-500/80 shadow-lg relative overflow-hidden transition-all duration-300 flex items-center justify-between">
+     <div class="flex items-center space-x-2.5">
+      <div
+       class="w-7 h-7 rounded-full bg-slate-950 border border-slate-700 flex items-center justify-center shadow-inner">
+       <div class="w-5 h-5 rounded-full bg-gradient-to-br from-neutral-700 to-black"></div>
+      </div>
+      <div>
+       <div id="p1-name" class="text-xs font-bold text-slate-400 leading-tight">あなた (黒)</div>
+       <div id="p1-score" class="text-2xl font-black tracking-tight text-white">2</div>
+      </div>
+     </div>
+     <div id="p1-turn-indicator" class="w-3 h-3 rounded-full bg-emerald-400 animate-ping"></div>
     </div>
-    <div id="game-status" class="text-xs text-slate-400">Game in progress</div>
+
+    <!-- Player 2 Box (CPU default) -->
+    <div id="p2-card"
+     class="bg-slate-900/50 rounded-2xl p-3 border-2 border-transparent shadow-lg relative overflow-hidden transition-all duration-300 flex items-center justify-between">
+     <div class="flex items-center space-x-2.5">
+      <div class="w-7 h-7 rounded-full bg-slate-200 flex items-center justify-center shadow-inner">
+       <div class="w-5 h-5 rounded-full bg-gradient-to-br from-white to-slate-300"></div>
+      </div>
+      <div>
+       <div id="p2-name" class="text-xs font-bold text-slate-400 leading-tight">CPU (白)</div>
+       <div id="p2-score" class="text-2xl font-black tracking-tight text-white">2</div>
+      </div>
+     </div>
+     <div id="p2-turn-indicator" class="w-3 h-3 rounded-full bg-emerald-400 animate-ping hidden"></div>
+    </div>
    </div>
 
-   <div class="flex flex-col items-center">
-    <div class="w-8 h-8 rounded-full bg-gradient-to-br from-white to-gray-400 shadow-md mb-1"></div>
-    <span class="text-sm font-semibold text-slate-300">White</span>
-    <span id="score-white" class="text-2xl font-bold">2</span>
+   <!-- Status Message Bar -->
+   <div class="w-full mb-2">
+    <div id="status-bar"
+     class="w-full bg-slate-900/60 rounded-xl px-4 py-2 text-center text-xs sm:text-sm font-semibold border border-slate-800/80 text-emerald-400 flex items-center justify-center space-x-2">
+     <i class="fa-solid fa-play text-xs"></i>
+     <span id="status-text">あなたの番です</span>
+    </div>
+   </div>
+
+   <!-- Othello Board Frame -->
+   <div
+    class="w-full aspect-square bg-emerald-950/80 rounded-2xl p-2.5 sm:p-3 shadow-2xl border-4 border-slate-800/90 relative flex flex-col justify-center items-center">
+    <!-- 8x8 Board Grid -->
+    <div id="board"
+     class="w-full h-full bg-board rounded-lg grid grid-cols-8 grid-rows-8 gap-[2px] p-[2px] shadow-inner relative border border-emerald-900">
+     <!-- Cells will be dynamically generated by JS -->
+    </div>
+   </div>
+
+   <!-- Control Buttons Footer -->
+   <div class="w-full flex items-center justify-between space-x-2 mt-3">
+    <button id="undo-btn"
+     class="flex-1 bg-slate-800 hover:bg-slate-700 active:scale-95 text-slate-200 font-bold py-2.5 px-3 rounded-xl border border-slate-700/60 shadow transition-all flex items-center justify-center space-x-1.5 text-xs sm:text-sm disabled:opacity-40 disabled:pointer-events-none">
+     <i class="fa-solid fa-rotate-left"></i>
+     <span>待った (1手戻す)</span>
+    </button>
+    <button id="guide-toggle-btn"
+     class="bg-slate-800 hover:bg-slate-700 active:scale-95 text-slate-200 font-bold p-2.5 rounded-xl border border-slate-700/60 shadow transition-all flex items-center justify-center text-xs sm:text-sm"
+     title="ガイド切替">
+     <i class="fa-solid fa-eye text-emerald-400"></i>
+    </button>
+    <button id="restart-btn"
+     class="flex-1 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 active:scale-95 text-white font-bold py-2.5 px-3 rounded-xl shadow-lg shadow-emerald-900/40 transition-all flex items-center justify-center space-x-1.5 text-xs sm:text-sm">
+     <i class="fa-solid fa-arrows-rotate"></i>
+     <span>新規対局</span>
+    </button>
+   </div>
+
+  </main>
+
+  <!-- Settings Modal -->
+  <div id="settings-modal"
+   class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+   <div
+    class="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-xs w-full shadow-2xl relative animate-in fade-in zoom-in-95 duration-200">
+    <h2 class="text-lg font-bold text-slate-100 mb-4 flex items-center space-x-2">
+     <i class="fa-solid fa-sliders text-emerald-400"></i>
+     <span>対戦設定</span>
+    </h2>
+
+    <!-- Difficulty Selection -->
+    <div class="mb-5">
+     <label class="block text-xs font-semibold text-slate-400 mb-2">CPUの強さ</label>
+     <div class="grid grid-cols-2 gap-2">
+      <button data-level="1"
+       class="diff-btn px-3 py-2 rounded-xl border text-xs font-bold transition-all text-left flex flex-col justify-between border-slate-700 bg-slate-800 text-slate-300">
+       <span>初級</span>
+       <span class="text-[10px] font-normal text-slate-400">気まぐれ</span>
+      </button>
+      <button data-level="2"
+       class="diff-btn px-3 py-2 rounded-xl border text-xs font-bold transition-all text-left flex flex-col justify-between border-emerald-500 bg-emerald-950/50 text-emerald-300">
+       <span>中級</span>
+       <span class="text-[10px] font-normal text-slate-400">数重視</span>
+      </button>
+      <button data-level="3"
+       class="diff-btn px-3 py-2 rounded-xl border text-xs font-bold transition-all text-left flex flex-col justify-between border-slate-700 bg-slate-800 text-slate-300">
+       <span>上級</span>
+       <span class="text-[10px] font-normal text-slate-400">先読み(4手)</span>
+      </button>
+      <button data-level="4"
+       class="diff-btn px-3 py-2 rounded-xl border text-xs font-bold transition-all text-left flex flex-col justify-between border-slate-700 bg-slate-800 text-slate-300">
+       <span>鬼級 🔥</span>
+       <span class="text-[10px] font-normal text-slate-400">ガチ最強(6手)</span>
+      </button>
+     </div>
+    </div>
+
+    <!-- Player Color Selection -->
+    <div class="mb-6">
+     <label class="block text-xs font-semibold text-slate-400 mb-2">あなたの手番</label>
+     <div class="grid grid-cols-2 gap-2">
+      <button id="choose-black"
+       class="color-btn py-2.5 px-3 rounded-xl border border-emerald-500 bg-emerald-950/50 text-emerald-300 text-xs font-bold flex items-center justify-center space-x-2">
+       <span class="w-3.5 h-3.5 rounded-full bg-black border border-slate-600 inline-block"></span>
+       <span>黒（先手）</span>
+      </button>
+      <button id="choose-white"
+       class="color-btn py-2.5 px-3 rounded-xl border border-slate-700 bg-slate-800 text-slate-300 text-xs font-bold flex items-center justify-center space-x-2">
+       <span class="w-3.5 h-3.5 rounded-full bg-white inline-block"></span>
+       <span>白（後手）</span>
+      </button>
+     </div>
+    </div>
+
+    <!-- Modal Action Buttons -->
+    <div class="flex space-x-2">
+     <button id="close-settings"
+      class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 rounded-xl transition-colors text-sm shadow-lg shadow-emerald-900/30">
+      設定を適用して新しく始める
+     </button>
+    </div>
    </div>
   </div>
 
-  <main class="w-full flex-1 flex flex-col items-center">
-   <div class="board-container">
-    <div id="board" class="grid-board rounded-lg overflow-hidden">
-     <!-- 盤面はJSで生成されます -->
+  <!-- Game Over Result Modal -->
+  <div id="result-modal"
+   class="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+   <div
+    class="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-xs w-full shadow-2xl text-center relative animate-in fade-in zoom-in-95 duration-300">
+    <div id="result-icon-bg"
+     class="w-16 h-16 rounded-2xl bg-emerald-500/20 text-emerald-400 mx-auto flex items-center justify-center text-3xl mb-3 border border-emerald-500/30">
+     <i id="result-icon" class="fa-solid fa-trophy"></i>
     </div>
-   </div>
 
-   <div class="w-full max-w-md mt-8 bg-slate-800 p-5 rounded-xl shadow-lg border border-slate-700">
-    <h2 class="text-lg font-bold mb-4 text-slate-200 border-b border-slate-700 pb-2">Game Settings</h2>
+    <h2 id="result-title" class="text-2xl font-black text-white mb-1">勝利！</h2>
+    <p id="result-subtitle" class="text-xs text-slate-400 mb-5">CPUとの熱戦を制しました！</p>
 
-    <div class="grid grid-cols-2 gap-4 mb-5">
-     <div>
-      <label class="block text-xs text-slate-400 mb-1 font-semibold uppercase">Difficulty</label>
-      <select id="difficulty"
-       class="w-full bg-slate-900 border border-slate-600 text-slate-200 text-sm rounded-lg focus:ring-green-500 focus:border-green-500 block p-2.5 appearance-none">
-       <option value="easy">Easy (Random)</option>
-       <option value="normal" selected>Normal</option>
-       <option value="hard">Hard (Minimax)</option>
-      </select>
+    <!-- Final Score Matrix -->
+    <div class="bg-slate-950/60 rounded-2xl p-4 border border-slate-800 mb-6 flex justify-around items-center">
+     <div class="text-center">
+      <div id="res-p1-label" class="text-[10px] text-slate-400 font-bold mb-1">あなた (黒)</div>
+      <div id="res-p1-score" class="text-3xl font-black text-white">36</div>
      </div>
-     <div>
-      <label class="block text-xs text-slate-400 mb-1 font-semibold uppercase">Your Color</label>
-      <select id="player-color"
-       class="w-full bg-slate-900 border border-slate-600 text-slate-200 text-sm rounded-lg focus:ring-green-500 focus:border-green-500 block p-2.5 appearance-none">
-       <option value="1">Black (1st)</option>
-       <option value="-1">White (2nd)</option>
-      </select>
+     <div class="text-lg font-black text-slate-600">-</div>
+     <div class="text-center">
+      <div id="res-p2-label" class="text-[10px] text-slate-400 font-bold mb-1">CPU (白)</div>
+      <div id="res-p2-score" class="text-3xl font-black text-slate-400">28</div>
      </div>
     </div>
 
-    <button id="btn-restart"
-     class="w-full py-3 px-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold rounded-lg shadow-md transition-all active:scale-95 focus:outline-none focus:ring-2 focus:ring-blue-400">
-     Restart Game
+    <button id="modal-restart-btn"
+     class="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-emerald-900/40 text-sm">
+     もう一度対戦する
     </button>
    </div>
-  </main>
-
-  <!-- トースト通知 -->
-  <div id="toast"
-   class="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-slate-900/95 border border-slate-700 text-white px-8 py-4 rounded-xl shadow-2xl opacity-0 pointer-events-none transition-opacity duration-300 z-50 text-xl font-bold backdrop-blur-sm flex flex-col items-center">
-   <span id="toast-message">Message</span>
-   <button id="toast-btn"
-    class="mt-4 text-sm bg-green-600 hover:bg-green-500 px-4 py-2 rounded-lg hidden transition-colors">Play
-    Again</button>
   </div>
 
   <script>
-   // 定数
-   const BLACK = 1;
-   const WHITE = -1;
-   const EMPTY = 0;
+   /* ===================================================================
+      Web Othello Engine - Game Logic & AI
+      =================================================================== */
 
-   // 方向 (上、右上、右、右下、下、左下、左、左上)
-   const DIRS = [
-    [-1, 0], [-1, 1], [0, 1], [1, 1],
-    [1, 0], [1, -1], [0, -1], [-1, -1]
+   // Board constants
+   const BOARD_SIZE = 8;
+   const EMPTY = 0;
+   const BLACK = 1; // Player default
+   const WHITE = 2; // CPU default
+
+   // Direction vectors for checking flips
+   const DIRECTIONS = [
+    [-1, -1], [-1, 0], [-1, 1],
+    [0, -1], [0, 1],
+    [1, -1], [1, 0], [1, 1]
    ];
 
-   // 盤面の評価値 (Normal難易度やHard難易度の評価に使用)
-   const WEIGHTS = [
+   // Positional Weight Evaluation Matrix for AI
+   const POSITION_WEIGHTS = [
     [120, -20, 20, 5, 5, 20, -20, 120],
     [-20, -40, -5, -5, -5, -5, -40, -20],
     [20, -5, 15, 3, 3, 15, -5, 20],
@@ -234,451 +334,639 @@
     [120, -20, 20, 5, 5, 20, -20, 120]
    ];
 
-   // 状態変数
-   let board = [];
-   let domCells = []; // UI更新用のDOM参照
+   // Game State variables
+   let board = Array(BOARD_SIZE).fill(null).map(() => Array(BOARD_SIZE).fill(EMPTY));
    let currentPlayer = BLACK;
-   let humanPlayer = BLACK;
-   let cpuPlayer = WHITE;
-   let isProcessing = false;
-   let isGameOver = false;
+   let humanColor = BLACK;
+   let cpuColor = WHITE;
+   let cpuLevel = 2; // 1: Easy, 2: Medium, 3: Hard, 4: Expert
+   let history = []; // Stack for Undo
+   let isProcessingMove = false;
+   let showGuide = true;
+   let soundEnabled = true;
+   let lastMove = null;
 
-   // UI要素
-   const boardEl = document.getElementById('board');
-   const scoreBlackEl = document.getElementById('score-black');
-   const scoreWhiteEl = document.getElementById('score-white');
-   const turnIndicatorEl = document.getElementById('turn-indicator');
-   const gameStatusEl = document.getElementById('game-status');
-   const difficultySelect = document.getElementById('difficulty');
-   const colorSelect = document.getElementById('player-color');
-   const restartBtn = document.getElementById('btn-restart');
-   const toastEl = document.getElementById('toast');
-   const toastMessageEl = document.getElementById('toast-message');
-   const toastBtnEl = document.getElementById('toast-btn');
+   // Sound Effects Generator (Web Audio API)
+   class SoundEffects {
+    constructor() {
+     this.ctx = null;
+    }
 
-   // 盤面を初期化してDOMを生成
-   function initGame() {
-    board = Array.from({ length: 8 }, () => Array(8).fill(EMPTY));
-    board[3][3] = WHITE;
-    board[3][4] = BLACK;
-    board[4][3] = BLACK;
-    board[4][4] = WHITE;
+    init() {
+     if (!this.ctx) {
+      this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+     }
+    }
 
-    humanPlayer = parseInt(colorSelect.value);
-    cpuPlayer = -humanPlayer;
-    currentPlayer = BLACK;
-    isProcessing = false;
-    isGameOver = false;
+    playPlaceDisc() {
+     if (!soundEnabled) return;
+     this.init();
+     const osc = this.ctx.createOscillator();
+     const gain = this.ctx.createGain();
+     osc.type = 'sine';
+     osc.frequency.setValueAtTime(350, this.ctx.currentTime);
+     osc.frequency.exponentialRampToValueAtTime(120, this.ctx.currentTime + 0.08);
+     gain.gain.setValueAtTime(0.3, this.ctx.currentTime);
+     gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.08);
+     osc.connect(gain);
+     gain.connect(this.ctx.destination);
+     osc.start();
+     osc.stop(this.ctx.currentTime + 0.08);
+    }
 
-    createBoardDOM();
-    updateUI();
-    hideToast();
+    playPass() {
+     if (!soundEnabled) return;
+     this.init();
+     const osc = this.ctx.createOscillator();
+     const gain = this.ctx.createGain();
+     osc.type = 'triangle';
+     osc.frequency.setValueAtTime(200, this.ctx.currentTime);
+     osc.frequency.setValueAtTime(150, this.ctx.currentTime + 0.1);
+     gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
+     gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.25);
+     osc.connect(gain);
+     gain.connect(this.ctx.destination);
+     osc.start();
+     osc.stop(this.ctx.currentTime + 0.25);
+    }
 
-    // もしCPUが先手なら、少し待ってから打たせる
-    if (currentPlayer === cpuPlayer) {
-     isProcessing = true;
-     setTimeout(doCpuTurn, 800);
+    playWin() {
+     if (!soundEnabled) return;
+     this.init();
+     const now = this.ctx.currentTime;
+     [440, 554.37, 659.25, 880].forEach((freq, i) => {
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.15, now + i * 0.1);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + i * 0.1 + 0.3);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(now + i * 0.1);
+      osc.stop(now + i * 0.1 + 0.3);
+     });
     }
    }
 
-   // DOM構築
-   function createBoardDOM() {
-    boardEl.innerHTML = '';
-    domCells = [];
+   const audioFX = new SoundEffects();
 
-    for (let r = 0; r < 8; r++) {
-     let rowDom = [];
-     for (let c = 0; c < 8; c++) {
-      const cell = document.createElement('div');
-      cell.className = 'cell';
-      cell.dataset.row = r;
-      cell.dataset.col = c;
-
-      // クリックイベント
-      cell.addEventListener('click', () => handleCellClick(r, c));
-
-      const hint = document.createElement('div');
-      hint.className = 'hint';
-      cell.appendChild(hint);
-
-      const discContainer = document.createElement('div');
-      discContainer.className = 'disc-container';
-
-      const disc = document.createElement('div');
-      disc.className = 'disc';
-
-      const front = document.createElement('div');
-      front.className = 'front'; // Black
-      const back = document.createElement('div');
-      back.className = 'back'; // White
-
-      disc.appendChild(front);
-      disc.appendChild(back);
-      discContainer.appendChild(disc);
-      cell.appendChild(discContainer);
-
-      boardEl.appendChild(cell);
-      rowDom.push({ cell, disc });
-     }
-     domCells.push(rowDom);
-    }
+   // Board logic helper functions
+   function isValidPos(r, c) {
+    return r >= 0 && r < BOARD_SIZE && c >= 0 && c < BOARD_SIZE;
    }
 
-   // 指定したマスに置いた時、裏返せる石のリストを取得
-   function getFlippableDiscs(targetBoard, r, c, player) {
-    if (targetBoard[r][c] !== EMPTY) return [];
+   // Get discs that would be flipped by placing color at (r, c)
+   function getFlippableDiscs(grid, r, c, color) {
+    if (grid[r][c] !== EMPTY) return [];
+    const opponent = color === BLACK ? WHITE : BLACK;
+    let totalFlips = [];
 
-    let flippable = [];
-    for (let dir of DIRS) {
-     let nr = r + dir[0];
-     let nc = c + dir[1];
-     let temp = [];
+    for (const [dr, dc] of DIRECTIONS) {
+     let nr = r + dr;
+     let nc = c + dc;
+     let potentialFlips = [];
 
-     // 相手の石が続く限り進む
-     while (nr >= 0 && nr < 8 && nc >= 0 && nc < 8 && targetBoard[nr][nc] === -player) {
-      temp.push({ r: nr, c: nc });
-      nr += dir[0];
-      nc += dir[1];
+     while (isValidPos(nr, nc) && grid[nr][nc] === opponent) {
+      potentialFlips.push([nr, nc]);
+      nr += dr;
+      nc += dc;
      }
 
-     // その先に自分の石があれば、挟んでいるので確定
-     if (nr >= 0 && nr < 8 && nc >= 0 && nc < 8 && targetBoard[nr][nc] === player) {
-      flippable.push(...temp);
+     if (isValidPos(nr, nc) && grid[nr][nc] === color && potentialFlips.length > 0) {
+      totalFlips = totalFlips.concat(potentialFlips);
      }
     }
-    return flippable;
+    return totalFlips;
    }
 
-   // 現在のプレイヤーが置けるマスのリストを取得
-   function getValidMoves(targetBoard, player) {
-    let moves = [];
-    for (let r = 0; r < 8; r++) {
-     for (let c = 0; c < 8; c++) {
-      if (targetBoard[r][c] === EMPTY) {
-       const flippable = getFlippableDiscs(targetBoard, r, c, player);
-       if (flippable.length > 0) {
-        moves.push({ r, c, flippable });
-       }
+   // Check if player has any valid moves
+   function getValidMoves(grid, color) {
+    const moves = [];
+    for (let r = 0; r < BOARD_SIZE; r++) {
+     for (let c = 0; c < BOARD_SIZE; c++) {
+      const flips = getFlippableDiscs(grid, r, c, color);
+      if (flips.length > 0) {
+       moves.push({ r, c, flips });
       }
      }
     }
     return moves;
    }
 
-   // セルのクリック処理
-   function handleCellClick(r, c) {
-    if (isProcessing || isGameOver || currentPlayer !== humanPlayer) return;
-
-    const flippable = getFlippableDiscs(board, r, c, currentPlayer);
-    if (flippable.length > 0) {
-     executeMove(r, c, flippable, currentPlayer);
-    }
+   // Deep clone board matrix
+   function cloneBoard(grid) {
+    return grid.map(row => [...row]);
    }
 
-   // 石を置いて反転させる
-   function executeMove(r, c, flippable, player) {
-    isProcessing = true;
-    board[r][c] = player;
+   // Count scores
+   function getScores(grid) {
+    let black = 0, white = 0;
+    for (let r = 0; r < BOARD_SIZE; r++) {
+     for (let c = 0; c < BOARD_SIZE; c++) {
+      if (grid[r][c] === BLACK) black++;
+      else if (grid[r][c] === WHITE) white++;
+     }
+    }
+    return { black, white };
+   }
 
-    // DOM更新 (置いた石)
-    updateDiscDOM(r, c, player);
+   /* ===================================================================
+      CPU AI Logic (Levels 1 ~ 4)
+      =================================================================== */
 
-    // 反転処理
-    flippable.forEach((pos, index) => {
-     board[pos.r][pos.c] = player;
-     // アニメーションを少しずつずらす
-     setTimeout(() => {
-      updateDiscDOM(pos.r, pos.c, player);
-     }, index * 50 + 50);
+   // Evaluate Board for Alpha-Beta
+   function evaluateBoard(grid, myColor) {
+    const oppColor = myColor === BLACK ? WHITE : BLACK;
+    let score = 0;
+
+    // 1. Positional Matrix Score
+    for (let r = 0; r < BOARD_SIZE; r++) {
+     for (let c = 0; c < BOARD_SIZE; c++) {
+      if (grid[r][c] === myColor) {
+       score += POSITION_WEIGHTS[r][c];
+      } else if (grid[r][c] === oppColor) {
+       score -= POSITION_WEIGHTS[r][c];
+      }
+     }
+    }
+
+    // Adjust weights for corners if taken
+    const corners = [[0, 0], [0, 7], [7, 0], [7, 7]];
+    corners.forEach(([cr, cc]) => {
+     if (grid[cr][cc] === myColor) score += 150;
+     else if (grid[cr][cc] === oppColor) score -= 150;
     });
 
-    // 反転アニメーションを待ってからターン終了処理へ
-    setTimeout(() => {
-     updateScore();
-     currentPlayer = -currentPlayer;
-     checkNextTurn();
-    }, flippable.length * 50 + 300);
-   }
-
-   // 個別のDOM更新
-   function updateDiscDOM(r, c, val) {
-    const disc = domCells[r][c].disc;
-    disc.classList.remove('state-black', 'state-white');
-    if (val === BLACK) {
-     disc.classList.add('state-black');
-    } else if (val === WHITE) {
-     disc.classList.add('state-white');
-    }
-   }
-
-   // UI全体(ヒント、スコア、表示)の更新
-   function updateUI() {
-    updateScore();
-    updateHints();
-    updateStatusText();
-   }
-
-   function updateScore() {
-    let blackCount = 0;
-    let whiteCount = 0;
-    for (let r = 0; r < 8; r++) {
-     for (let c = 0; c < 8; c++) {
-      if (board[r][c] === BLACK) blackCount++;
-      else if (board[r][c] === WHITE) whiteCount++;
-
-      // DOMのクラスも一応同期
-      updateDiscDOM(r, c, board[r][c]);
-     }
-    }
-    scoreBlackEl.textContent = blackCount;
-    scoreWhiteEl.textContent = whiteCount;
-    return { blackCount, whiteCount };
-   }
-
-   function updateHints() {
-    // 全てのヒントをクリア
-    for (let r = 0; r < 8; r++) {
-     for (let c = 0; c < 8; c++) {
-      domCells[r][c].cell.classList.remove('valid');
-     }
-    }
-    // 人間のターンの場合のみ表示
-    if (currentPlayer === humanPlayer && !isGameOver) {
-     const moves = getValidMoves(board, currentPlayer);
-     moves.forEach(m => {
-      domCells[m.r][m.c].cell.classList.add('valid');
-     });
-    }
-   }
-
-   function updateStatusText() {
-    if (isGameOver) {
-     turnIndicatorEl.textContent = "Game Over";
-     turnIndicatorEl.className = "text-sm font-bold tracking-wider uppercase px-3 py-1 rounded-full bg-gray-500/20 text-gray-400 border border-gray-500/30 mb-1";
-     gameStatusEl.textContent = "Finished";
-    } else {
-     if (currentPlayer === humanPlayer) {
-      turnIndicatorEl.textContent = "Your Turn";
-      turnIndicatorEl.className = "text-sm font-bold tracking-wider uppercase px-3 py-1 rounded-full bg-green-500/20 text-green-400 border border-green-500/30 mb-1";
-      gameStatusEl.textContent = humanPlayer === BLACK ? "Black" : "White";
-     } else {
-      turnIndicatorEl.textContent = "CPU Thinking";
-      turnIndicatorEl.className = "text-sm font-bold tracking-wider uppercase px-3 py-1 rounded-full bg-orange-500/20 text-orange-400 border border-orange-500/30 mb-1 animate-pulse";
-      gameStatusEl.textContent = cpuPlayer === BLACK ? "Black" : "White";
-     }
-    }
-   }
-
-   // 次のターンの判定
-   function checkNextTurn() {
-    const moves = getValidMoves(board, currentPlayer);
-
-    if (moves.length > 0) {
-     // 打てる場所がある
-     updateUI();
-     if (currentPlayer === cpuPlayer) {
-      isProcessing = true;
-      setTimeout(doCpuTurn, 800); // 思考時間演出
-     } else {
-      isProcessing = false;
-     }
-    } else {
-     // 打てないのでパスか終了判定
-     const opponentMoves = getValidMoves(board, -currentPlayer);
-     if (opponentMoves.length > 0) {
-      // 相手は打てる -> パス
-      const passPlayerName = currentPlayer === humanPlayer ? "You" : "CPU";
-      showToast(`${passPlayerName} Passed`, 1500);
-
-      currentPlayer = -currentPlayer;
-      setTimeout(checkNextTurn, 1600); // メッセージ後に次へ
-     } else {
-      // 双方打てない -> ゲームオーバー
-      handleGameOver();
-     }
-    }
-   }
-
-   function handleGameOver() {
-    isGameOver = true;
-    isProcessing = true;
-    updateUI();
-
-    const { blackCount, whiteCount } = updateScore();
-    let msg = "";
-    if (blackCount > whiteCount) {
-     msg = humanPlayer === BLACK ? "You Win! 🎉" : "CPU Wins! 🤖";
-    } else if (whiteCount > blackCount) {
-     msg = humanPlayer === WHITE ? "You Win! 🎉" : "CPU Wins! 🤖";
-    } else {
-     msg = "Draw! 🤝";
-    }
-
-    setTimeout(() => {
-     showToast(msg, 0, true); // 0は自動で消えない設定
-    }, 500);
-   }
-
-   // 盤面をコピーするユーティリティ
-   function cloneBoard(b) {
-    return b.map(row => [...row]);
-   }
-
-   // CPUのターン
-   function doCpuTurn() {
-    const difficulty = difficultySelect.value;
-    const moves = getValidMoves(board, cpuPlayer);
-
-    if (moves.length === 0) return; // セーフティネット
-
-    let selectedMove = null;
-
-    if (difficulty === 'easy') {
-     // ランダム
-     selectedMove = moves[Math.floor(Math.random() * moves.length)];
-    } else if (difficulty === 'normal') {
-     // 場所の評価値 (Greedy)
-     let bestScore = -Infinity;
-     for (let move of moves) {
-      let tempBoard = cloneBoard(board);
-      // 仮に置く
-      tempBoard[move.r][move.c] = cpuPlayer;
-      move.flippable.forEach(p => tempBoard[p.r][p.c] = cpuPlayer);
-
-      let score = evaluateBoard(tempBoard, cpuPlayer);
-      // 少しランダム性を混ぜて同じ動きを防ぐ
-      score += Math.random() * 5;
-
-      if (score > bestScore) {
-       bestScore = score;
-       selectedMove = move;
-      }
-     }
-    } else {
-     // Hard: Minimax (NegaMax) + AlphaBeta
-     let bestScore = -Infinity;
-     // 同スコアの場合にランダムに選ぶためシャッフル
-     moves.sort(() => Math.random() - 0.5);
-
-     // 深さは4手読みに設定 (ブラウザで固まらない程度)
-     const MAX_DEPTH = 4;
-
-     for (let move of moves) {
-      let tempBoard = cloneBoard(board);
-      tempBoard[move.r][move.c] = cpuPlayer;
-      move.flippable.forEach(p => tempBoard[p.r][p.c] = cpuPlayer);
-
-      // 自分が打った後なので次は相手の番。スコアは反転する。
-      let score = -negamax(tempBoard, MAX_DEPTH, -Infinity, Infinity, -cpuPlayer, 0);
-
-      if (score > bestScore) {
-       bestScore = score;
-       selectedMove = move;
-      }
-     }
-    }
-
-    if (selectedMove) {
-     executeMove(selectedMove.r, selectedMove.c, selectedMove.flippable, cpuPlayer);
-    }
-   }
-
-   // 盤面評価関数
-   function evaluateBoard(b, player) {
-    let score = 0;
-    let emptyCount = 0;
-    let pieceCount = 0;
-
-    for (let r = 0; r < 8; r++) {
-     for (let c = 0; c < 8; c++) {
-      if (b[r][c] !== EMPTY) {
-       // 自石ならプラス、敵石ならマイナスの重み
-       score += (b[r][c] === player ? 1 : -1) * WEIGHTS[r][c];
-       pieceCount += (b[r][c] === player ? 1 : -1);
-      } else {
-       emptyCount++;
-      }
-     }
-    }
-
-    // 終盤 (空きマスが少ない場合) は石数を重視
-    if (emptyCount <= 12) {
-     score += pieceCount * 1000;
-    }
-
-    // 打てる場所の数 (モビリティ) を評価に加える
-    const myMoves = getValidMoves(b, player).length;
-    const oppMoves = getValidMoves(b, -player).length;
-    score += (myMoves - oppMoves) * 10;
+    // 2. Mobility (Number of valid moves available)
+    const myMoves = getValidMoves(grid, myColor).length;
+    const oppMoves = getValidMoves(grid, oppColor).length;
+    score += (myMoves - oppMoves) * 15;
 
     return score;
    }
 
-   // NegaMax + AlphaBeta 探索
-   function negamax(b, depth, alpha, beta, player, passCount) {
-    if (passCount === 2 || depth === 0) {
-     return evaluateBoard(b, player);
+   // Alpha-Beta Search Algorithm
+   function minimax(grid, depth, alpha, beta, isMaximizing, myColor) {
+    const oppColor = myColor === BLACK ? WHITE : BLACK;
+    const activeColor = isMaximizing ? myColor : oppColor;
+    const validMoves = getValidMoves(grid, activeColor);
+
+    if (depth === 0 || (validMoves.length === 0 && getValidMoves(grid, isMaximizing ? oppColor : myColor).length === 0)) {
+     return evaluateBoard(grid, myColor);
     }
 
-    const moves = getValidMoves(b, player);
-
-    if (moves.length === 0) {
-     // パス
-     return -negamax(b, depth - 1, -beta, -alpha, -player, passCount + 1);
+    if (validMoves.length === 0) {
+     // Pass turn
+     return minimax(grid, depth - 1, alpha, beta, !isMaximizing, myColor);
     }
 
-    let maxVal = -Infinity;
-    for (let move of moves) {
-     let tempBoard = cloneBoard(b);
-     tempBoard[move.r][move.c] = player;
-     move.flippable.forEach(p => tempBoard[p.r][p.c] = player);
+    if (isMaximizing) {
+     let maxEval = -Infinity;
+     for (const move of validMoves) {
+      const nextBoard = cloneBoard(grid);
+      nextBoard[move.r][move.c] = myColor;
+      move.flips.forEach(([fr, fc]) => nextBoard[fr][fc] = myColor);
 
-     let val = -negamax(tempBoard, depth - 1, -beta, -alpha, -player, 0);
-     if (val > maxVal) {
-      maxVal = val;
+      const evalVal = minimax(nextBoard, depth - 1, alpha, beta, false, myColor);
+      maxEval = Math.max(maxEval, evalVal);
+      alpha = Math.max(alpha, evalVal);
+      if (beta <= alpha) break; // Prune
      }
-     alpha = Math.max(alpha, val);
-     if (alpha >= beta) {
-      break; // Alpha-Beta枝刈り
-     }
-    }
-    return maxVal;
-   }
-
-   // メッセージ表示処理
-   let toastTimeout;
-   function showToast(message, duration = 2000, showButton = false) {
-    clearTimeout(toastTimeout);
-    toastMessageEl.textContent = message;
-    toastEl.classList.remove('opacity-0', 'pointer-events-none');
-
-    if (showButton) {
-     toastBtnEl.classList.remove('hidden');
+     return maxEval;
     } else {
-     toastBtnEl.classList.add('hidden');
-    }
+     let minEval = Infinity;
+     for (const move of validMoves) {
+      const nextBoard = cloneBoard(grid);
+      nextBoard[move.r][move.c] = oppColor;
+      move.flips.forEach(([fr, fc]) => nextBoard[fr][fc] = oppColor);
 
-    if (duration > 0) {
-     toastTimeout = setTimeout(hideToast, duration);
+      const evalVal = minimax(nextBoard, depth - 1, alpha, beta, true, myColor);
+      minEval = Math.min(minEval, evalVal);
+      beta = Math.min(beta, evalVal);
+      if (beta <= alpha) break; // Prune
+     }
+     return minEval;
     }
    }
 
-   function hideToast() {
-    toastEl.classList.add('opacity-0', 'pointer-events-none');
+   // Select best CPU Move based on Level
+   function selectCPUMove() {
+    const validMoves = getValidMoves(board, cpuColor);
+    if (validMoves.length === 0) return null;
+
+    // Level 1: Random Choice
+    if (cpuLevel === 1) {
+     return validMoves[Math.floor(Math.random() * validMoves.length)];
+    }
+
+    // Level 2: Greedy Positional Choice (1-step evaluation)
+    if (cpuLevel === 2) {
+     let bestMove = validMoves[0];
+     let maxScore = -Infinity;
+
+     for (const move of validMoves) {
+      const tempBoard = cloneBoard(board);
+      tempBoard[move.r][move.c] = cpuColor;
+      move.flips.forEach(([fr, fc]) => tempBoard[fr][fc] = cpuColor);
+
+      const score = evaluateBoard(tempBoard, cpuColor);
+      if (score > maxScore) {
+       maxScore = score;
+       bestMove = move;
+      }
+     }
+     return bestMove;
+    }
+
+    // Level 3: Alpha-Beta Pruning (Depth 3 or 4)
+    // Level 4: Alpha-Beta Pruning (Depth 5 or 6)
+    const searchDepth = cpuLevel === 3 ? 3 : 5;
+    let bestMove = validMoves[0];
+    let bestValue = -Infinity;
+
+    for (const move of validMoves) {
+     const tempBoard = cloneBoard(board);
+     tempBoard[move.r][move.c] = cpuColor;
+     move.flips.forEach(([fr, fc]) => tempBoard[fr][fc] = cpuColor);
+
+     const value = minimax(tempBoard, searchDepth - 1, -Infinity, Infinity, false, cpuColor);
+     if (value > bestValue) {
+      bestValue = value;
+      bestMove = move;
+     }
+    }
+
+    return bestMove;
    }
 
-   // イベントリスナー
-   restartBtn.addEventListener('click', initGame);
-   toastBtnEl.addEventListener('click', initGame);
+   /* ===================================================================
+      UI Rendering and Interactivity
+      =================================================================== */
 
-   // 設定変更時に即座にリスタートするかは要検討。今回はボタン押下で反映とする。
-   // colorSelect.addEventListener('change', initGame);
+   // Initialize Board Grid Elements
+   const boardEl = document.getElementById('board');
 
-   // 初期ロード時にゲーム開始
-   window.addEventListener('DOMContentLoaded', () => {
+   function createBoardDOM() {
+    boardEl.innerHTML = '';
+    for (let r = 0; r < BOARD_SIZE; r++) {
+     for (let c = 0; c < BOARD_SIZE; c++) {
+      const cell = document.createElement('div');
+      cell.className = 'w-full h-full relative flex items-center justify-center cursor-pointer select-none rounded-sm transition-colors duration-200 hover:bg-emerald-800/40';
+      cell.dataset.row = r;
+      cell.dataset.col = c;
+      cell.addEventListener('click', () => handleCellClick(r, c));
+
+      // Disc container
+      const discContainer = document.createElement('div');
+      discContainer.className = 'disc-container w-[82%] h-[82%] hidden';
+      discContainer.id = `disc-${r}-${c}`;
+
+      const discInner = document.createElement('div');
+      discInner.className = 'disc-inner';
+      discInner.id = `disc-inner-${r}-${c}`;
+
+      const front = document.createElement('div');
+      front.className = 'disc-front';
+
+      const back = document.createElement('div');
+      back.className = 'disc-back';
+
+      discInner.appendChild(front);
+      discInner.appendChild(back);
+      discContainer.appendChild(discInner);
+      cell.appendChild(discContainer);
+
+      // Move hint guide dot
+      const guideDot = document.createElement('div');
+      guideDot.className = 'guide-dot w-3 h-3 rounded-full bg-amber-400/60 shadow-lg pointer-events-none hidden border border-amber-300/80 transform hover:scale-125 transition-transform';
+      guideDot.id = `guide-${r}-${c}`;
+      cell.appendChild(guideDot);
+
+      // Last move marker
+      const lastMoveRing = document.createElement('div');
+      lastMoveRing.className = 'last-move-ring absolute w-3 h-3 rounded-full bg-rose-500 shadow-md border border-white pointer-events-none hidden z-10';
+      lastMoveRing.id = `last-${r}-${c}`;
+      cell.appendChild(lastMoveRing);
+
+      boardEl.appendChild(cell);
+     }
+    }
+   }
+
+   // Update Full UI from State
+   function render() {
+    const validMoves = getValidMoves(board, currentPlayer);
+
+    for (let r = 0; r < BOARD_SIZE; r++) {
+     for (let c = 0; c < BOARD_SIZE; c++) {
+      const val = board[r][c];
+      const discContainer = document.getElementById(`disc-${r}-${c}`);
+      const discInner = document.getElementById(`disc-inner-${r}-${c}`);
+      const guideDot = document.getElementById(`guide-${r}-${c}`);
+      const lastMarker = document.getElementById(`last-${r}-${c}`);
+
+      // Disc Visibility & Colors
+      if (val !== EMPTY) {
+       discContainer.classList.remove('hidden');
+       if (val === WHITE) {
+        discInner.classList.add('white');
+       } else {
+        discInner.classList.remove('white');
+       }
+      } else {
+       discContainer.classList.add('hidden');
+      }
+
+      // Move Guide Visibility
+      const isValid = showGuide && currentPlayer === humanColor && validMoves.some(m => m.r === r && m.c === c);
+      if (isValid) {
+       guideDot.classList.remove('hidden');
+      } else {
+       guideDot.classList.add('hidden');
+      }
+
+      // Last Move Marker
+      if (lastMove && lastMove.r === r && lastMove.c === c) {
+       lastMarker.classList.remove('hidden');
+      } else {
+       lastMarker.classList.add('hidden');
+      }
+     }
+    }
+
+    // Update Scores & Turn Cards
+    const scores = getScores(board);
+    const p1ScoreEl = document.getElementById('p1-score');
+    const p2ScoreEl = document.getElementById('p2-score');
+    const p1Card = document.getElementById('p1-card');
+    const p2Card = document.getElementById('p2-card');
+    const p1Turn = document.getElementById('p1-turn-indicator');
+    const p2Turn = document.getElementById('p2-turn-indicator');
+
+    const isP1Black = humanColor === BLACK;
+    const p1Score = isP1Black ? scores.black : scores.white;
+    const p2Score = isP1Black ? scores.white : scores.black;
+
+    p1ScoreEl.textContent = p1Score;
+    p2ScoreEl.textContent = p2Score;
+
+    if (currentPlayer === humanColor) {
+     p1Card.classList.add('border-emerald-500/80', 'bg-slate-900/90');
+     p1Card.classList.remove('border-transparent', 'bg-slate-900/50');
+     p2Card.classList.add('border-transparent', 'bg-slate-900/50');
+     p2Card.classList.remove('border-emerald-500/80', 'bg-slate-900/90');
+     p1Turn.classList.remove('hidden');
+     p2Turn.classList.add('hidden');
+    } else {
+     p2Card.classList.add('border-emerald-500/80', 'bg-slate-900/90');
+     p2Card.classList.remove('border-transparent', 'bg-slate-900/50');
+     p1Card.classList.add('border-transparent', 'bg-slate-900/50');
+     p1Card.classList.remove('border-emerald-500/80', 'bg-slate-900/90');
+     p2Turn.classList.remove('hidden');
+     p1Turn.classList.add('hidden');
+    }
+
+    // Status Bar Text
+    const statusText = document.getElementById('status-text');
+    if (currentPlayer === humanColor) {
+     statusText.textContent = `あなたの番です (${humanColor === BLACK ? '黒' : '白'})`;
+    } else {
+     statusText.textContent = `CPUが考え中... (${cpuColor === BLACK ? '黒' : '白'})`;
+    }
+
+    // Undo Button State
+    document.getElementById('undo-btn').disabled = history.length === 0 || isProcessingMove;
+   }
+
+   // Execute Move
+   function makeMove(r, c, color) {
+    const flips = getFlippableDiscs(board, r, c, color);
+    if (flips.length === 0) return false;
+
+    // Save state for Undo
+    history.push({
+     board: cloneBoard(board),
+     currentPlayer,
+     lastMove
+    });
+
+    // Place disc
+    board[r][c] = color;
+    lastMove = { r, c };
+    audioFX.playPlaceDisc();
+
+    // Flip discs
+    flips.forEach(([fr, fc]) => {
+     board[fr][fc] = color;
+    });
+
+    return true;
+   }
+
+   // Switch turn logic and check game over / pass
+   async function processTurn() {
+    render();
+
+    const myValidMoves = getValidMoves(board, currentPlayer);
+
+    if (myValidMoves.length === 0) {
+     // Check if opponent also has no valid moves -> Game Over
+     const oppColor = currentPlayer === BLACK ? WHITE : BLACK;
+     const oppValidMoves = getValidMoves(board, oppColor);
+
+     if (oppValidMoves.length === 0) {
+      endGame();
+      return;
+     }
+
+     // Pass turn
+     const passMsg = currentPlayer === humanColor ? 'あなたのおける場所がありません (パス)' : 'CPUのおける場所がありません (パス)';
+     document.getElementById('status-text').textContent = passMsg;
+     audioFX.playPass();
+
+     await new Promise(res => setTimeout(res, 1200));
+     currentPlayer = oppColor;
+     processTurn();
+     return;
+    }
+
+    // CPU Turn trigger
+    if (currentPlayer === cpuColor) {
+     isProcessingMove = true;
+     const thinkTime = Math.floor(Math.random() * 400) + 500; // Realistic delay
+     setTimeout(() => {
+      const cpuMove = selectCPUMove();
+      if (cpuMove) {
+       makeMove(cpuMove.r, cpuMove.c, cpuColor);
+       currentPlayer = humanColor;
+      }
+      isProcessingMove = false;
+      processTurn();
+     }, thinkTime);
+    }
+   }
+
+   // Player Cell Click Handler
+   function handleCellClick(r, c) {
+    if (isProcessingMove || currentPlayer !== humanColor) return;
+
+    const success = makeMove(r, c, humanColor);
+    if (success) {
+     currentPlayer = cpuColor;
+     processTurn();
+    }
+   }
+
+   // End Game Logic and Result Modal
+   function endGame() {
+    const scores = getScores(board);
+    const isHumanBlack = humanColor === BLACK;
+    const humanScore = isHumanBlack ? scores.black : scores.white;
+    const cpuScore = isHumanBlack ? scores.white : scores.black;
+
+    const modal = document.getElementById('result-modal');
+    const title = document.getElementById('result-title');
+    const subtitle = document.getElementById('result-subtitle');
+    const icon = document.getElementById('result-icon');
+    const iconBg = document.getElementById('result-icon-bg');
+
+    document.getElementById('res-p1-label').textContent = `あなた (${humanColor === BLACK ? '黒' : '白'})`;
+    document.getElementById('res-p2-label').textContent = `CPU (${cpuColor === BLACK ? '黒' : '白'})`;
+    document.getElementById('res-p1-score').textContent = humanScore;
+    document.getElementById('res-p2-score').textContent = cpuScore;
+
+    if (humanScore > cpuScore) {
+     title.textContent = 'あなたの勝利！';
+     subtitle.textContent = '見事な勝負勘でCPUを圧倒しました！';
+     icon.className = 'fa-solid fa-trophy text-amber-400';
+     iconBg.className = 'w-16 h-16 rounded-2xl bg-amber-500/20 flex items-center justify-center text-3xl mb-3 border border-amber-500/30';
+     audioFX.playWin();
+    } else if (humanScore < cpuScore) {
+     title.textContent = '敗北...';
+     subtitle.textContent = 'CPUの策略に敗れました。再挑戦しましょう！';
+     icon.className = 'fa-solid fa-face-frown text-slate-400';
+     iconBg.className = 'w-16 h-16 rounded-2xl bg-slate-800 flex items-center justify-center text-3xl mb-3 border border-slate-700';
+    } else {
+     title.textContent = '引き分け！';
+     subtitle.textContent = '両者譲らぬ互角の勝負でした！';
+     icon.className = 'fa-solid fa-handshake text-teal-400';
+     iconBg.className = 'w-16 h-16 rounded-2xl bg-teal-500/20 flex items-center justify-center text-3xl mb-3 border border-teal-500/30';
+    }
+
+    modal.classList.remove('hidden');
+   }
+
+   // Reset and Start New Game
+   function initGame() {
+    board = Array(BOARD_SIZE).fill(null).map(() => Array(BOARD_SIZE).fill(EMPTY));
+
+    // Standard Othello Initial Setup
+    board[3][3] = WHITE;
+    board[3][4] = BLACK;
+    board[4][3] = BLACK;
+    board[4][4] = WHITE;
+
+    currentPlayer = BLACK;
+    history = [];
+    lastMove = null;
+    isProcessingMove = false;
+
+    // Player names setup
+    document.getElementById('p1-name').textContent = `あなた (${humanColor === BLACK ? '黒' : '白'})`;
+    document.getElementById('p2-name').textContent = `CPU (${cpuColor === BLACK ? '黒' : '白'})`;
+
+    document.getElementById('result-modal').classList.add('hidden');
+    processTurn();
+   }
+
+   // Undo 1 Move (Returns player and CPU turns back)
+   function undoMove() {
+    if (history.length === 0 || isProcessingMove) return;
+
+    // Rollback until human's previous turn
+    let lastState = history.pop();
+    while (lastState && lastState.currentPlayer !== humanColor && history.length > 0) {
+     lastState = history.pop();
+    }
+
+    if (lastState) {
+     board = lastState.board;
+     currentPlayer = lastState.currentPlayer;
+     lastMove = lastState.lastMove;
+     render();
+    }
+   }
+
+   // UI Event Listeners Initialization
+   document.addEventListener('DOMContentLoaded', () => {
+    createBoardDOM();
     initGame();
-   });
 
+    // Game Control Buttons
+    document.getElementById('restart-btn').addEventListener('click', initGame);
+    document.getElementById('modal-restart-btn').addEventListener('click', initGame);
+    document.getElementById('undo-btn').addEventListener('click', undoMove);
+
+    // Guide Toggle
+    const guideBtn = document.getElementById('guide-toggle-btn');
+    guideBtn.addEventListener('click', () => {
+     showGuide = !showGuide;
+     guideBtn.innerHTML = showGuide
+      ? '<i class="fa-solid fa-eye text-emerald-400"></i>'
+      : '<i class="fa-solid fa-eye-slash text-slate-500"></i>';
+     render();
+    });
+
+    // Mute / Sound Toggle
+    const soundBtn = document.getElementById('sound-btn');
+    soundBtn.addEventListener('click', () => {
+     soundEnabled = !soundEnabled;
+     soundBtn.innerHTML = soundEnabled
+      ? '<i class="fa-solid fa-volume-high text-sm"></i>'
+      : '<i class="fa-solid fa-volume-xmark text-sm text-rose-400"></i>';
+    });
+
+    // Settings Modal Handlers
+    const settingsModal = document.getElementById('settings-modal');
+    document.getElementById('settings-btn').addEventListener('click', () => {
+     settingsModal.classList.remove('hidden');
+    });
+
+    document.getElementById('close-settings').addEventListener('click', () => {
+     settingsModal.classList.add('hidden');
+     initGame();
+    });
+
+    // CPU Level selector UI active states
+    const diffBtns = document.querySelectorAll('.diff-btn');
+    diffBtns.forEach(btn => {
+     btn.addEventListener('click', () => {
+      cpuLevel = parseInt(btn.dataset.level);
+      diffBtns.forEach(b => {
+       b.className = 'diff-btn px-3 py-2 rounded-xl border text-xs font-bold transition-all text-left flex flex-col justify-between border-slate-700 bg-slate-800 text-slate-300';
+      });
+      btn.className = 'diff-btn px-3 py-2 rounded-xl border text-xs font-bold transition-all text-left flex flex-col justify-between border-emerald-500 bg-emerald-950/50 text-emerald-300';
+     });
+    });
+
+    // Color Selector UI active states
+    const chooseBlack = document.getElementById('choose-black');
+    const chooseWhite = document.getElementById('choose-white');
+
+    chooseBlack.addEventListener('click', () => {
+     humanColor = BLACK;
+     cpuColor = WHITE;
+     chooseBlack.className = 'color-btn py-2.5 px-3 rounded-xl border border-emerald-500 bg-emerald-950/50 text-emerald-300 text-xs font-bold flex items-center justify-center space-x-2';
+     chooseWhite.className = 'color-btn py-2.5 px-3 rounded-xl border border-slate-700 bg-slate-800 text-slate-300 text-xs font-bold flex items-center justify-center space-x-2';
+    });
+
+    chooseWhite.addEventListener('click', () => {
+     humanColor = WHITE;
+     cpuColor = BLACK;
+     chooseWhite.className = 'color-btn py-2.5 px-3 rounded-xl border border-emerald-500 bg-emerald-950/50 text-emerald-300 text-xs font-bold flex items-center justify-center space-x-2';
+     chooseBlack.className = 'color-btn py-2.5 px-3 rounded-xl border border-slate-700 bg-slate-800 text-slate-300 text-xs font-bold flex items-center justify-center space-x-2';
+    });
+   });
   </script>
  </body>
 </html>

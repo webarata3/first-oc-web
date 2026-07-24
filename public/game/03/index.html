@@ -3,666 +3,1164 @@
  <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Web将棋</title>
+  <title>本格 Web将棋 - CPU対戦</title>
+  <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome for UI Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Tone.js for realistic audio effects -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+
+  <script>
+   tailwind.config = {
+    theme: {
+     extend: {
+      colors: {
+       shogi: {
+        wood: '#e4c489',
+        woodDark: '#bd9653',
+        border: '#5c4018',
+        black: '#2b2118',
+        highlight: 'rgba(234, 179, 8, 0.4)',
+        lastmove: 'rgba(59, 130, 246, 0.35)',
+        selected: 'rgba(34, 197, 94, 0.5)'
+       }
+      },
+      fontFamily: {
+       shogi: ['"Shippori Mincho"', '"Yu Mincho"', '"Hiragino Mincho ProN"', 'serif']
+      }
+     }
+    }
+   }
+  </script>
   <style>
-   @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@600;900&display=swap');
+   @import url('https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@600;800&display=swap');
 
    body {
-    font-family: 'Noto Serif JP', serif;
-    background-color: #f3f4f6;
+    user-select: none;
+    -webkit-user-select: none;
     touch-action: manipulation;
-    /* ダブルタップズーム防止 */
+    background-color: #1a1816;
+    color: #e5e7eb;
    }
 
-   .board-bg {
-    background-color: #eebd76;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+   /* 盤面の木目調スタイル */
+   .shogi-board {
+    background: linear-gradient(135deg, #f3d498 0%, #d8ad63 100%);
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.6), inset 0 0 10px rgba(0, 0, 0, 0.15);
    }
 
-   .cell {
-    border: 0.5px solid #4a3b32;
+   .shogi-cell {
+    border: 0.5px solid #6e4d20;
+    position: relative;
    }
 
-   /* 駒のスタイル */
-   .piece-text {
-    text-shadow: 1px 1px 0px rgba(255, 255, 255, 0.5);
+   /* 駒のデザイン */
+   .piece {
+    font-family: 'Shippori Mincho', serif;
+    font-weight: 800;
+    text-shadow: 0px 1px 1px rgba(255, 255, 255, 0.6);
+    transition: transform 0.15s ease, background-color 0.15s ease;
+   }
+
+   .piece-gote {
+    transform: rotate(180deg);
+   }
+
+   /* 持ち駒エリアの背景 */
+   .komadai {
+    background: linear-gradient(135deg, #3a2e22 0%, #251d15 100%);
+    border: 1px solid #5a4836;
+   }
+
+   /* カスタムスクロールバー */
+   ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+   }
+
+   ::-webkit-scrollbar-track {
+    background: #251d15;
+   }
+
+   ::-webkit-scrollbar-thumb {
+    background: #5a4836;
+    border-radius: 3px;
    }
   </style>
  </head>
- <body class="min-h-screen flex flex-col items-center justify-center p-2">
+ <body class="min-h-screen flex flex-col font-sans">
 
-  <div class="w-full max-w-md bg-white rounded-xl shadow-lg p-3 sm:p-5 flex flex-col gap-3">
+  <!-- Header -->
+  <header class="bg-stone-900 border-b border-stone-800 px-4 py-3 shadow-md">
+   <div class="max-w-5xl mx-auto flex items-center justify-between">
+    <div class="flex items-center space-x-3">
+     <i class="fa-solid font-shogi text-amber-500 text-2xl">王</i>
+     <h1 class="text-xl font-bold font-shogi tracking-wider text-amber-100">Web 将棋 AI</h1>
+    </div>
 
-   <!-- ヘッダーと設定 -->
-   <div class="flex justify-between items-center pb-2 border-b">
-    <h1 class="text-xl sm:text-2xl font-black text-gray-800">Web将棋</h1>
-    <div class="flex items-center gap-2">
-     <label for="difficulty" class="text-sm text-gray-600 font-bold">CPU強さ:</label>
-     <select id="difficulty" class="p-1 border rounded bg-gray-50 text-sm outline-none">
-      <option value="easy">初級 (浅い)</option>
-      <option value="normal" selected>中級 (普通)</option>
-     </select>
+    <div class="flex items-center space-x-2">
+     <!-- Level Selector -->
+     <div class="flex items-center bg-stone-800 rounded-lg p-1 border border-stone-700">
+      <label class="text-xs text-stone-400 mr-2 ml-1 hidden sm:inline"><i class="fa-solid fa-brain mr-1"></i>強さ:</label>
+      <select id="difficultySelect" onchange="changeDifficulty()"
+       class="bg-stone-900 text-amber-200 text-xs sm:text-sm font-semibold rounded px-2 py-1 outline-none border border-stone-700 cursor-pointer">
+       <option value="easy">初級 (かんたん)</option>
+       <option value="medium" selected>中級 (ふつう)</option>
+       <option value="hard">上級 (てごわい)</option>
+      </select>
+     </div>
+
+     <button onclick="confirmNewGame()"
+      class="bg-amber-600 hover:bg-amber-500 text-white text-xs sm:text-sm font-bold px-3 py-1.5 rounded-lg transition shadow flex items-center gap-1">
+      <i class="fa-solid fa-rotate-right"></i>
+      <span>対局やり直し</span>
+     </button>
+    </div>
+   </div>
+  </header>
+
+  <!-- Main Content Container -->
+  <main
+   class="flex-1 max-w-5xl w-full mx-auto p-2 sm:p-4 flex flex-col lg:flex-row gap-4 items-center lg:items-start justify-center">
+
+   <!-- Left / Top Panel: Game Info & Opponent Area -->
+   <div class="w-full lg:w-72 flex flex-col gap-3 order-1">
+    <!-- CPU Info Block -->
+    <div class="komadai p-3 rounded-xl shadow-lg flex flex-col gap-2">
+     <div class="flex items-center justify-between border-b border-stone-700 pb-2">
+      <div class="flex items-center space-x-2">
+       <div
+        class="w-8 h-8 rounded-full bg-red-900/60 border border-red-500/50 flex items-center justify-center text-red-200">
+        <i class="fa-solid fa-robot"></i>
+       </div>
+       <div>
+        <div class="text-sm font-bold text-stone-200">CPU (後手)</div>
+        <div id="cpuLevelTag" class="text-xs text-amber-400 font-medium">中級</div>
+       </div>
+      </div>
+      <div id="cpuThinking" class="hidden flex items-center space-x-1.5 text-xs text-amber-400 animate-pulse">
+       <i class="fa-solid fa-spinner fa-spin"></i>
+       <span>思考中...</span>
+      </div>
+     </div>
+
+     <!-- Gote (CPU) Stand/Komadai -->
+     <div>
+      <div class="text-xs text-stone-400 mb-1 flex justify-between">
+       <span><i class="fa-solid fa-box-archive mr-1"></i>後手の持ち駒</span>
+       <span id="goteHandCount" class="text-stone-500">0個</span>
+      </div>
+      <div id="goteKomadai"
+       class="min-h-[50px] bg-stone-950/60 rounded-lg p-2 flex flex-wrap gap-1.5 items-center justify-start border border-stone-800/80">
+       <!-- Dynamic captured pieces -->
+      </div>
+     </div>
+    </div>
+
+    <!-- Game Evaluation Bar -->
+    <div class="bg-stone-900 border border-stone-800 rounded-xl p-3 shadow-lg">
+     <div class="flex justify-between items-center text-xs text-stone-400 mb-1.5 font-semibold">
+      <span><i class="fa-solid fa-scale-balanced mr-1"></i>形勢判断</span>
+      <span id="evalScoreText" class="text-amber-400 font-mono">+0</span>
+     </div>
+     <div class="w-full bg-stone-800 h-3 rounded-full overflow-hidden flex border border-stone-700">
+      <div id="evalBarGote" class="bg-red-600 h-full transition-all duration-500" style="width: 50%;"></div>
+      <div id="evalBarSente" class="bg-amber-500 h-full transition-all duration-500" style="width: 50%;"></div>
+     </div>
+     <div class="flex justify-between text-[10px] text-stone-500 mt-1 font-mono">
+      <span>CPU優勢</span>
+      <span>互角</span>
+      <span>あなた優勢</span>
+     </div>
+    </div>
+
+    <!-- Action Controls (Desktop/Large Screen View) -->
+    <div class="hidden lg:flex flex-col gap-2">
+     <button onclick="undoMove()"
+      class="w-full bg-stone-800 hover:bg-stone-700 border border-stone-700 text-stone-200 text-sm font-bold py-2.5 rounded-xl transition flex items-center justify-center gap-2 shadow">
+      <i class="fa-solid fa-rotate-left text-amber-400"></i>
+      <span>待った (1手戻す)</span>
+     </button>
+     <button onclick="resignGame()"
+      class="w-full bg-stone-900 hover:bg-red-950/40 border border-red-900/50 text-red-400 text-sm font-bold py-2.5 rounded-xl transition flex items-center justify-center gap-2">
+      <i class="fa-solid fa-flag"></i>
+      <span>投了する</span>
+     </button>
     </div>
    </div>
 
-   <!-- ステータスメッセージ -->
-   <div id="message" class="text-center text-lg font-bold text-blue-600 h-6">
-    あなたの番です
-   </div>
+   <!-- Center Panel: Main Shogi Board Grid -->
+   <div class="flex flex-col items-center justify-center order-2">
+    <!-- Numbers above grid (1~9) -->
+    <div
+     class="grid grid-cols-9 w-[320px] xs:w-[360px] sm:w-[432px] text-center text-xs font-bold text-amber-200/70 mb-1 font-mono">
+     <div>9</div>
+     <div>8</div>
+     <div>7</div>
+     <div>6</div>
+     <div>5</div>
+     <div>4</div>
+     <div>3</div>
+     <div>2</div>
+     <div>1</div>
+    </div>
 
-   <!-- 後手（CPU）の持ち駒 -->
-   <div class="flex flex-col gap-1">
-    <span class="text-xs text-gray-500 font-bold">CPU 持ち駒</span>
-    <div id="gote-hand" class="bg-gray-100 p-2 min-h-[3.5rem] flex flex-wrap gap-2 rounded border border-gray-300">
-     <!-- JSで挿入 -->
+    <div class="flex">
+     <!-- Board Outer Border -->
+     <div id="shogiBoard"
+      class="shogi-board grid grid-cols-9 grid-rows-9 w-[320px] h-[320px] xs:w-[360px] xs:h-[360px] sm:w-[432px] sm:h-[432px] rounded-sm p-0.5 border-4 border-amber-950 relative">
+      <!-- Board cells will be rendered dynamically -->
+     </div>
+
+     <!-- Row Labels (一~九) -->
+     <div
+      class="grid grid-rows-9 h-[320px] xs:h-[360px] sm:h-[432px] text-center text-xs font-bold text-amber-200/70 pl-1.5 font-shogi my-auto flex flex-col justify-around">
+      <div>一</div>
+      <div>二</div>
+      <div>三</div>
+      <div>四</div>
+      <div>五</div>
+      <div>六</div>
+      <div>七</div>
+      <div>八</div>
+      <div>九</div>
+     </div>
+    </div>
+
+    <!-- Mobile Action Bar (Visible under board on mobile) -->
+    <div class="flex lg:hidden w-full max-w-[360px] sm:max-w-[432px] justify-between gap-2 mt-3">
+     <button onclick="undoMove()"
+      class="flex-1 bg-stone-800 hover:bg-stone-700 border border-stone-700 text-stone-200 text-xs font-bold py-2 rounded-lg transition flex items-center justify-center gap-1 shadow">
+      <i class="fa-solid fa-rotate-left text-amber-400"></i>
+      <span>待った</span>
+     </button>
+     <button onclick="resignGame()"
+      class="flex-1 bg-stone-900 hover:bg-red-950/40 border border-red-900/50 text-red-400 text-xs font-bold py-2 rounded-lg transition flex items-center justify-center gap-1">
+      <i class="fa-solid fa-flag"></i>
+      <span>投了</span>
+     </button>
     </div>
    </div>
 
-   <!-- 将棋盤 -->
-   <div id="board"
-    class="w-full aspect-square board-bg border-2 border-[#4a3b32] grid grid-cols-9 grid-rows-9 gap-0 mx-auto">
-    <!-- JSで挿入 -->
-   </div>
+   <!-- Right / Bottom Panel: Player Area & Move History -->
+   <div class="w-full lg:w-72 flex flex-col gap-3 order-3">
+    <!-- Sente (Player) Komadai -->
+    <div class="komadai p-3 rounded-xl shadow-lg flex flex-col gap-2">
+     <div class="flex items-center justify-between border-b border-stone-700 pb-2">
+      <div class="flex items-center space-x-2">
+       <div
+        class="w-8 h-8 rounded-full bg-amber-700/60 border border-amber-500/50 flex items-center justify-center text-amber-200">
+        <i class="fa-solid fa-user"></i>
+       </div>
+       <div>
+        <div class="text-sm font-bold text-stone-200">あなた (先手)</div>
+        <div id="turnIndicator" class="text-xs text-emerald-400 font-semibold">あなたの手番です</div>
+       </div>
+      </div>
+     </div>
 
-   <!-- 先手（プレイヤー）の持ち駒 -->
-   <div class="flex flex-col gap-1">
-    <span class="text-xs text-gray-500 font-bold">あなた 持ち駒</span>
-    <div id="sente-hand" class="bg-gray-100 p-2 min-h-[3.5rem] flex flex-wrap gap-2 rounded border border-gray-300">
-     <!-- JSで挿入 -->
+     <div>
+      <div class="text-xs text-stone-400 mb-1 flex justify-between">
+       <span><i class="fa-solid fa-box-archive mr-1"></i>あなたの持ち駒</span>
+       <span id="senteHandCount" class="text-stone-500">0個</span>
+      </div>
+      <div id="senteKomadai"
+       class="min-h-[50px] bg-stone-950/60 rounded-lg p-2 flex flex-wrap gap-1.5 items-center justify-start border border-stone-800/80">
+       <!-- Dynamic captured pieces -->
+      </div>
+     </div>
+    </div>
+
+    <!-- Move History Log -->
+    <div class="bg-stone-900 border border-stone-800 rounded-xl p-3 shadow-lg flex flex-col h-44">
+     <div
+      class="text-xs font-bold text-stone-400 mb-2 flex items-center justify-between border-b border-stone-800 pb-1">
+      <span><i class="fa-solid fa-list-ol mr-1"></i>棋譜記録</span>
+      <span id="moveCountText" class="text-stone-500 font-mono">0手</span>
+     </div>
+     <div id="historyList" class="flex-1 overflow-y-auto space-y-1 text-xs font-mono text-stone-300 pr-1">
+      <div class="text-stone-600 text-center py-4">対局が開始されました</div>
+     </div>
     </div>
    </div>
 
-   <!-- コントロールボタン -->
-   <div class="flex justify-center mt-2">
-    <button id="reset-btn"
-     class="px-6 py-2 bg-gray-800 text-white font-bold rounded-lg shadow hover:bg-gray-700 active:transform active:scale-95 transition-all">
-     最初からやり直す
+  </main>
+
+  <!-- Promotion Modal -->
+  <div id="promoteModal"
+   class="hidden fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+   <div
+    class="bg-stone-900 border border-amber-600/50 rounded-2xl p-6 max-w-xs w-full text-center shadow-2xl animate-fade-in">
+    <h3 class="text-lg font-bold font-shogi text-amber-200 mb-2">成りますか？</h3>
+    <p class="text-xs text-stone-400 mb-6">敵陣に入りました。駒を成って強化できます。</p>
+    <div class="flex gap-3 justify-center">
+     <button id="btnPromoteYes"
+      class="flex-1 bg-amber-600 hover:bg-amber-500 text-white font-bold py-2.5 rounded-xl text-sm transition shadow-lg">
+      成る
+     </button>
+     <button id="btnPromoteNo"
+      class="flex-1 bg-stone-800 hover:bg-stone-700 text-stone-300 font-bold py-2.5 rounded-xl text-sm transition border border-stone-700">
+      成らない
+     </button>
+    </div>
+   </div>
+  </div>
+
+  <!-- Game End Modal -->
+  <div id="gameEndModal"
+   class="hidden fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 backdrop-blur-md">
+   <div class="bg-stone-900 border border-stone-700 rounded-2xl p-6 max-w-sm w-full text-center shadow-2xl relative">
+    <div id="gameEndIcon" class="text-5xl text-amber-500 mb-3">
+     <i class="fa-solid fa-trophy"></i>
+    </div>
+    <h2 id="gameEndTitle" class="text-2xl font-extrabold font-shogi text-amber-100 mb-2">対局終了</h2>
+    <p id="gameEndMessage" class="text-sm text-stone-300 mb-6">先手の勝ちです！</p>
+    <button onclick="restartGame()"
+     class="w-full bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-white font-bold py-3 rounded-xl shadow-lg transition">
+     もう一度遊ぶ
     </button>
    </div>
   </div>
 
-  <!-- 成り選択モーダル -->
-  <div id="promote-modal" class="fixed inset-0 bg-black bg-opacity-60 hidden items-center justify-center z-50 px-4">
-   <div class="bg-white p-6 rounded-xl shadow-2xl text-center w-full max-w-xs transform transition-all scale-100">
-    <h3 class="mb-6 text-xl font-black text-gray-800">成りますか？</h3>
-    <div class="flex gap-4 justify-center">
-     <button id="btn-promote"
-      class="flex-1 py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg shadow-md transition-colors">成る</button>
-     <button id="btn-not-promote"
-      class="flex-1 py-3 bg-gray-500 hover:bg-gray-600 text-white font-bold rounded-lg shadow-md transition-colors">成らない</button>
-    </div>
-   </div>
-  </div>
-
-  <!-- ゲーム終了モーダル -->
-  <div id="gameover-modal" class="fixed inset-0 bg-black bg-opacity-60 hidden items-center justify-center z-50 px-4">
-   <div class="bg-white p-6 rounded-xl shadow-2xl text-center w-full max-w-xs">
-    <h3 id="gameover-title" class="mb-4 text-2xl font-black text-gray-800"></h3>
-    <button id="btn-restart"
-     class="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-md transition-colors">もう一度遊ぶ</button>
-   </div>
-  </div>
-
   <script>
-   // 手番
+   /**
+    * SHOGI PIECE DEFINITIONS & CONSTANTS
+    * Positive values: Sente (Player)
+    * Negative values: Gote (CPU)
+    */
+   const EMPTY = 0;
+   const FU = 1;   // 歩
+   const KYO = 2;  // 香
+   const KEI = 3;  // 桂
+   const GIN = 4;  // 銀
+   const KIN = 5;  // 金
+   const KAKU = 6; // 角
+   const HI = 7;   // 飛
+   const OU = 8;   // 王/玉
+
+   // 成り駒 (+8 offset)
+   const TO = 9;   // と
+   const NYO = 10; // 成香
+   const NKEI = 11;// 成桂
+   const NGIN = 12;// 成銀
+   const UMA = 14; // 馬 (+8 from KAKU)
+   const RYU = 15; // 龍 (+8 from HI)
+
    const SENTE = 1;
    const GOTE = -1;
-   const EMPTY = 0;
 
-   // 駒の種類
-   const FU = 1, KY = 2, KE = 3, GI = 4, KI = 5, KA = 6, HI = 7, OU = 8, TO = 9, NY = 10, NK = 11, NG = 12, UM = 13, RY = 14;
-
-   const pieceChars = {
-    [FU]: '歩', [KY]: '香', [KE]: '桂', [GI]: '銀', [KI]: '金', [KA]: '角', [HI]: '飛', [OU]: '玉',
-    [TO]: 'と', [NY]: '杏', [NK]: '圭', [NG]: '全', [UM]: '馬', [RY]: '竜'
+   // 駒の表示用漢字
+   const PIECE_NAMES = {
+    [FU]: '歩', [KYO]: '香', [KEI]: '桂', [GIN]: '銀', [KIN]: '金',
+    [KAKU]: '角', [HI]: '飛', [OU]: '玉',
+    [TO]: 'と', [NYO]: '杏', [NKEI]: '圭', [NGIN]: '全',
+    [UMA]: '馬', [RYU]: '龍'
    };
 
-   // 簡易的な駒の価値（AI評価用）
-   const pieceValues = {
-    [FU]: 100, [KY]: 300, [KE]: 300, [GI]: 500, [KI]: 600, [KA]: 800, [HI]: 1000, [OU]: 100000,
-    [TO]: 600, [NY]: 600, [NK]: 600, [NG]: 600, [UM]: 1000, [RY]: 1200
+   // 駒の静的評価点 (AI用)
+   const PIECE_VALUES = {
+    [FU]: 100, [KYO]: 300, [KEI]: 400, [GIN]: 600, [KIN]: 700,
+    [KAKU]: 850, [HI]: 1000, [OU]: 15000,
+    [TO]: 700, [NYO]: 600, [NKEI]: 600, [NGIN]: 650,
+    [UMA]: 1150, [RYU]: 1300
    };
 
-   const handPieceTypes = [HI, KA, KI, GI, KE, KY, FU]; // 表示順
+   // アプリケーション状態
+   let board = [];
+   let senteHand = { [FU]: 0, [KYO]: 0, [KEI]: 0, [GIN]: 0, [KIN]: 0, [KAKU]: 0, [HI]: 0 };
+   let goteHand = { [FU]: 0, [KYO]: 0, [KEI]: 0, [GIN]: 0, [KIN]: 0, [KAKU]: 0, [HI]: 0 };
+   let currentTurn = SENTE; // 先手スタート
+   let selectedCell = null; // {r, c} or {handType, owner}
+   let legalMoves = [];
+   let history = [];
+   let lastMove = null;
+   let difficulty = 'medium';
+   let gameOver = false;
 
-   const promoteMap = { [FU]: TO, [KY]: NY, [KE]: NK, [GI]: NG, [KA]: UM, [HI]: RY };
-   const unpromoteMap = { [TO]: FU, [NY]: KY, [NK]: KE, [NG]: GI, [UM]: KA, [RY]: HI };
-
-   // 駒の移動ベクトル [x, y]
-   const dirVectors = {
-    [FU]: [{ x: 0, y: -1 }],
-    [KE]: [{ x: -1, y: -2 }, { x: 1, y: -2 }],
-    [GI]: [{ x: -1, y: -1 }, { x: 0, y: -1 }, { x: 1, y: -1 }, { x: -1, y: 1 }, { x: 1, y: 1 }],
-    [KI]: [{ x: -1, y: -1 }, { x: 0, y: -1 }, { x: 1, y: -1 }, { x: -1, y: 0 }, { x: 1, y: 0 }, { x: 0, y: 1 }],
-    [OU]: [{ x: -1, y: -1 }, { x: 0, y: -1 }, { x: 1, y: -1 }, { x: -1, y: 0 }, { x: 1, y: 0 }, { x: -1, y: 1 }, { x: 0, y: 1 }, { x: 1, y: 1 }]
-   };
-   dirVectors[TO] = dirVectors[KI];
-   dirVectors[NY] = dirVectors[KI];
-   dirVectors[NK] = dirVectors[KI];
-   dirVectors[NG] = dirVectors[KI];
-
-   // 飛び駒の移動ベクトル
-   const slideVectorsObj = {
-    [KY]: [{ x: 0, y: -1 }],
-    [KA]: [{ x: -1, y: -1 }, { x: 1, y: -1 }, { x: -1, y: 1 }, { x: 1, y: 1 }],
-    [HI]: [{ x: 0, y: -1 }, { x: 0, y: 1 }, { x: -1, y: 0 }, { x: 1, y: 0 }]
-   };
-
-   // 馬・竜の追加1マス移動
-   const extraVectorsObj = {
-    [UM]: [{ x: 0, y: -1 }, { x: 0, y: 1 }, { x: -1, y: 0 }, { x: 1, y: 0 }],
-    [RY]: [{ x: -1, y: -1 }, { x: 1, y: -1 }, { x: -1, y: 1 }, { x: 1, y: 1 }]
-   };
-
-   const initialBoardState = [
-    -KY, -KE, -GI, -KI, -OU, -KI, -GI, -KE, -KY,
-    0, -HI, 0, 0, 0, 0, 0, -KA, 0,
-    -FU, -FU, -FU, -FU, -FU, -FU, -FU, -FU, -FU,
-    0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0,
-    FU, FU, FU, FU, FU, FU, FU, FU, FU,
-    0, KA, 0, 0, 0, 0, 0, HI, 0,
-    KY, KE, GI, KI, OU, KI, GI, KE, KY
-   ];
-
-   let state = {
-    board: [],
-    hand: { [SENTE]: {}, [GOTE]: {} },
-    turn: SENTE,
-    selectedSq: null,
-    legalMovesCache: []
-   };
-
-   let isCpuThinking = false;
-
-   function getOwner(p) { return p === 0 ? 0 : (p > 0 ? SENTE : GOTE); }
-   function getType(p) { return Math.abs(p); }
-   function getBasePiece(type) { return unpromoteMap[type] || type; }
-
-   function isDeadEnd(pieceType, turn, y) {
-    if (turn === SENTE) {
-     if ((pieceType === FU || pieceType === KY) && y === 0) return true;
-     if (pieceType === KE && y <= 1) return true;
-    } else {
-     if ((pieceType === FU || pieceType === KY) && y === 8) return true;
-     if (pieceType === KE && y >= 7) return true;
+   // 音響合成 (Tone.js)
+   let synth = null;
+   function initAudio() {
+    if (!synth) {
+     synth = new Tone.MembraneSynth({
+      pitchDecay: 0.05,
+      octaves: 4,
+      oscillator: { type: "sine" },
+      envelope: { attack: 0.001, decay: 0.1, sustain: 0.01, release: 0.1 }
+     }).toDestination();
+     synth.volume.value = -6;
     }
-    return false;
    }
 
-   function canPromote(pieceType, turn, fromY, toY) {
-    if (![FU, KY, KE, GI, KA, HI].includes(pieceType)) return false;
-    return turn === SENTE ? (fromY <= 2 || toY <= 2) : (fromY >= 6 || toY >= 6);
+   function playKomaSound() {
+    try {
+     if (Tone.context.state !== 'running') {
+      Tone.start();
+     }
+     initAudio();
+     synth.triggerAttackRelease("C3", "8n");
+    } catch (e) { }
    }
 
-   function mustPromote(pieceType, turn, toY) {
-    if (pieceType === FU || pieceType === KY) return turn === SENTE ? toY === 0 : toY === 8;
-    if (pieceType === KE) return turn === SENTE ? toY <= 1 : toY >= 7;
-    return false;
+   // 初期盤面設定
+   function createInitialBoard() {
+    return [
+     [-KYO, -KEI, -GIN, -KIN, -OU, -KIN, -GIN, -KEI, -KYO],
+     [EMPTY, -HI, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, -KAKU, EMPTY],
+     [-FU, -FU, -FU, -FU, -FU, -FU, -FU, -FU, -FU],
+     [EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY],
+     [EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY],
+     [EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY],
+     [FU, FU, FU, FU, FU, FU, FU, FU, FU],
+     [EMPTY, KAKU, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, HI, EMPTY],
+     [KYO, KEI, GIN, KIN, OU, KIN, GIN, KEI, KYO]
+    ];
    }
 
-   function getPseudoMoves(board, hand, turn, onlyCaptureOrMove = false) {
+   function initGame() {
+    board = createInitialBoard();
+    senteHand = { [FU]: 0, [KYO]: 0, [KEI]: 0, [GIN]: 0, [KIN]: 0, [KAKU]: 0, [HI]: 0 };
+    goteHand = { [FU]: 0, [KYO]: 0, [KEI]: 0, [GIN]: 0, [KIN]: 0, [KAKU]: 0, [HI]: 0 };
+    currentTurn = SENTE;
+    selectedCell = null;
+    legalMoves = [];
+    history = [];
+    lastMove = null;
+    gameOver = false;
+
+    renderBoard();
+    renderKomadai();
+    updateUI();
+   }
+
+   function renderBoard() {
+    const boardEl = document.getElementById('shogiBoard');
+    boardEl.innerHTML = '';
+
+    for (let r = 0; r < 9; r++) {
+     for (let c = 0; c < 9; c++) {
+      const pieceVal = board[r][c];
+      const cell = document.createElement('div');
+      cell.className = 'shogi-cell flex items-center justify-center cursor-pointer select-none relative';
+      cell.dataset.row = r;
+      cell.dataset.col = c;
+
+      // 星（ドット）の追加 (3-3, 3-7, 7-3, 7-7)
+      if ((r === 2 || r === 6) && (c === 2 || c === 6)) {
+       const dot = document.createElement('div');
+       dot.className = 'absolute w-1.5 h-1.5 bg-amber-950/40 rounded-full z-0 pointer-events-none';
+       cell.appendChild(dot);
+      }
+
+      // ハイライト表示
+      if (selectedCell && !selectedCell.isHand && selectedCell.r === r && selectedCell.c === c) {
+       cell.classList.add('bg-emerald-500/40');
+      } else if (lastMove && ((lastMove.toR === r && lastMove.toC === c) || (lastMove.fromR === r && lastMove.fromC === c))) {
+       cell.classList.add('bg-blue-500/30');
+      }
+
+      // 移動可能マスのガイド表示
+      const isLegal = legalMoves.some(m => m.toR === r && m.toC === c);
+      if (isLegal) {
+       const guide = document.createElement('div');
+       guide.className = 'absolute w-3.5 h-3.5 bg-amber-600/70 rounded-full z-10 pointer-events-none animate-pulse';
+       cell.appendChild(guide);
+      }
+
+      // 駒の描画
+      if (pieceVal !== EMPTY) {
+       const owner = pieceVal > 0 ? SENTE : GOTE;
+       const type = Math.abs(pieceVal);
+       const pieceEl = document.createElement('div');
+
+       pieceEl.className = `piece text-lg xs:text-xl sm:text-2xl font-bold z-10 ${owner === GOTE ? 'piece-gote text-stone-900' : 'text-amber-950'
+        } ${type >= TO ? 'text-red-700' : ''}`;
+
+       pieceEl.innerText = PIECE_NAMES[type] || '';
+       cell.appendChild(pieceEl);
+      }
+
+      cell.addEventListener('click', () => handleCellClick(r, c));
+      boardEl.appendChild(cell);
+     }
+    }
+   }
+
+   function renderKomadai() {
+    const senteEl = document.getElementById('senteKomadai');
+    const goteEl = document.getElementById('goteKomadai');
+    senteEl.innerHTML = '';
+    goteEl.innerHTML = '';
+
+    let senteCount = 0;
+    let goteCount = 0;
+
+    const handOrder = [HI, KAKU, KIN, GIN, KEI, KYO, FU];
+
+    handOrder.forEach(type => {
+     // 先手の持ち駒
+     if (senteHand[type] > 0) {
+      senteCount += senteHand[type];
+      const item = document.createElement('div');
+      item.className = `px-2 py-1 bg-amber-200/90 hover:bg-amber-100 text-amber-950 rounded border border-amber-400 font-shogi text-sm font-bold cursor-pointer flex items-center space-x-1 shadow ${selectedCell && selectedCell.isHand && selectedCell.owner === SENTE && selectedCell.type === type ? 'ring-2 ring-emerald-500 bg-amber-100' : ''
+       }`;
+      item.innerHTML = `<span>${PIECE_NAMES[type]}</span>${senteHand[type] > 1 ? `<span class="text-xs bg-amber-900 text-amber-100 rounded-full px-1.5 py-0.2">${senteHand[type]}</span>` : ''}`;
+      item.addEventListener('click', (e) => {
+       e.stopPropagation();
+       handleHandClick(SENTE, type);
+      });
+      senteEl.appendChild(item);
+     }
+
+     // 後手の持ち駒
+     if (goteHand[type] > 0) {
+      goteCount += goteHand[type];
+      const item = document.createElement('div');
+      item.className = `px-2 py-1 bg-stone-300 text-stone-900 rounded border border-stone-400 font-shogi text-sm font-bold flex items-center space-x-1 shadow opacity-90`;
+      item.innerHTML = `<span>${PIECE_NAMES[type]}</span>${goteHand[type] > 1 ? `<span class="text-xs bg-stone-800 text-stone-100 rounded-full px-1.5 py-0.2">${goteHand[type]}</span>` : ''}`;
+      goteEl.appendChild(item);
+     }
+    });
+
+    document.getElementById('senteHandCount').innerText = `${senteCount}個`;
+    document.getElementById('goteHandCount').innerText = `${goteCount}個`;
+   }
+
+   function updateUI() {
+    // 手番表示
+    const turnEl = document.getElementById('turnIndicator');
+    if (currentTurn === SENTE) {
+     turnEl.innerText = "あなたの手番です";
+     turnEl.className = "text-xs text-emerald-400 font-semibold";
+    } else {
+     turnEl.innerText = "CPU思考中...";
+     turnEl.className = "text-xs text-amber-400 font-semibold";
+    }
+
+    // 評価値計算とバーの更新
+    const score = evaluateBoard(board, senteHand, goteHand);
+    const scoreText = score > 0 ? `+${score}` : `${score}`;
+    document.getElementById('evalScoreText').innerText = scoreText;
+
+    // バーの比率算出 (-3000 ~ +3000 の範囲でクランプ)
+    const clamped = Math.max(-3000, Math.min(3000, score));
+    const sentePercent = Math.round(((clamped + 3000) / 6000) * 100);
+    document.getElementById('evalBarSente').style.width = `${sentePercent}%`;
+    document.getElementById('evalBarGote').style.width = `${100 - sentePercent}%`;
+
+    // 手数テキスト
+    document.getElementById('moveCountText').innerText = `${history.length}手`;
+   }
+
+   function getRawMoves(bd, owner, sHand, gHand) {
     let moves = [];
 
-    for (let i = 0; i < 81; i++) {
-     let p = board[i];
-     if (p !== 0 && getOwner(p) === turn) {
-      let type = getType(p);
-      let cx = i % 9;
-      let cy = Math.floor(i / 9);
+    for (let r = 0; r < 9; r++) {
+     for (let c = 0; c < 9; c++) {
+      const piece = bd[r][c];
+      if (piece === EMPTY || Math.sign(piece) !== owner) continue;
 
-      // 1マス移動
-      if (dirVectors[type]) {
-       for (let v of dirVectors[type]) {
-        let nx = cx + (turn === SENTE ? v.x : -v.x);
-        let ny = cy + (turn === SENTE ? v.y : -v.y);
-        if (nx >= 0 && nx < 9 && ny >= 0 && ny < 9) {
-         let ni = ny * 9 + nx;
-         if (getOwner(board[ni]) !== turn) {
-          moves.push({ from: i, to: ni, piece: type, promote: false, isDrop: false });
+      const pType = Math.abs(piece);
+      const isPromoted = pType >= TO;
+
+      // 各駒の移動ロジック
+      const directions = getDirections(pType, owner);
+
+      directions.forEach(dir => {
+       let step = 1;
+       while (true) {
+        const nr = r + dir.dr * step;
+        const nc = c + dir.dc * step;
+
+        if (nr < 0 || nr >= 9 || nc < 0 || nc >= 9) break;
+
+        const target = bd[nr][nc];
+        if (target === EMPTY) {
+         moves.push({ fromR: r, fromC: c, toR: nr, toC: nc, isDrop: false });
+        } else {
+         if (Math.sign(target) !== owner) {
+          moves.push({ fromR: r, fromC: c, toR: nr, toC: nc, isDrop: false });
          }
+         break; // 駒があれば突き抜け不可
         }
-       }
-      }
 
-      // 飛び駒
-      if (slideVectorsObj[type] || type === UM || type === RY) {
-       let sVecs = slideVectorsObj[type] || (type === UM ? slideVectorsObj[KA] : slideVectorsObj[HI]);
-       for (let v of sVecs) {
-        let dx = turn === SENTE ? v.x : -v.x;
-        let dy = turn === SENTE ? v.y : -v.y;
-        let nx = cx + dx;
-        let ny = cy + dy;
-        while (nx >= 0 && nx < 9 && ny >= 0 && ny < 9) {
-         let ni = ny * 9 + nx;
-         let target = board[ni];
-         if (target === 0) {
-          moves.push({ from: i, to: ni, piece: type, promote: false, isDrop: false });
-         } else {
-          if (getOwner(target) !== turn) {
-           moves.push({ from: i, to: ni, piece: type, promote: false, isDrop: false });
-          }
-          break;
-         }
-         nx += dx;
-         ny += dy;
-        }
+        if (!dir.slide) break; // スライド駒でなければ1マスのみ
+        step++;
        }
-      }
+      });
+     }
+    }
 
-      // 馬・竜の追加
-      if (type === UM || type === RY) {
-       for (let v of extraVectorsObj[type]) {
-        let nx = cx + (turn === SENTE ? v.x : -v.x);
-        let ny = cy + (turn === SENTE ? v.y : -v.y);
-        if (nx >= 0 && nx < 9 && ny >= 0 && ny < 9) {
-         let ni = ny * 9 + nx;
-         if (getOwner(board[ni]) !== turn) {
-          moves.push({ from: i, to: ni, piece: type, promote: false, isDrop: false });
-         }
+    // 持ち駒の打込み (Drops)
+    const hand = owner === SENTE ? sHand : gHand;
+    Object.keys(hand).forEach(pStr => {
+     const pType = parseInt(pStr);
+     if (hand[pType] > 0) {
+      for (let r = 0; r < 9; r++) {
+       for (let c = 0; c < 9; c++) {
+        if (bd[r][c] === EMPTY) {
+         // 行き所のない駒の制限（二歩、最奥段など）
+         if (!isValidDrop(bd, owner, pType, r, c)) continue;
+         moves.push({ fromR: null, fromC: null, toR: r, toC: c, isDrop: true, dropType: pType });
         }
        }
       }
      }
+    });
+
+    return moves;
+   }
+
+   // 行き所のない駒・二歩の確認
+   function isValidDrop(bd, owner, pType, r, c) {
+    // 一番奥の段への打込み制限
+    if (pType === FU || pType === KYO) {
+     if (owner === SENTE && r === 0) return false;
+     if (owner === GOTE && r === 8) return false;
+    }
+    if (pType === KEI) {
+     if (owner === SENTE && r <= 1) return false;
+     if (owner === GOTE && r >= 7) return false;
     }
 
-    // 持ち駒の打ち込み
-    if (!onlyCaptureOrMove && hand) {
-     for (let type of handPieceTypes) {
-      if (hand[turn][type] > 0) {
-       for (let i = 0; i < 81; i++) {
-        if (board[i] === 0) {
-         let cx = i % 9;
-         let cy = Math.floor(i / 9);
-         if (isDeadEnd(type, turn, cy)) continue;
-         // 二歩チェック
-         if (type === FU) {
-          let hasFu = false;
-          for (let y = 0; y < 9; y++) {
-           if (board[y * 9 + cx] === turn * FU) { hasFu = true; break; }
-          }
-          if (hasFu) continue;
-         }
-         moves.push({ from: -1, to: i, piece: type, promote: false, isDrop: true });
-        }
-       }
+    // 二歩チェック
+    if (pType === FU) {
+     for (let row = 0; row < 9; row++) {
+      if (bd[row][c] === owner * FU) {
+       return false; // 同じ列に既に自分の歩がある
       }
      }
     }
 
-    // 成り情報の追加
-    let finalMoves = [];
-    for (let m of moves) {
-     if (m.isDrop) {
-      finalMoves.push(m);
+    return true;
+   }
+
+   // 駒ごとの移動方向定義
+   function getDirections(type, owner) {
+    const fwd = owner === SENTE ? -1 : 1; // 前進方向
+
+    const GOLD_DIRS = [
+     { dr: fwd, dc: 0, slide: false }, { dr: fwd, dc: -1, slide: false }, { dr: fwd, dc: 1, slide: false },
+     { dr: 0, dc: -1, slide: false }, { dr: 0, dc: 1, slide: false }, { dr: -fwd, dc: 0, slide: false }
+    ];
+
+    switch (type) {
+     case FU:
+      return [{ dr: fwd, dc: 0, slide: false }];
+     case KYO:
+      return [{ dr: fwd, dc: 0, slide: true }];
+     case KEI:
+      return [{ dr: fwd * 2, dc: -1, slide: false }, { dr: fwd * 2, dc: 1, slide: false }];
+     case GIN:
+      return [
+       { dr: fwd, dc: 0, slide: false }, { dr: fwd, dc: -1, slide: false }, { dr: fwd, dc: 1, slide: false },
+       { dr: -fwd, dc: -1, slide: false }, { dr: -fwd, dc: 1, slide: false }
+      ];
+     case KIN: case TO: case NYO: case NKEI: case NGIN:
+      return GOLD_DIRS;
+     case KAKU:
+      return [
+       { dr: -1, dc: -1, slide: true }, { dr: -1, dc: 1, slide: true },
+       { dr: 1, dc: -1, slide: true }, { dr: 1, dc: 1, slide: true }
+      ];
+     case HI:
+      return [
+       { dr: -1, dc: 0, slide: true }, { dr: 1, dc: 0, slide: true },
+       { dr: 0, dc: -1, slide: true }, { dr: 0, dc: 1, slide: true }
+      ];
+     case OU:
+      return [
+       { dr: -1, dc: -1, slide: false }, { dr: -1, dc: 0, slide: false }, { dr: -1, dc: 1, slide: false },
+       { dr: 0, dc: -1, slide: false }, { dr: 0, dc: 1, slide: false },
+       { dr: 1, dc: -1, slide: false }, { dr: 1, dc: 0, slide: false }, { dr: 1, dc: 1, slide: false }
+      ];
+     case UMA: // 角 + 王の上下左右
+      return [
+       { dr: -1, dc: -1, slide: true }, { dr: -1, dc: 1, slide: true },
+       { dr: 1, dc: -1, slide: true }, { dr: 1, dc: 1, slide: true },
+       { dr: -1, dc: 0, slide: false }, { dr: 1, dc: 0, slide: false },
+       { dr: 0, dc: -1, slide: false }, { dr: 0, dc: 1, slide: false }
+      ];
+     case RYU: // 飛 + 王の斜め
+      return [
+       { dr: -1, dc: 0, slide: true }, { dr: 1, dc: 0, slide: true },
+       { dr: 0, dc: -1, slide: true }, { dr: 0, dc: 1, slide: true },
+       { dr: -1, dc: -1, slide: false }, { dr: -1, dc: 1, slide: false },
+       { dr: 1, dc: -1, slide: false }, { dr: 1, dc: 1, slide: false }
+      ];
+     default:
+      return [];
+    }
+   }
+
+   function handleCellClick(r, c) {
+    if (currentTurn !== SENTE || gameOver) return;
+
+    const targetPiece = board[r][c];
+
+    // 1. 既に駒または持ち駒を選択している場合
+    if (selectedCell) {
+     // 持ち駒からの打込み
+     if (selectedCell.isHand) {
+      const isLegal = legalMoves.some(m => m.toR === r && m.toC === c);
+      if (isLegal) {
+       executeMove({
+        fromR: null, fromC: null,
+        toR: r, toC: c,
+        isDrop: true,
+        dropType: selectedCell.type,
+        owner: SENTE
+       });
+       clearSelection();
+       return;
+      }
      } else {
-      let cy = Math.floor(m.from / 9);
-      let ny = Math.floor(m.to / 9);
-      if (canPromote(m.piece, turn, cy, ny)) {
-       if (mustPromote(m.piece, turn, ny)) {
-        finalMoves.push({ ...m, promote: true });
+      // 盤上の移動
+      const move = legalMoves.find(m => m.toR === r && m.toC === c);
+      if (move) {
+       // 成りの判定 (先手は敵陣0, 1, 2段目)
+       const pType = Math.abs(board[selectedCell.r][selectedCell.c]);
+       const canPromote = pType < TO && pType !== KIN && pType !== OU && (r <= 2 || selectedCell.r <= 2);
+       const mustPromote = (pType === FU || pType === KYO) && r === 0 || (pType === KEI && r <= 1);
+
+       if (mustPromote) {
+        executeMove({ ...move, promote: true, owner: SENTE });
+        clearSelection();
+       } else if (canPromote) {
+        showPromoteModal((promote) => {
+         executeMove({ ...move, promote: promote, owner: SENTE });
+         clearSelection();
+        });
        } else {
-        finalMoves.push({ ...m, promote: false });
-        finalMoves.push({ ...m, promote: true });
+        executeMove({ ...move, promote: false, owner: SENTE });
+        clearSelection();
        }
-      } else {
-       finalMoves.push(m);
+       return;
       }
      }
     }
-    return finalMoves;
-   }
 
-   function isCheck(board, turn) {
-    let kingPos = board.indexOf(turn * OU);
-    if (kingPos === -1) return false;
-    let oppMoves = getPseudoMoves(board, null, -turn, true);
-    return oppMoves.some(m => m.to === kingPos);
-   }
-
-   function getStrictLegalMoves(board, hand, turn) {
-    let pseudoMoves = getPseudoMoves(board, hand, turn, false);
-    let strictMoves = [];
-    for (let m of pseudoMoves) {
-     let { captured } = doMove(board, hand, turn, m);
-     if (!isCheck(board, turn)) {
-      strictMoves.push(m);
-     }
-     undoMove(board, hand, turn, m, captured);
-    }
-    return strictMoves;
-   }
-
-   function doMove(board, hand, turn, move) {
-    let captured = 0;
-    if (move.isDrop) {
-     hand[turn][move.piece]--;
-     board[move.to] = turn * move.piece;
+    // 2. 自分の駒を新しく選択する
+    if (targetPiece > 0) { // SENTE
+     selectedCell = { r, c, isHand: false };
+     calculateLegalMovesForSelected();
+     renderBoard();
     } else {
-     let targetPiece = board[move.to];
-     if (targetPiece !== 0) {
-      captured = getType(targetPiece);
-      hand[turn][getBasePiece(captured)]++;
-     }
-     board[move.from] = 0;
-     board[move.to] = turn * (move.promote ? promoteMap[move.piece] : move.piece);
+     clearSelection();
     }
-    return { captured };
    }
 
-   function undoMove(board, hand, turn, move, captured) {
-    if (move.isDrop) {
-     board[move.to] = 0;
-     hand[turn][move.piece]++;
+   function handleHandClick(owner, type) {
+    if (currentTurn !== owner || gameOver) return;
+
+    if (selectedCell && selectedCell.isHand && selectedCell.type === type) {
+     clearSelection();
+     return;
+    }
+
+    selectedCell = { isHand: true, owner, type };
+    calculateLegalMovesForSelected();
+    renderBoard();
+    renderKomadai();
+   }
+
+   function clearSelection() {
+    selectedCell = null;
+    legalMoves = [];
+    renderBoard();
+    renderKomadai();
+   }
+
+   function calculateLegalMovesForSelected() {
+    if (!selectedCell) {
+     legalMoves = [];
+     return;
+    }
+
+    const allMoves = getRawMoves(board, SENTE, senteHand, goteHand);
+
+    if (selectedCell.isHand) {
+     legalMoves = allMoves.filter(m => m.isDrop && m.dropType === selectedCell.type);
     } else {
-     board[move.from] = turn * move.piece;
-     if (captured !== 0) {
-      board[move.to] = (-turn) * captured;
-      hand[turn][getBasePiece(captured)]--;
-     } else {
-      board[move.to] = 0;
-     }
+     legalMoves = allMoves.filter(m => !m.isDrop && m.fromR === selectedCell.r && m.fromC === selectedCell.c);
     }
    }
 
-   function evaluate(board, hand) {
-    let score = 0;
-    for (let i = 0; i < 81; i++) {
-     let p = board[i];
-     if (p !== 0) {
-      let val = pieceValues[getType(p)];
-      score += (getOwner(p) === SENTE) ? val : -val;
+   function executeMove(move) {
+    playKomaSound();
+
+    const record = {
+     boardBefore: JSON.parse(JSON.stringify(board)),
+     senteHandBefore: { ...senteHand },
+     goteHandBefore: { ...goteHand },
+     turn: currentTurn,
+     move: move
+    };
+    history.push(record);
+    lastMove = move;
+
+    if (move.isDrop) {
+     const hand = move.owner === SENTE ? senteHand : goteHand;
+     hand[move.dropType]--;
+     board[move.toR][move.toC] = move.owner * move.dropType;
+    } else {
+     let pieceVal = board[move.fromR][move.fromC];
+     const captured = board[move.toR][move.toC];
+
+     // 駒を取る処理
+     if (captured !== EMPTY) {
+      let capType = Math.abs(captured);
+      if (capType >= TO) {
+       capType = capType === UMA ? KAKU : (capType === RYU ? HI : capType - 8);
+      }
+      const hand = move.owner === SENTE ? senteHand : goteHand;
+      hand[capType]++;
      }
+
+     // 成り処理
+     if (move.promote) {
+      const pType = Math.abs(pieceVal);
+      const newType = pType === KAKU ? UMA : (pType === HI ? RYU : pType + 8);
+      pieceVal = move.owner * newType;
+     }
+
+     board[move.toR][move.toC] = pieceVal;
+     board[move.fromR][move.fromC] = EMPTY;
     }
-    for (let type of handPieceTypes) {
-     score += hand[SENTE][type] * pieceValues[type] * 1.1;
-     score -= hand[GOTE][type] * pieceValues[type] * 1.1;
+
+    // 棋譜ログ追加
+    addHistoryLog(move);
+
+    // 王が取られたか判定（対局終了）
+    if (checkKingCaptured()) {
+     endGame(currentTurn === SENTE ? "あなたの勝利です！" : "CPUの勝利です！");
+     return;
     }
-    return score;
+
+    // ターン交代
+    currentTurn = currentTurn === SENTE ? GOTE : SENTE;
+    updateUI();
+    renderBoard();
+    renderKomadai();
+
+    // CPUの手番発動
+    if (currentTurn === GOTE && !gameOver) {
+     document.getElementById('cpuThinking').classList.remove('hidden');
+     setTimeout(() => {
+      makeCPUMove();
+      document.getElementById('cpuThinking').classList.add('hidden');
+     }, 300);
+    }
    }
 
-   function minimax(board, hand, turn, depth, alpha, beta) {
-    let myKings = board.indexOf(turn * OU);
-    let oppKings = board.indexOf(-turn * OU);
-    if (myKings === -1) return (turn === SENTE) ? -999999 : 999999;
-    if (oppKings === -1) return (turn === SENTE) ? 999999 : -999999;
+   function addHistoryLog(m) {
+    const historyList = document.getElementById('historyList');
+    if (history.length === 1) historyList.innerHTML = '';
 
-    if (depth === 0) return evaluate(board, hand);
+    const senteSymbol = m.owner === SENTE ? '▲' : '▼';
+    const colName = (9 - m.toC).toString();
+    const rowNames = ['一', '二', '三', '四', '五', '六', '七', '八', '九'];
+    const rowName = rowNames[m.toR];
 
-    let moves = getPseudoMoves(board, hand, turn, false);
-    if (moves.length === 0) return (turn === SENTE) ? -999999 : 999999;
-
-    let isMax = (turn === SENTE);
-    let bestVal = isMax ? -Infinity : Infinity;
-
-    for (let m of moves) {
-     let { captured } = doMove(board, hand, turn, m);
-     let ev = minimax(board, hand, -turn, depth - 1, alpha, beta);
-     undoMove(board, hand, turn, m, captured);
-
-     if (isMax) {
-      bestVal = Math.max(bestVal, ev);
-      alpha = Math.max(alpha, ev);
-     } else {
-      bestVal = Math.min(bestVal, ev);
-      beta = Math.min(beta, ev);
-     }
-     if (beta <= alpha) break;
+    let pieceName = '';
+    if (m.isDrop) {
+     pieceName = PIECE_NAMES[m.dropType] + '打';
+    } else {
+     const origPiece = Math.abs(history[history.length - 1].boardBefore[m.fromR][m.fromC]);
+     pieceName = PIECE_NAMES[origPiece];
+     if (m.promote) pieceName += '成';
     }
-    return bestVal;
+
+    const moveText = `${history.length}. ${senteSymbol}${colName}${rowName}${pieceName}`;
+    const logItem = document.createElement('div');
+    logItem.className = "py-0.5 border-b border-stone-800/50 flex justify-between";
+    logItem.innerHTML = `<span>${moveText}</span>`;
+    historyList.appendChild(logItem);
+    historyList.scrollTop = historyList.scrollHeight;
    }
 
-   function getAIMove(difficulty) {
-    let depth = (difficulty === 'easy') ? 2 : 3;
-    let moves = getStrictLegalMoves(state.board, state.hand, state.turn);
-    if (moves.length === 0) return null;
+   function showPromoteModal(callback) {
+    const modal = document.getElementById('promoteModal');
+    modal.classList.remove('hidden');
+
+    const yesBtn = document.getElementById('btnPromoteYes');
+    const noBtn = document.getElementById('btnPromoteNo');
+
+    const onYes = () => {
+     modal.classList.add('hidden');
+     cleanup();
+     callback(true);
+    };
+    const onNo = () => {
+     modal.classList.add('hidden');
+     cleanup();
+     callback(false);
+    };
+
+    function cleanup() {
+     yesBtn.removeEventListener('click', onYes);
+     noBtn.removeEventListener('click', onNo);
+    }
+
+    yesBtn.addEventListener('click', onYes);
+    noBtn.addEventListener('click', onNo);
+   }
+
+   function checkKingCaptured() {
+    let senteKing = false;
+    let goteKing = false;
+
+    for (let r = 0; r < 9; r++) {
+     for (let c = 0; c < 9; c++) {
+      if (board[r][c] === OU) senteKing = true;
+      if (board[r][c] === -OU) goteKing = true;
+     }
+    }
+    return !senteKing || !goteKing;
+   }
+
+   // AI評価関数
+   function evaluateBoard(bd, sHand, gHand) {
+    let val = 0;
+
+    for (let r = 0; r < 9; r++) {
+     for (let c = 0; c < 9; c++) {
+      const p = bd[r][c];
+      if (p === EMPTY) continue;
+
+      const type = Math.abs(p);
+      const score = PIECE_VALUES[type] || 0;
+
+      // 位置によるボーナス（盤中央や敵陣侵入）
+      let positional = 0;
+      if (type === FU || type === GIN) {
+       positional = p > 0 ? (8 - r) * 10 : r * 10;
+      }
+
+      val += Math.sign(p) * (score + positional);
+     }
+    }
+
+    // 持ち駒評価
+    Object.keys(sHand).forEach(k => {
+     val += sHand[k] * (PIECE_VALUES[k] * 1.1);
+    });
+    Object.keys(gHand).forEach(k => {
+     val -= gHand[k] * (PIECE_VALUES[k] * 1.1);
+    });
+
+    return Math.round(val);
+   }
+
+   // CPU思考アルゴリズム
+   function makeCPUMove() {
+    if (gameOver) return;
+
+    const moves = getRawMoves(board, GOTE, senteHand, goteHand);
+    if (moves.length === 0) {
+     endGame("CPUの指し手がありません。あなたの勝ちです！");
+     return;
+    }
 
     let bestMove = null;
-    let minEval = Infinity;
 
-    moves.sort(() => Math.random() - 0.5);
+    if (difficulty === 'easy') {
+     // 初級: ランダム性が高く、王を取るか簡単な取り駒を優先
+     const scoredMoves = moves.map(m => {
+      let score = Math.random() * 200;
+      const target = board[m.toR][m.toC];
+      if (target !== EMPTY) score += Math.abs(target) * 50;
+      return { move: m, score };
+     });
+     scoredMoves.sort((a, b) => b.score - a.score);
+     bestMove = scoredMoves[0].move;
+    } else if (difficulty === 'medium') {
+     // 中級: 1手読み (Alpha-Beta 1階層) + 強い手判定
+     bestMove = minimaxRoot(1);
+    } else {
+     // 上級: 2手読み (Alpha-Beta 2~3階層)
+     bestMove = minimaxRoot(2);
+    }
 
-    for (let m of moves) {
-     let { captured } = doMove(state.board, state.hand, state.turn, m);
-     let ev = minimax(state.board, state.hand, -state.turn, depth - 1, -Infinity, Infinity);
-     undoMove(state.board, state.hand, state.turn, m, captured);
+    // 成りの判定 (後手は0, 1, 2段目)
+    let promote = false;
+    if (!bestMove.isDrop) {
+     const pType = Math.abs(board[bestMove.fromR][bestMove.fromC]);
+     if (pType < TO && pType !== KIN && pType !== OU) {
+      if (bestMove.toR >= 6 || bestMove.fromR >= 6) {
+       promote = true; // CPUは成れる場合は基本的に成る
+      }
+     }
+    }
 
-     if (difficulty === 'easy') ev += (Math.random() * 200 - 100);
+    executeMove({ ...bestMove, promote, owner: GOTE });
+   }
 
-     if (ev < minEval) {
-      minEval = ev;
+   function minimaxRoot(depth) {
+    const moves = getRawMoves(board, GOTE, senteHand, goteHand);
+    let bestVal = Infinity; // GOTE is minimizing
+    let bestMove = moves[0];
+
+    for (let i = 0; i < moves.length; i++) {
+     const m = moves[i];
+     // 王が取れる手があれば最優先
+     if (!m.isDrop && board[m.toR][m.toC] === OU) {
+      return m;
+     }
+
+     // 仮着手
+     const tempBoard = JSON.parse(JSON.stringify(board));
+     const tempSHand = { ...senteHand };
+     const tempGHand = { ...goteHand };
+
+     applyTempMove(tempBoard, tempSHand, tempGHand, m, GOTE);
+
+     const val = alphaBeta(tempBoard, tempSHand, tempGHand, depth - 1, -Infinity, Infinity, true);
+
+     if (val < bestVal) {
+      bestVal = val;
       bestMove = m;
      }
     }
     return bestMove;
    }
 
-   function renderStatus(msg, isError = false) {
-    const msgEl = document.getElementById('message');
-    msgEl.textContent = msg;
-    msgEl.className = `text-center text-lg font-bold h-6 ${isError ? 'text-red-600' : 'text-blue-600'}`;
-   }
-
-   function renderBoard() {
-    const boardEl = document.getElementById('board');
-    boardEl.innerHTML = '';
-
-    for (let i = 0; i < 81; i++) {
-     let cell = document.createElement('div');
-     cell.className = 'cell flex justify-center items-center relative cursor-pointer';
-
-     let p = state.board[i];
-     if (p !== 0) {
-      let pieceEl = document.createElement('div');
-      let type = getType(p);
-      pieceEl.textContent = pieceChars[type];
-      pieceEl.className = 'piece-text text-xl sm:text-2xl font-black select-none pointer-events-none transition-transform';
-      if (getOwner(p) === GOTE) pieceEl.classList.add('rotate-180');
-      if ([TO, NY, NK, NG, UM, RY].includes(type)) pieceEl.classList.add('text-red-600');
-      else pieceEl.classList.add('text-gray-900');
-      cell.appendChild(pieceEl);
-     }
-
-     // 選択中ハイライト
-     if (state.selectedSq === i) {
-      cell.classList.add('bg-yellow-300', 'bg-opacity-70');
-     }
-
-     // 移動可能先ハイライト
-     if (state.selectedSq !== null) {
-      let isTarget = false;
-      if (typeof state.selectedSq === 'number') {
-       isTarget = state.legalMovesCache.some(m => !m.isDrop && m.from === state.selectedSq && m.to === i);
-      } else if (typeof state.selectedSq === 'string') {
-       let type = parseInt(state.selectedSq.split('_')[2]);
-       isTarget = state.legalMovesCache.some(m => m.isDrop && m.piece === type && m.to === i);
-      }
-      if (isTarget) {
-       let dot = document.createElement('div');
-       dot.className = 'w-3 h-3 bg-red-500 rounded-full opacity-60 absolute pointer-events-none';
-       cell.appendChild(dot);
-      }
-     }
-
-     cell.addEventListener('click', () => handleCellClick(i));
-     boardEl.appendChild(cell);
+   function alphaBeta(bd, sHand, gHand, depth, alpha, beta, isMaximizing) {
+    if (depth === 0) {
+     return evaluateBoard(bd, sHand, gHand);
     }
 
-    renderHand(SENTE, 'sente-hand');
-    renderHand(GOTE, 'gote-hand');
-   }
+    if (isMaximizing) { // SENTE (Player)
+     let maxEval = -Infinity;
+     const moves = getRawMoves(bd, SENTE, sHand, gHand);
+     for (let i = 0; i < moves.length; i++) {
+      const m = moves[i];
+      if (!m.isDrop && bd[m.toR][m.toC] === -OU) return 10000;
 
-   function renderHand(turn, elementId) {
-    const el = document.getElementById(elementId);
-    el.innerHTML = '';
+      const nb = JSON.parse(JSON.stringify(bd));
+      const ns = { ...sHand };
+      const ng = { ...gHand };
+      applyTempMove(nb, ns, ng, m, SENTE);
 
-    for (let type of handPieceTypes) {
-     let count = state.hand[turn][type];
-     if (count > 0) {
-      let pDiv = document.createElement('div');
-      pDiv.className = `w-10 h-10 sm:w-12 sm:h-12 board-bg border border-[#4a3b32] flex items-center justify-center font-black text-lg cursor-pointer relative select-none shadow-sm transition-transform ${turn === GOTE ? 'rotate-180' : ''}`;
-      pDiv.textContent = pieceChars[type];
-
-      if (count > 1) {
-       let badge = document.createElement('span');
-       badge.className = `absolute -bottom-2 -right-2 bg-red-600 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center border border-white ${turn === GOTE ? 'rotate-180' : ''}`;
-       badge.textContent = count;
-       pDiv.appendChild(badge);
-      }
-
-      if (state.selectedSq === `hand_${turn}_${type}`) {
-       pDiv.classList.add('ring-2', 'ring-blue-500', 'z-10');
-      }
-
-      pDiv.addEventListener('click', () => handleHandClick(turn, type));
-      el.appendChild(pDiv);
+      const evalVal = alphaBeta(nb, ns, ng, depth - 1, alpha, beta, false);
+      maxEval = Math.max(maxEval, evalVal);
+      alpha = Math.max(alpha, evalVal);
+      if (beta <= alpha) break;
      }
+     return maxEval;
+    } else { // GOTE (CPU)
+     let minEval = Infinity;
+     const moves = getRawMoves(bd, GOTE, sHand, gHand);
+     for (let i = 0; i < moves.length; i++) {
+      const m = moves[i];
+      if (!m.isDrop && bd[m.toR][m.toC] === OU) return -10000;
+
+      const nb = JSON.parse(JSON.stringify(bd));
+      const ns = { ...sHand };
+      const ng = { ...gHand };
+      applyTempMove(nb, ns, ng, m, GOTE);
+
+      const evalVal = alphaBeta(nb, ns, ng, depth - 1, alpha, beta, true);
+      minEval = Math.min(minEval, evalVal);
+      beta = Math.min(beta, evalVal);
+      if (beta <= alpha) break;
+     }
+     return minEval;
     }
    }
 
-   function getSelectedMoveTo(index) {
-    if (state.selectedSq === null) return null;
-    if (typeof state.selectedSq === 'number') {
-     return state.legalMovesCache.find(m => !m.isDrop && m.from === state.selectedSq && m.to === index);
+   function applyTempMove(bd, sHand, gHand, m, owner) {
+    if (m.isDrop) {
+     const hand = owner === SENTE ? sHand : gHand;
+     hand[m.dropType]--;
+     bd[m.toR][m.toC] = owner * m.dropType;
     } else {
-     let type = parseInt(state.selectedSq.split('_')[2]);
-     return state.legalMovesCache.find(m => m.isDrop && m.piece === type && m.to === index);
+     let p = bd[m.fromR][m.fromC];
+     const cap = bd[m.toR][m.toC];
+     if (cap !== EMPTY) {
+      let capType = Math.abs(cap);
+      if (capType >= TO) capType = capType === UMA ? KAKU : (capType === RYU ? HI : capType - 8);
+      const hand = owner === SENTE ? sHand : gHand;
+      hand[capType]++;
+     }
+     // デフォルト成り
+     const pType = Math.abs(p);
+     if (pType < TO && pType !== KIN && pType !== OU && ((owner === SENTE && m.toR <= 2) || (owner === GOTE && m.toR >= 6))) {
+      p = owner * (pType === KAKU ? UMA : (pType === HI ? RYU : pType + 8));
+     }
+     bd[m.toR][m.toC] = p;
+     bd[m.fromR][m.fromC] = EMPTY;
     }
    }
 
-   function handleCellClick(index) {
-    if (state.turn !== SENTE || isCpuThinking) return;
+   function undoMove() {
+    if (history.length === 0 || gameOver) return;
 
-    let move = getSelectedMoveTo(index);
-    if (move) {
-     if (!move.isDrop && canPromote(move.piece, SENTE, Math.floor(move.from / 9), Math.floor(index / 9))) {
-      if (mustPromote(move.piece, SENTE, Math.floor(index / 9))) {
-       move.promote = true;
-       executePlayerMove(move);
-      } else {
-       showPromoteDialog().then(prom => {
-        move.promote = prom;
-        executePlayerMove(move);
-       });
-      }
+    // CPUの手番まで含めて2手戻す
+    let targetState = null;
+    if (history.length >= 2 && currentTurn === SENTE) {
+     history.pop(); // CPU move
+     targetState = history.pop(); // Player move
+    } else if (history.length === 1) {
+     targetState = history.pop();
+    } else return;
+
+    if (targetState) {
+     board = JSON.parse(JSON.stringify(targetState.boardBefore));
+     senteHand = { ...targetState.senteHandBefore };
+     goteHand = { ...targetState.goteHandBefore };
+     currentTurn = targetState.turn;
+     lastMove = history.length > 0 ? history[history.length - 1].move : null;
+
+     // 棋譜ログ更新
+     const historyList = document.getElementById('historyList');
+     if (history.length === 0) {
+      historyList.innerHTML = '<div class="text-stone-600 text-center py-4">対局が開始されました</div>';
      } else {
-      executePlayerMove(move);
+      const children = Array.from(historyList.children);
+      historyList.innerHTML = '';
+      history.forEach(h => addHistoryLog(h.move));
      }
-     return;
-    }
 
-    let p = state.board[index];
-    if (p !== 0 && getOwner(p) === SENTE) {
-     state.selectedSq = index;
-     renderBoard();
-    } else {
-     state.selectedSq = null;
-     renderBoard();
+     clearSelection();
+     updateUI();
     }
    }
 
-   function handleHandClick(turn, pieceType) {
-    if (state.turn !== SENTE || isCpuThinking || turn !== SENTE) return;
-    state.selectedSq = `hand_${turn}_${pieceType}`;
-    renderBoard();
+   function changeDifficulty() {
+    const select = document.getElementById('difficultySelect');
+    difficulty = select.value;
+    const labels = { easy: '初級', medium: '中級', hard: '上級' };
+    document.getElementById('cpuLevelTag').innerText = labels[difficulty];
    }
 
-   function showPromoteDialog() {
-    return new Promise((resolve) => {
-     const modal = document.getElementById('promote-modal');
-     modal.classList.remove('hidden');
-     modal.classList.add('flex');
-
-     const cleanup = () => {
-      modal.classList.add('hidden');
-      modal.classList.remove('flex');
-      document.getElementById('btn-promote').onclick = null;
-      document.getElementById('btn-not-promote').onclick = null;
-     };
-
-     document.getElementById('btn-promote').onclick = () => { cleanup(); resolve(true); };
-     document.getElementById('btn-not-promote').onclick = () => { cleanup(); resolve(false); };
-    });
-   }
-
-   function showGameOver(title) {
-    const modal = document.getElementById('gameover-modal');
-    document.getElementById('gameover-title').textContent = title;
-    modal.classList.remove('hidden');
-    modal.classList.add('flex');
-    document.getElementById('btn-restart').onclick = () => {
-     modal.classList.add('hidden');
-     modal.classList.remove('flex');
+   function confirmNewGame() {
+    if (confirm("対局をやり直しますか？")) {
      initGame();
-    };
-   }
-
-   async function executePlayerMove(move) {
-    doMove(state.board, state.hand, state.turn, move);
-    state.turn *= -1;
-    state.selectedSq = null;
-    state.legalMovesCache = getStrictLegalMoves(state.board, state.hand, state.turn);
-    renderBoard();
-
-    if (state.legalMovesCache.length === 0) {
-     renderStatus("詰みです");
-     showGameOver("あなたの勝ちです！🎉");
-     return;
     }
-
-    isCpuThinking = true;
-    renderStatus("CPUが思考中...");
-
-    // UIを更新させてからCPU思考開始
-    setTimeout(processCpuTurn, 50);
    }
 
-   function processCpuTurn() {
-    let diff = document.getElementById('difficulty').value;
-    let aiMove = getAIMove(diff);
-
-    if (!aiMove) {
-     renderStatus("詰みです");
-     showGameOver("あなたの勝ちです！🎉");
-     return;
+   function resignGame() {
+    if (confirm("投了しますか？")) {
+     endGame("投了しました。CPUの勝ちです。");
     }
-
-    doMove(state.board, state.hand, state.turn, aiMove);
-    state.turn *= -1;
-    state.legalMovesCache = getStrictLegalMoves(state.board, state.hand, state.turn);
-    isCpuThinking = false;
-    renderBoard();
-
-    if (state.legalMovesCache.length === 0) {
-     renderStatus("詰みです");
-     showGameOver("CPUの勝ちです🤖");
-     return;
-    }
-
-    renderStatus("あなたの番です");
    }
 
-   function initGame() {
-    state.board = [...initialBoardState];
-    handPieceTypes.forEach(t => {
-     state.hand[SENTE][t] = 0;
-     state.hand[GOTE][t] = 0;
-    });
-    state.turn = SENTE;
-    state.selectedSq = null;
-    isCpuThinking = false;
-    state.legalMovesCache = getStrictLegalMoves(state.board, state.hand, state.turn);
-
-    renderBoard();
-    renderStatus("あなたの番です");
+   function endGame(msg) {
+    gameOver = true;
+    document.getElementById('gameEndMessage').innerText = msg;
+    document.getElementById('gameEndModal').classList.remove('hidden');
    }
 
-   document.getElementById('reset-btn').addEventListener('click', initGame);
+   function restartGame() {
+    document.getElementById('gameEndModal').classList.add('hidden');
+    initGame();
+   }
 
-   // ゲーム開始
-   window.onload = initGame;
+   // アプリ起動
+   window.onload = function () {
+    initGame();
+   };
   </script>
  </body>
 </html>
