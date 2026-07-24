@@ -1,0 +1,1000 @@
+<!DOCTYPE html>
+<html lang="ja">
+ <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Ink Clash - ナワバリバトル</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+  <style>
+   @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700&family=M+PLUS+Rounded+1c:wght@700;800;900&display=swap');
+
+   body {
+    font-family: 'M PLUS Rounded 1c', 'Fredoka', sans-serif;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: manipulation;
+    overflow: hidden;
+    background-color: #12131C;
+    color: #FFF;
+   }
+
+   .splat-font {
+    font-family: 'Fredoka', 'M PLUS Rounded 1c', sans-serif;
+    text-shadow: 3px 3px 0px #000;
+   }
+
+   .splat-btn {
+    transition: transform 0.1s ease, box-shadow 0.1s ease;
+    box-shadow: 0 6px 0 rgba(0, 0, 0, 0.4);
+   }
+
+   .splat-btn:active {
+    transform: translateY(4px);
+    box-shadow: 0 2px 0 rgba(0, 0, 0, 0.4);
+   }
+
+   /* カスタムスクロールバー非表示 */
+   ::-webkit-scrollbar {
+    display: none;
+   }
+  </style>
+ </head>
+ <body class="h-screen w-screen flex flex-col justify-between items-center relative overflow-hidden select-none">
+
+  <!-- ゲーム画面上のスコアバー ＆ タイマー UI -->
+  <div id="game-ui"
+   class="absolute top-0 left-0 w-full p-3 z-20 flex justify-between items-center pointer-events-none hidden">
+   <!-- リアルタイム塗り割合ゲージ -->
+   <div
+    class="flex items-center gap-2 bg-black/60 backdrop-blur-md px-4 py-2 rounded-full border-2 border-white/20 w-1/3 max-w-xs">
+    <i class="fa-solid fa-paint-roller text-orange-500 text-lg"></i>
+    <div class="w-full bg-slate-700 h-5 rounded-full overflow-hidden flex border border-black/50">
+     <div id="bar-orange" class="bg-orange-500 h-full transition-all duration-300" style="width: 50%;"></div>
+     <div id="bar-blue" class="bg-indigo-600 h-full transition-all duration-300" style="width: 50%;"></div>
+    </div>
+    <i class="fa-solid fa-paint-roller text-indigo-500 text-lg"></i>
+   </div>
+
+   <!-- タイマー -->
+   <div
+    class="bg-slate-900/90 text-yellow-400 font-extrabold text-2xl md:text-3xl px-6 py-2 rounded-2xl border-4 border-yellow-400 shadow-lg tracking-wider flex items-center gap-2">
+    <i class="fa-regular fa-clock text-yellow-400"></i>
+    <span id="timer-text">60</span>s
+   </div>
+
+   <!-- インク残量ゲージ & ブキ情報 -->
+   <div class="flex items-center gap-3 bg-black/60 backdrop-blur-md px-4 py-2 rounded-full border-2 border-white/20">
+    <div class="flex flex-col items-end">
+     <span id="weapon-name-display" class="text-xs font-bold text-yellow-300">シューター</span>
+     <div class="w-24 bg-gray-800 h-3 rounded-full overflow-hidden border border-gray-600">
+      <div id="ink-tank-bar" class="bg-orange-500 h-full w-full transition-all duration-75"></div>
+     </div>
+    </div>
+    <i id="weapon-icon" class="fa-solid fa-gun text-2xl text-orange-400"></i>
+   </div>
+  </div>
+
+  <!-- メインCanvasエリア -->
+  <div class="relative w-full h-full flex justify-center items-center">
+   <canvas id="gameCanvas" class="bg-slate-900 cursor-crosshair rounded-lg shadow-2xl"></canvas>
+
+   <!-- ミニマップ (右上) -->
+   <div
+    class="absolute top-16 right-4 z-20 pointer-events-none hidden md:block border-2 border-white/30 rounded-lg overflow-hidden bg-black/50 shadow-lg">
+    <canvas id="minimapCanvas" width="120" height="120"></canvas>
+   </div>
+  </div>
+
+  <!-- タッチデバイス用バーチャルコントローラー -->
+  <div id="touch-controls"
+   class="absolute bottom-4 left-0 w-full px-6 py-2 z-30 flex justify-between items-end pointer-events-none opacity-80 md:hidden">
+   <!-- ジョイスティック移動用感触エリア -->
+   <div id="joystick-zone"
+    class="w-32 h-32 bg-white/10 border-2 border-white/30 rounded-full flex justify-center items-center pointer-events-auto touch-none relative">
+    <div id="joystick-knob" class="w-12 h-12 bg-orange-500/80 rounded-full absolute shadow-md"></div>
+   </div>
+
+   <!-- アクションボタン群 -->
+   <div class="flex flex-col gap-3 pointer-events-auto">
+    <!-- ブキ切替ボタン -->
+    <button id="btn-weapon-swap"
+     class="bg-purple-600 active:bg-purple-800 text-white p-3 rounded-full w-14 h-14 flex justify-center items-center shadow-lg border-2 border-white/50 text-xl">
+     <i class="fa-solid fa-arrows-rotate"></i>
+    </button>
+    <div class="flex gap-2">
+     <!-- イカ潜伏ボタン -->
+     <button id="btn-squid"
+      class="bg-cyan-500 active:bg-cyan-700 text-white p-4 rounded-full w-16 h-16 flex justify-center items-center shadow-lg border-2 border-white/50 text-2xl">
+      <i class="fa-solid fa-fish"></i>
+     </button>
+     <!-- 攻撃・発射ボタン -->
+     <button id="btn-shoot"
+      class="bg-orange-500 active:bg-orange-700 text-white p-4 rounded-full w-20 h-20 flex justify-center items-center shadow-lg border-2 border-white/50 text-3xl">
+      <i class="fa-solid fa-crosshairs"></i>
+     </button>
+    </div>
+   </div>
+  </div>
+
+  <!-- スタート画面オーバーレイ -->
+  <div id="start-overlay"
+   class="absolute inset-0 z-40 bg-slate-950/90 backdrop-blur-md flex flex-col justify-center items-center p-6 text-center">
+   <h1
+    class="text-5xl md:text-7xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-orange-400 via-pink-500 to-indigo-500 tracking-wider splat-font mb-2 transform -rotate-2">
+    INK CLASH!
+   </h1>
+   <p class="text-slate-300 text-sm md:text-base max-w-md mb-6 font-bold">
+    インクを塗りまくれ！チームのナワバリを広げて勝利をつかめ！
+   </p>
+
+   <!-- ブキ選択 -->
+   <div class="mb-8 w-full max-w-md">
+    <h2 class="text-yellow-400 font-extrabold mb-3 text-lg"><i class="fa-solid fa-shield-halved mr-2"></i>ブキを選択</h2>
+    <div class="grid grid-cols-3 gap-3">
+     <button onclick="selectWeapon('shooter')" id="btn-select-shooter"
+      class="weapon-select-btn bg-slate-800 border-2 border-orange-500 text-white p-3 rounded-xl flex flex-col items-center hover:bg-slate-700 transition">
+      <i class="fa-solid fa-gun text-2xl text-orange-400 mb-1"></i>
+      <span class="text-xs font-bold">シューター</span>
+      <span class="text-[10px] text-slate-400 mt-1">連射・万能</span>
+     </button>
+     <button onclick="selectWeapon('roller')" id="btn-select-roller"
+      class="weapon-select-btn bg-slate-800 border-2 border-transparent text-slate-400 p-3 rounded-xl flex flex-col items-center hover:bg-slate-700 transition">
+      <i class="fa-solid fa-paint-roller text-2xl text-indigo-400 mb-1"></i>
+      <span class="text-xs font-bold">ローラー</span>
+      <span class="text-[10px] text-slate-400 mt-1">広範囲塗り</span>
+     </button>
+     <button onclick="selectWeapon('charger')" id="btn-select-charger"
+      class="weapon-select-btn bg-slate-800 border-2 border-transparent text-slate-400 p-3 rounded-xl flex flex-col items-center hover:bg-slate-700 transition">
+      <i class="fa-solid fa-crosshairs text-2xl text-emerald-400 mb-1"></i>
+      <span class="text-xs font-bold">チャージャー</span>
+      <span class="text-[10px] text-slate-400 mt-1">長射程一閃</span>
+     </button>
+    </div>
+   </div>
+
+   <!-- 操作説明 -->
+   <div
+    class="bg-slate-900/80 p-4 rounded-xl border border-slate-700 text-left text-xs md:text-sm text-slate-300 max-w-md w-full mb-8 space-y-1">
+    <p><span class="text-yellow-400 font-bold">【PC操作】</span> WASD / 矢印: 移動 | マウス: 狙う & 左クリック: 撃つ</p>
+    <p><span class="text-yellow-400 font-bold">【潜伏】</span> Shiftキー: 自インク内で潜伏（高速移動＆インク回復）</p>
+    <p><span class="text-yellow-400 font-bold">【ブキ切替】</span> [1]シューター [2]ローラー [3]チャージャー</p>
+   </div>
+
+   <button onclick="startGame()"
+    class="splat-btn bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-extrabold text-2xl py-4 px-12 rounded-full border-4 border-yellow-300 uppercase tracking-widest transform hover:scale-105 active:scale-95 cursor-pointer shadow-xl">
+    バトル開始！
+   </button>
+  </div>
+
+  <!-- ゲーム終了・結果発表画面 -->
+  <div id="result-overlay"
+   class="absolute inset-0 z-40 bg-slate-950/95 backdrop-blur-lg flex flex-col justify-center items-center p-6 text-center hidden">
+   <div id="result-title" class="text-6xl font-extrabold splat-font mb-4 tracking-wider animate-bounce">
+    WIN!
+   </div>
+
+   <!-- 結果バー -->
+   <div class="w-full max-w-md bg-slate-800 p-6 rounded-2xl border-2 border-slate-700 shadow-2xl mb-8">
+    <div class="flex justify-between items-center text-lg font-bold mb-2">
+     <span class="text-orange-400 flex items-center gap-2"><i class="fa-solid fa-square"></i> 自チーム</span>
+     <span id="res-orange-pct" class="text-orange-400 text-2xl font-extrabold">0.0%</span>
+    </div>
+    <div class="w-full bg-slate-900 h-8 rounded-full overflow-hidden border-2 border-black/50 mb-4 flex">
+     <div id="res-bar-orange" class="bg-orange-500 h-full transition-all duration-1000" style="width: 0%;"></div>
+     <div id="res-bar-blue" class="bg-indigo-600 h-full transition-all duration-1000" style="width: 0%;"></div>
+    </div>
+    <div class="flex justify-between items-center text-lg font-bold">
+     <span class="text-indigo-400 flex items-center gap-2"><i class="fa-solid fa-square"></i> 敵チーム</span>
+     <span id="res-blue-pct" class="text-indigo-400 text-2xl font-extrabold">0.0%</span>
+    </div>
+   </div>
+
+   <button onclick="resetGame()"
+    class="splat-btn bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-extrabold text-2xl py-3 px-10 rounded-full border-4 border-emerald-300 tracking-wider transform hover:scale-105 cursor-pointer">
+    もう一度遊ぶ
+   </button>
+  </div>
+
+  <script>
+   // 定数＆設定
+   const MAP_WIDTH = 1200;
+   const MAP_HEIGHT = 1200;
+   const GAME_DURATION = 60; // 60秒バトル
+
+   // チームカラー定義
+   const TEAM = {
+    ORANGE: 'orange',
+    BLUE: 'blue'
+   };
+
+   const COLOR = {
+    orange: { main: '#FF6B00', dark: '#C45200', ink: '#FF7A1A' },
+    blue: { main: '#4338CA', dark: '#2E2585', ink: '#4F46E5' }
+   };
+
+   // ブキ性能パラメータ
+   const WEAPONS = {
+    shooter: { name: 'シューター', fireRate: 8, inkCost: 1.5, speed: 4.5, range: 18, radius: 16, type: 'shooter' },
+    roller: { name: 'ローラー', fireRate: 15, inkCost: 0.8, speed: 3.8, range: 10, radius: 26, type: 'roller' },
+    charger: { name: 'チャージャー', fireRate: 35, inkCost: 18, speed: 3.0, range: 35, radius: 24, type: 'charger' }
+   };
+
+   // ゲームシステム状態変数
+   let canvas, ctx;
+   let minimapCanvas, minimapCtx;
+   let inkCanvas, inkCtx; // 地面のインク描画用オフスクリーンキャンバス
+
+   let gameState = 'START'; // START, PLAYING, RESULT
+   let gameTimer = GAME_DURATION;
+   let timerInterval = null;
+   let selectedWeaponType = 'shooter';
+
+   // プレイヤー & AIキャラクターオブジェクト定義
+   let player;
+   let entities = []; // 味方・敵キャラクター一覧
+   let bullets = [];
+   let particles = [];
+
+   // 入力管理
+   const keys = {};
+   const mouse = { x: 0, y: 0, down: false, worldX: 0, worldY: 0 };
+
+   // モバイルタッチデータ
+   let touchJoystick = { active: false, startX: 0, startY: 0, dx: 0, dy: 0 };
+
+   // サウンド再生用の簡易Web Audio / Tone.js セットアップ
+   let synth, noiseSynth;
+   function initAudio() {
+    try {
+     synth = new Tone.Synth().toDestination();
+     noiseSynth = new Tone.NoiseSynth({ volume: -12 }).toDestination();
+    } catch (e) {
+     console.log('Audio init error:', e);
+    }
+   }
+
+   function playSound(type) {
+    if (!Tone || Tone.context.state !== 'running') return;
+    try {
+     if (type === 'shoot') {
+      noiseSynth.triggerAttackRelease('16n');
+     } else if (type === 'squid') {
+      synth.triggerAttackRelease('G4', '32n');
+     } else if (type === 'win') {
+      const now = Tone.now();
+      synth.triggerAttackRelease('C4', '8n', now);
+      synth.triggerAttackRelease('E4', '8n', now + 0.1);
+      synth.triggerAttackRelease('G4', '8n', now + 0.2);
+      synth.triggerAttackRelease('C5', '4n', now + 0.3);
+     }
+    } catch (e) { }
+   }
+
+   window.onload = () => {
+    canvas = document.getElementById('gameCanvas');
+    ctx = canvas.getContext('2d');
+
+    minimapCanvas = document.getElementById('minimapCanvas');
+    minimapCtx = minimapCanvas.getContext('2d');
+
+    // 塗り管理用のオフスクリーンキャンバスを作成
+    inkCanvas = document.createElement('canvas');
+    inkCanvas.width = MAP_WIDTH;
+    inkCanvas.height = MAP_HEIGHT;
+    inkCtx = inkCanvas.getContext('2d');
+
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+
+    setupInputListeners();
+    setupMobileControls();
+
+    // アニメーションループ起動
+    requestAnimationFrame(gameLoop);
+   };
+
+   function resizeCanvas() {
+    const containerWidth = window.innerWidth;
+    const containerHeight = window.innerHeight;
+    canvas.width = containerWidth;
+    canvas.height = containerHeight;
+   }
+
+   class Character {
+    constructor(x, y, team, isPlayer = false, weaponType = 'shooter') {
+     this.x = x;
+     this.y = y;
+     this.radius = 16;
+     this.team = team;
+     this.isPlayer = isPlayer;
+     this.weapon = WEAPONS[weaponType];
+     this.hp = 100;
+     this.maxHp = 100;
+     this.ink = 100;
+     this.maxInk = 100;
+     this.isSquid = false;
+     this.vx = 0;
+     this.vy = 0;
+     this.angle = 0;
+     this.cooldown = 0;
+     this.respawnTimer = 0;
+    }
+
+    update() {
+     if (this.respawnTimer > 0) {
+      this.respawnTimer--;
+      if (this.respawnTimer === 0) {
+       this.hp = this.maxHp;
+       this.ink = this.maxInk;
+       this.x = this.team === TEAM.ORANGE ? 100 : MAP_WIDTH - 100;
+       this.y = MAP_HEIGHT / 2;
+      }
+      return;
+     }
+
+     // 現在の足元のインクを取得
+     const currentFloorTeam = getInkAt(this.x, this.y);
+     const isOnOwnInk = currentFloorTeam === this.team;
+     const isOnEnemyInk = currentFloorTeam && currentFloorTeam !== this.team;
+
+     // インク回復・速度補正計算
+     let speedMultiplier = 1.0;
+     if (this.isSquid) {
+      if (isOnOwnInk) {
+       speedMultiplier = 1.8; // 自インク内イカ移動は超高速
+       this.ink = Math.min(this.maxInk, this.ink + 1.2); // 高速インク回復
+      } else {
+       speedMultiplier = 0.5; // 自インク外のイカは遅い
+      }
+     } else {
+      if (isOnEnemyInk) {
+       speedMultiplier = 0.5; // 敵インク上は移動力低下
+       this.hp = Math.max(10, this.hp - 0.2); // 敵インクダメージ
+      } else {
+       this.ink = Math.min(this.maxInk, this.ink + 0.2); // 自動自然回復
+      }
+     }
+
+     // HP自動回復 (自インク上で高速回復)
+     if (isOnOwnInk && this.hp < this.maxHp) {
+      this.hp = Math.min(this.maxHp, this.hp + 0.8);
+     }
+
+     // 移動適用
+     this.x += this.vx * this.weapon.speed * speedMultiplier;
+     this.y += this.vy * this.weapon.speed * speedMultiplier;
+
+     // 画面外壁とのバウンディング衝突判定
+     this.x = Math.max(this.radius, Math.min(MAP_WIDTH - this.radius, this.x));
+     this.y = Math.max(this.radius, Math.min(MAP_HEIGHT - this.radius, this.y));
+
+     // クールダウン減少
+     if (this.cooldown > 0) this.cooldown--;
+
+     // ローラー走行時の自動塗り処理
+     if (!this.isSquid && this.weapon.type === 'roller' && (this.vx !== 0 || this.vy !== 0)) {
+      if (this.ink > 0.2) {
+       paintInk(this.x, this.y, this.weapon.radius, this.team);
+       this.ink -= 0.15;
+      }
+     }
+    }
+
+    shoot(targetX, targetY) {
+     if (this.isSquid || this.cooldown > 0 || this.ink < this.weapon.inkCost || this.respawnTimer > 0) return;
+
+     this.ink -= this.weapon.inkCost;
+     this.cooldown = this.weapon.fireRate;
+
+     const angle = Math.atan2(targetY - this.y, targetX - this.x);
+     const spread = this.weapon.type === 'shooter' ? (Math.random() - 0.5) * 0.25 : 0.05;
+     const finalAngle = angle + spread;
+
+     bullets.push({
+      x: this.x,
+      y: this.y,
+      vx: Math.cos(finalAngle) * 12,
+      vy: Math.sin(finalAngle) * 12,
+      startX: this.x,
+      startY: this.y,
+      maxRange: this.weapon.range * 15,
+      radius: this.weapon.radius,
+      team: this.team,
+      type: this.weapon.type
+     });
+
+     playSound('shoot');
+    }
+
+    takeDamage(amount) {
+     if (this.respawnTimer > 0) return;
+     this.hp -= amount;
+     if (this.hp <= 0) {
+      // 撃破演出パーティクル
+      createSplashParticles(this.x, this.y, this.team, 25);
+      this.respawnTimer = 180; // 3秒後にリスポーン
+     }
+    }
+
+    draw(ctx) {
+     if (this.respawnTimer > 0) return;
+
+     ctx.save();
+     ctx.translate(this.x, this.y);
+
+     if (this.isSquid) {
+      // イカ形態の描画
+      ctx.fillStyle = COLOR[this.team].main;
+      ctx.beginPath();
+      ctx.ellipse(0, 0, 14, 10, this.angle, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = '#FFF';
+      ctx.stroke();
+     } else {
+      // ヒト形態の描画
+      ctx.rotate(this.angle);
+
+      // 体本体
+      ctx.fillStyle = COLOR[this.team].main;
+      ctx.beginPath();
+      ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = '#FFFFFF';
+      ctx.stroke();
+
+      // 目
+      ctx.fillStyle = '#FFF';
+      ctx.beginPath();
+      ctx.arc(6, -5, 4, 0, Math.PI * 2);
+      ctx.arc(6, 5, 4, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = '#000';
+      ctx.beginPath();
+      ctx.arc(7, -5, 2, 0, Math.PI * 2);
+      ctx.arc(7, 5, 2, 0, Math.PI * 2);
+      ctx.fill();
+
+      // ブキの描画
+      ctx.fillStyle = '#333';
+      if (this.weapon.type === 'shooter') {
+       ctx.fillRect(8, 4, 16, 6);
+      } else if (this.weapon.type === 'roller') {
+       ctx.fillRect(8, -12, 6, 24);
+      } else if (this.weapon.type === 'charger') {
+       ctx.fillRect(8, 2, 24, 4);
+      }
+     }
+
+     // 体力バーの描画（ダメージ時のみ）
+     if (this.hp < this.maxHp) {
+      ctx.rotate(-this.angle); // 回転を解除
+      ctx.fillStyle = 'rgba(0,0,0,0.6)';
+      ctx.fillRect(-20, -28, 40, 6);
+      ctx.fillStyle = this.hp > 30 ? '#10B981' : '#EF4444';
+      ctx.fillRect(-20, -28, (this.hp / this.maxHp) * 40, 6);
+     }
+
+     ctx.restore();
+    }
+   }
+
+   // インク塗り描画関数
+   function paintInk(x, y, radius, team) {
+    inkCtx.save();
+    inkCtx.fillStyle = COLOR[team].main;
+    inkCtx.beginPath();
+    inkCtx.arc(x, y, radius, 0, Math.PI * 2);
+    inkCtx.fill();
+
+    // 塗り飛沫（スプラッシュ）のランダム描画
+    for (let i = 0; i < 4; i++) {
+     const splashAngle = Math.random() * Math.PI * 2;
+     const splashDist = radius * (0.8 + Math.random() * 0.5);
+     const splashR = radius * (0.2 + Math.random() * 0.3);
+     inkCtx.beginPath();
+     inkCtx.arc(x + Math.cos(splashAngle) * splashDist, y + Math.sin(splashAngle) * splashDist, splashR, 0, Math.PI * 2);
+     inkCtx.fill();
+    }
+    inkCtx.restore();
+   }
+
+   // 座標上のインクチームを取得
+   function getInkAt(x, y) {
+    const pixel = inkCtx.getImageData(Math.floor(x), Math.floor(y), 1, 1).data;
+    if (pixel[3] < 100) return null; // 未塗り
+
+    // RBGの色味からオレンジかブルーかを判定
+    if (pixel[0] > 180 && pixel[1] > 80) return TEAM.ORANGE;
+    if (pixel[2] > 150) return TEAM.BLUE;
+    return null;
+   }
+
+   function setupInputListeners() {
+    window.addEventListener('keydown', (e) => {
+     keys[e.key.toLowerCase()] = true;
+
+     // ブキ切替ショートカット (1, 2, 3)
+     if (e.key === '1') selectWeapon('shooter');
+     if (e.key === '2') selectWeapon('roller');
+     if (e.key === '3') selectWeapon('charger');
+
+     if (e.key === 'Shift' && player) {
+      player.isSquid = true;
+      playSound('squid');
+     }
+    });
+
+    window.addEventListener('keyup', (e) => {
+     keys[e.key.toLowerCase()] = false;
+     if (e.key === 'Shift' && player) {
+      player.isSquid = false;
+     }
+    });
+
+    canvas.addEventListener('mousemove', (e) => {
+     const rect = canvas.getBoundingClientRect();
+     mouse.x = e.clientX - rect.left;
+     mouse.y = e.clientY - rect.top;
+    });
+
+    canvas.addEventListener('mousedown', (e) => {
+     if (e.button === 0) mouse.down = true;
+    });
+
+    window.addEventListener('mouseup', () => {
+     mouse.down = false;
+    });
+   }
+
+   function setupMobileControls() {
+    const zone = document.getElementById('joystick-zone');
+    const knob = document.getElementById('joystick-knob');
+
+    const handleTouchMove = (e) => {
+     const touch = e.touches[0];
+     const rect = zone.getBoundingClientRect();
+     const centerX = rect.left + rect.width / 2;
+     const centerY = rect.top + rect.height / 2;
+
+     let dx = touch.clientX - centerX;
+     let dy = touch.clientY - centerY;
+     const dist = Math.hypot(dx, dy);
+     const maxRadius = rect.width / 2;
+
+     if (dist > maxRadius) {
+      dx = (dx / dist) * maxRadius;
+      dy = (dy / dist) * maxRadius;
+     }
+
+     knob.style.transform = `translate(${dx}px, ${dy}px)`;
+     touchJoystick.dx = dx / maxRadius;
+     touchJoystick.dy = dy / maxRadius;
+     touchJoystick.active = true;
+    };
+
+    zone.addEventListener('touchstart', (e) => {
+     e.preventDefault();
+     handleTouchMove(e);
+    });
+
+    zone.addEventListener('touchmove', (e) => {
+     e.preventDefault();
+     handleTouchMove(e);
+    });
+
+    const resetJoystick = () => {
+     knob.style.transform = `translate(0px, 0px)`;
+     touchJoystick.dx = 0;
+     touchJoystick.dy = 0;
+     touchJoystick.active = false;
+    };
+
+    zone.addEventListener('touchend', resetJoystick);
+    zone.addEventListener('touchcancel', resetJoystick);
+
+    // ボタンイベント
+    const shootBtn = document.getElementById('btn-shoot');
+    shootBtn.addEventListener('touchstart', (e) => { e.preventDefault(); mouse.down = true; });
+    shootBtn.addEventListener('touchend', (e) => { e.preventDefault(); mouse.down = false; });
+
+    const squidBtn = document.getElementById('btn-squid');
+    squidBtn.addEventListener('touchstart', (e) => {
+     e.preventDefault();
+     if (player) player.isSquid = true;
+    });
+    squidBtn.addEventListener('touchend', (e) => {
+     e.preventDefault();
+     if (player) player.isSquid = false;
+    });
+
+    const swapBtn = document.getElementById('btn-weapon-swap');
+    swapBtn.addEventListener('click', () => {
+     const list = ['shooter', 'roller', 'charger'];
+     const nextIdx = (list.indexOf(selectedWeaponType) + 1) % list.length;
+     selectWeapon(list[nextIdx]);
+    });
+   }
+
+   function selectWeapon(type) {
+    selectedWeaponType = type;
+    document.querySelectorAll('.weapon-select-btn').forEach(btn => {
+     btn.classList.remove('border-orange-500');
+     btn.classList.add('border-transparent');
+    });
+    const selectedBtn = document.getElementById(`btn-select-${type}`);
+    if (selectedBtn) {
+     selectedBtn.classList.remove('border-transparent');
+     selectedBtn.classList.add('border-orange-500');
+    }
+
+    if (player) {
+     player.weapon = WEAPONS[type];
+     document.getElementById('weapon-name-display').textContent = player.weapon.name;
+    }
+   }
+
+   function startGame() {
+    if (Tone && Tone.context.state !== 'running') {
+     Tone.start();
+    }
+    initAudio();
+
+    gameState = 'PLAYING';
+    document.getElementById('start-overlay').classList.add('hidden');
+    document.getElementById('game-ui').classList.remove('hidden');
+
+    // マップ初期化 (キャンバスをクリアして中央部分を初期塗り)
+    inkCtx.clearRect(0, 0, MAP_WIDTH, MAP_HEIGHT);
+    paintInk(150, MAP_HEIGHT / 2, 120, TEAM.ORANGE);
+    paintInk(MAP_WIDTH - 150, MAP_HEIGHT / 2, 120, TEAM.BLUE);
+
+    // エンティティ生成
+    player = new Character(150, MAP_HEIGHT / 2, TEAM.ORANGE, true, selectedWeaponType);
+
+    entities = [
+     player,
+     new Character(150, MAP_HEIGHT / 2 + 80, TEAM.ORANGE, false, 'roller'), // 味方AI
+     new Character(MAP_WIDTH - 150, MAP_HEIGHT / 2 - 80, TEAM.BLUE, false, 'shooter'), // 敵AI1
+     new Character(MAP_WIDTH - 150, MAP_HEIGHT / 2 + 80, TEAM.BLUE, false, 'charger')  // 敵AI2
+    ];
+
+    bullets = [];
+    particles = [];
+
+    // タイマー開始
+    gameTimer = GAME_DURATION;
+    document.getElementById('timer-text').textContent = gameTimer;
+    clearInterval(timerInterval);
+    timerInterval = setInterval(() => {
+     gameTimer--;
+     document.getElementById('timer-text').textContent = gameTimer;
+     if (gameTimer <= 0) {
+      endGame();
+     }
+    }, 1000);
+   }
+
+   function endGame() {
+    gameState = 'RESULT';
+    clearInterval(timerInterval);
+
+    // ナワバリ塗り率計算
+    const scores = calculateInkPercentages();
+
+    document.getElementById('res-orange-pct').textContent = scores.orange.toFixed(1) + '%';
+    document.getElementById('res-blue-pct').textContent = scores.blue.toFixed(1) + '%';
+
+    document.getElementById('res-bar-orange').style.width = scores.orange + '%';
+    document.getElementById('res-bar-blue').style.width = scores.blue + '%';
+
+    const titleElem = document.getElementById('result-title');
+    if (scores.orange > scores.blue) {
+     titleElem.textContent = 'YOU WIN!';
+     titleElem.className = 'text-6xl font-extrabold splat-font mb-4 text-orange-400 animate-bounce';
+     playSound('win');
+    } else if (scores.blue > scores.orange) {
+     titleElem.textContent = 'YOU LOSE...';
+     titleElem.className = 'text-6xl font-extrabold splat-font mb-4 text-indigo-500';
+    } else {
+     titleElem.textContent = 'DRAW!';
+     titleElem.className = 'text-6xl font-extrabold splat-font mb-4 text-yellow-400';
+    }
+
+    document.getElementById('result-overlay').classList.remove('hidden');
+   }
+
+   function resetGame() {
+    document.getElementById('result-overlay').classList.add('hidden');
+    document.getElementById('start-overlay').classList.remove('hidden');
+    document.getElementById('game-ui').classList.add('hidden');
+   }
+
+   function calculateInkPercentages() {
+    const imgData = inkCtx.getImageData(0, 0, MAP_WIDTH, MAP_HEIGHT).data;
+    let orangePixels = 0;
+    let bluePixels = 0;
+    const step = 8; // パフォーマンスのためサンプリング
+
+    for (let i = 0; i < imgData.length; i += 4 * step) {
+     const alpha = imgData[i + 3];
+     if (alpha > 100) {
+      const r = imgData[i];
+      const b = imgData[i + 2];
+      if (r > 180) orangePixels++;
+      else if (b > 150) bluePixels++;
+     }
+    }
+
+    const total = orangePixels + bluePixels || 1;
+    return {
+     orange: (orangePixels / total) * 100,
+     blue: (bluePixels / total) * 100
+    };
+   }
+
+   function updateAI(bot) {
+    if (bot.respawnTimer > 0) return;
+
+    // ターゲット（敵または塗る場所）の決定
+    let targetX = MAP_WIDTH / 2;
+    let targetY = MAP_HEIGHT / 2;
+
+    // 最寄りの敵を探す
+    let closestEnemy = null;
+    let minDist = Infinity;
+    entities.forEach(other => {
+     if (other.team !== bot.team && other.respawnTimer === 0) {
+      const dist = Math.hypot(other.x - bot.x, other.y - bot.y);
+      if (dist < minDist) {
+       minDist = dist;
+       closestEnemy = other;
+      }
+     }
+    });
+
+    if (closestEnemy && minDist < 350) {
+     // 敵が近くにいれば戦闘
+     targetX = closestEnemy.x;
+     targetY = closestEnemy.y;
+     bot.angle = Math.atan2(targetY - bot.y, targetX - bot.x);
+
+     if (minDist < bot.weapon.range * 12) {
+      bot.shoot(targetX, targetY);
+     }
+    } else {
+     // 近くに敵がいなければランダム探索＆塗り
+     if (Math.random() < 0.02) {
+      bot.aiDir = Math.random() * Math.PI * 2;
+     }
+     if (!bot.aiDir) bot.aiDir = Math.random() * Math.PI * 2;
+
+     targetX = bot.x + Math.cos(bot.aiDir) * 100;
+     targetY = bot.y + Math.sin(bot.aiDir) * 100;
+     bot.angle = bot.aiDir;
+
+     if (Math.random() < 0.3) {
+      bot.shoot(targetX, targetY);
+     }
+    }
+
+    // AI移動
+    bot.vx = Math.cos(bot.angle);
+    bot.vy = Math.sin(bot.angle);
+
+    // インク低下時は自動イカ潜伏で回復
+    const floorInk = getInkAt(bot.x, bot.y);
+    if (bot.ink < 20 && floorInk === bot.team) {
+     bot.isSquid = true;
+    } else if (bot.ink > 80) {
+     bot.isSquid = false;
+    }
+   }
+
+   function createSplashParticles(x, y, team, count = 8) {
+    for (let i = 0; i < count; i++) {
+     const angle = Math.random() * Math.PI * 2;
+     const speed = 2 + Math.random() * 4;
+     particles.push({
+      x: x,
+      y: y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      radius: 3 + Math.random() * 4,
+      color: COLOR[team].main,
+      life: 20 + Math.random() * 10
+     });
+    }
+   }
+
+   function gameLoop() {
+    if (gameState === 'PLAYING') {
+     updateGameLogic();
+    }
+    renderGame();
+    requestAnimationFrame(gameLoop);
+   }
+
+   function updateGameLogic() {
+    // プレイヤー入力処理
+    let moveX = 0;
+    let moveY = 0;
+
+    if (keys['w'] || keys['arrowup']) moveY -= 1;
+    if (keys['s'] || keys['arrowdown']) moveY += 1;
+    if (keys['a'] || keys['arrowleft']) moveX -= 1;
+    if (keys['d'] || keys['arrowright']) moveX += 1;
+
+    if (touchJoystick.active) {
+     moveX = touchJoystick.dx;
+     moveY = touchJoystick.dy;
+    }
+
+    // 移動ベクトルの正規化
+    const len = Math.hypot(moveX, moveY);
+    if (len > 0) {
+     player.vx = moveX / (len > 1 ? len : 1);
+     player.vy = moveY / (len > 1 ? len : 1);
+    } else {
+     player.vx = 0;
+     player.vy = 0;
+    }
+
+    // プレイヤーの視点角度算出
+    mouse.worldX = mouse.x + (player.x - canvas.width / 2);
+    mouse.worldY = mouse.y + (player.y - canvas.height / 2);
+    player.angle = Math.atan2(mouse.worldY - player.y, mouse.worldX - player.x);
+
+    // 攻撃入力
+    if (mouse.down) {
+     player.shoot(mouse.worldX, mouse.worldY);
+    }
+
+    // エンティティ更新
+    entities.forEach(ent => {
+     if (!ent.isPlayer) {
+      updateAI(ent);
+     }
+     ent.update();
+    });
+
+    // 弾丸の物理 & 判定処理
+    for (let i = bullets.length - 1; i >= 0; i--) {
+     const b = bullets[i];
+     b.x += b.vx;
+     b.y += b.vy;
+
+     // 地面塗り適用
+     paintInk(b.x, b.y, b.radius, b.team);
+
+     // キャラクターヒット判定
+     entities.forEach(ent => {
+      if (ent.team !== b.team && ent.respawnTimer === 0) {
+       const dist = Math.hypot(ent.x - b.x, ent.y - b.y);
+       if (dist < ent.radius + b.radius) {
+        ent.takeDamage(25);
+        createSplashParticles(b.x, b.y, b.team, 5);
+        b.dead = true;
+       }
+      }
+     });
+
+     // 距離限界判定
+     const traveled = Math.hypot(b.x - b.startX, b.y - b.startY);
+     if (traveled >= b.maxRange || b.x < 0 || b.x > MAP_WIDTH || b.y < 0 || b.y > MAP_HEIGHT) {
+      b.dead = true;
+     }
+
+     if (b.dead) {
+      bullets.splice(i, 1);
+     }
+    }
+
+    // パーティクル更新
+    for (let i = particles.length - 1; i >= 0; i--) {
+     const p = particles[i];
+     p.x += p.vx;
+     p.y += p.vy;
+     p.life--;
+     if (p.life <= 0) particles.splice(i, 1);
+    }
+
+    // UI リアルタイム更新
+    document.getElementById('ink-tank-bar').style.width = (player.ink / player.maxInk * 100) + '%';
+
+    // 定期的なスコアゲージ反映
+    if (gameTimer % 2 === 0) {
+     const pct = calculateInkPercentages();
+     document.getElementById('bar-orange').style.width = pct.orange + '%';
+     document.getElementById('bar-blue').style.width = pct.blue + '%';
+    }
+   }
+
+   function renderGame() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    if (!player) return;
+
+    // カメラ追従用オフセット計算
+    const cameraX = canvas.width / 2 - player.x;
+    const cameraY = canvas.height / 2 - player.y;
+
+    ctx.save();
+    ctx.translate(cameraX, cameraY);
+
+    // 1. マップ背景グリッドを描画
+    ctx.fillStyle = '#1E293B';
+    ctx.fillRect(0, 0, MAP_WIDTH, MAP_HEIGHT);
+
+    ctx.strokeStyle = '#334155';
+    ctx.lineWidth = 2;
+    const gridSize = 60;
+    for (let x = 0; x < MAP_WIDTH; x += gridSize) {
+     ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, MAP_HEIGHT); ctx.stroke();
+    }
+    for (let y = 0; y < MAP_HEIGHT; y += gridSize) {
+     ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(MAP_WIDTH, y); ctx.stroke();
+    }
+
+    // 2. オフスクリーンキャンバスのインクを描画
+    ctx.drawImage(inkCanvas, 0, 0);
+
+    // 3. 弾丸描画
+    bullets.forEach(b => {
+     ctx.fillStyle = COLOR[b.team].main;
+     ctx.beginPath();
+     ctx.arc(b.x, b.y, b.radius * 0.7, 0, Math.PI * 2);
+     ctx.fill();
+     ctx.strokeStyle = '#FFF';
+     ctx.lineWidth = 1.5;
+     ctx.stroke();
+    });
+
+    // 4. パーティクル描画
+    particles.forEach(p => {
+     ctx.fillStyle = p.color;
+     ctx.beginPath();
+     ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+     ctx.fill();
+    });
+
+    // 5. キャラクター描画
+    entities.forEach(ent => ent.draw(ctx));
+
+    // マップの外枠線描画
+    ctx.strokeStyle = '#F59E0B';
+    ctx.lineWidth = 8;
+    ctx.strokeRect(0, 0, MAP_WIDTH, MAP_HEIGHT);
+
+    ctx.restore();
+
+    // 6. ミニマップ描画
+    renderMinimap();
+   }
+
+   function renderMinimap() {
+    minimapCtx.clearRect(0, 0, minimapCanvas.width, minimapCanvas.height);
+    // インクマップの縮小描画
+    minimapCtx.drawImage(inkCanvas, 0, 0, minimapCanvas.width, minimapCanvas.height);
+
+    // プレイヤー位置アイコン描画
+    if (player) {
+     const mx = (player.x / MAP_WIDTH) * minimapCanvas.width;
+     const my = (player.y / MAP_HEIGHT) * minimapCanvas.height;
+
+     minimapCtx.fillStyle = '#FFF';
+     minimapCtx.beginPath();
+     minimapCtx.arc(mx, my, 4, 0, Math.PI * 2);
+     minimapCtx.fill();
+     minimapCtx.strokeStyle = '#000';
+     minimapCtx.lineWidth = 1;
+     minimapCtx.stroke();
+    }
+   }
+  </script>
+ </body>
+</html>
