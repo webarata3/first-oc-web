@@ -1,11 +1,1336 @@
 <!DOCTYPE html>
 <html lang="ja">
- <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title></title>
- </head>
- <body>
-  <h1>k8stv1io</h1>
- </body>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>クトゥルフダイスRPG - 狂気の神話</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=DotGothic16&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            font-family: 'DotGothic16', monospace;
+            touch-action: manipulation;
+            user-select: none;
+            -webkit-user-select: none;
+            background-color: #050811;
+            color: #e2e8f0;
+        }
+
+        .cthulhu-box {
+            background-color: #0f172a;
+            border: 3px solid #10b981;
+            box-shadow: inset -4px -4px 0px 0px #064e3b, inset 4px 4px 0px 0px #6ee7b7, 0 0 15px rgba(16, 185, 129, 0.2);
+        }
+
+        .cthulhu-btn {
+            background: linear-gradient(180deg, #047857 0%, #064e3b 100%);
+            border: 2px solid #34d399;
+            box-shadow: 0 4px 0 #022c22;
+            transition: all 0.05s ease;
+        }
+
+        .cthulhu-btn:active {
+            transform: translateY(4px);
+            box-shadow: 0 0 0 #022c22;
+        }
+
+        canvas {
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+        }
+
+        /* Dice Animation Style */
+        .dice {
+            width: 52px;
+            height: 52px;
+            background-color: #0f172a;
+            border: 3px solid #34d399;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.75rem;
+            color: #a7f3d0;
+            box-shadow: 0 0 10px rgba(52, 211, 153, 0.4);
+            transition: transform 0.1s ease;
+        }
+
+        /* Dice Type Variations */
+        .dice-standard { border-color: #34d399; color: #a7f3d0; box-shadow: 0 0 10px rgba(52, 211, 153, 0.4); }
+        .dice-blood { border-color: #f87171; color: #fca5a5; box-shadow: 0 0 10px rgba(248, 113, 113, 0.5); }
+        .dice-sanctuary { border-color: #38bdf8; color: #bae6fd; box-shadow: 0 0 10px rgba(56, 189, 248, 0.5); }
+        .dice-arcane { border-color: #c084fc; color: #e9d5ff; box-shadow: 0 0 10px rgba(192, 132, 252, 0.5); }
+
+        .dice-rolling {
+            animation: spinDice 0.15s infinite linear;
+        }
+
+        @keyframes spinDice {
+            0% { transform: rotate(0deg) scale(1.1); }
+            50% { transform: rotate(180deg) scale(0.9); }
+            100% { transform: rotate(360deg) scale(1.1); }
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translate(0, 0); }
+            20% { transform: translate(-8px, 4px); }
+            40% { transform: translate(8px, -4px); }
+            60% { transform: translate(-6px, -2px); }
+            80% { transform: translate(6px, 2px); }
+        }
+
+        .shake-effect {
+            animation: shake 0.3s ease-in-out;
+        }
+
+        @keyframes sanityFlicker {
+            0%, 100% { filter: hue-rotate(0deg) contrast(100%); }
+            50% { filter: hue-rotate(90deg) contrast(150%) invert(10%); }
+        }
+
+        .madness-glitch {
+            animation: sanityFlicker 0.4s ease infinite;
+        }
+    </style>
+</head>
+<body class="h-screen w-screen overflow-hidden flex flex-col justify-between p-2 md:p-4 select-none">
+
+    <!-- Top Bar / Status Panel -->
+    <header class="w-full max-w-2xl mx-auto cthulhu-box rounded p-2 mb-2 flex justify-between items-center text-xs sm:text-sm">
+        <div class="flex items-center gap-2 sm:gap-4">
+            <span class="text-emerald-400 font-bold"><i class="fa-solid fa-graduation-cap mr-1"></i>Lv.<span id="stat-level">1</span></span>
+            <span class="text-red-400 font-bold"><i class="fa-solid fa-heart mr-1"></i><span id="stat-hp">30</span>/<span id="stat-maxhp">30</span></span>
+            <span class="text-purple-400 font-bold"><i class="fa-solid fa-brain mr-1"></i>SAN:<span id="stat-san">50</span>/<span id="stat-maxsan">50</span></span>
+        </div>
+        <div class="flex items-center gap-3">
+            <span class="text-amber-300 font-bold"><i class="fa-solid fa-magnifying-glass mr-1"></i><span id="stat-gold">50</span>$</span>
+            <button id="btn-menu" class="cthulhu-btn px-2 py-1 text-white text-xs rounded"><i class="fa-solid fa-bars"></i></button>
+        </div>
+    </header>
+
+    <!-- Main Game Container -->
+    <main id="main-container" class="relative flex-1 w-full max-w-2xl mx-auto flex flex-col justify-center items-center overflow-hidden">
+        
+        <!-- Canvas Display Area -->
+        <div class="relative w-full aspect-square max-h-[50vh] sm:max-h-[60vh] cthulhu-box rounded overflow-hidden flex justify-center items-center">
+            <canvas id="gameCanvas" width="256" height="256" class="w-full h-full object-contain"></canvas>
+            
+            <!-- Dialogue Window -->
+            <div id="dialogue-overlay" class="hidden absolute bottom-2 left-2 right-2 bg-slate-950/95 border-2 border-emerald-400 p-3 rounded text-sm min-h-[75px] z-20 flex flex-col justify-between">
+                <p id="dialogue-text" class="leading-relaxed text-emerald-200"></p>
+                <span id="dialogue-prompt" class="text-right text-xs text-emerald-400 animate-pulse">[ タップで次へ ]</span>
+            </div>
+
+            <!-- Battle Overlay -->
+            <div id="battle-overlay" class="hidden absolute inset-0 bg-slate-950/95 z-30 flex flex-col justify-between p-3 sm:p-4">
+                <!-- Enemy View -->
+                <div class="flex-1 flex flex-col justify-center items-center relative">
+                    <div id="enemy-sprite-container" class="text-5xl sm:text-6xl mb-2 transition-transform duration-200">
+                        <i id="enemy-icon" class="fa-solid fa-spaghetti-monster-flying text-emerald-500"></i>
+                    </div>
+                    <div class="bg-slate-900/90 px-3 py-1.5 rounded border border-emerald-800 text-center w-full max-w-[220px]">
+                        <p id="enemy-name" class="font-bold text-emerald-300 text-xs sm:text-sm">深きもの</p>
+                        <div class="w-full bg-slate-950 h-2 rounded-full overflow-hidden mt-1 border border-emerald-950">
+                            <div id="enemy-hp-bar" class="bg-emerald-500 h-full w-full transition-all duration-300"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Dice Rolling Area -->
+                <div class="bg-emerald-950/40 rounded border border-emerald-600/40 p-2 my-2 flex flex-col items-center justify-center">
+                    <div class="flex justify-between items-center w-full px-2 mb-1">
+                        <p class="text-[10px] text-emerald-300 font-bold">【 装備ダイス: <span id="dice-type-name" class="text-emerald-400">標準のダイス</span> 】</p>
+                        <span id="dice-count-badge" class="text-[9px] bg-emerald-900 border border-emerald-500 px-1.5 py-0.5 rounded text-emerald-200">2個</span>
+                    </div>
+                    
+                    <div id="dice-container" class="flex gap-3 justify-center items-center my-1">
+                        <!-- Dynamic Dice rendered here -->
+                    </div>
+
+                    <!-- Dynamic Dice Legend / Meaning -->
+                    <div id="dice-legend" class="grid grid-cols-3 gap-x-2 gap-y-0.5 text-[9px] text-emerald-200/90 mt-2 text-center border-t border-emerald-800/60 pt-1 w-full">
+                        <!-- Legend dynamically populated by current dice type -->
+                    </div>
+                </div>
+
+                <!-- Battle Log & Controls -->
+                <div class="cthulhu-box p-2.5 rounded flex flex-col gap-2">
+                    <p id="battle-log" class="text-xs h-10 overflow-y-auto leading-tight text-emerald-100">ダイスを振り、怪異に立ち向かえ！</p>
+                    <div id="battle-actions" class="grid grid-cols-2 gap-2 text-xs">
+                        <button id="btn-roll-dice" class="cthulhu-btn py-2.5 text-emerald-200 font-bold rounded flex items-center justify-center gap-1.5 col-span-2 text-sm">
+                            <i class="fa-solid fa-dice text-base animate-pulse text-emerald-300"></i> 🎲 狂気のダイスを振る！
+                        </button>
+                        <button id="btn-use-item" class="cthulhu-btn py-1.5 text-cyan-300 font-bold rounded flex items-center justify-center gap-1">
+                            <i class="fa-solid fa-prescription-bottle-medical"></i> 鎮静剤/手当
+                        </button>
+                        <button id="btn-run" class="cthulhu-btn py-1.5 text-slate-300 font-bold rounded flex items-center justify-center gap-1">
+                            <i class="fa-solid fa-person-running"></i> 逃走する
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Touch Control Panel for Mobile -->
+    <footer class="w-full max-w-2xl mx-auto my-2 flex justify-between items-center px-4 gap-4">
+        <!-- D-PAD -->
+        <div class="relative w-36 h-36 grid grid-cols-3 grid-rows-3 gap-1 p-1 bg-slate-900/90 rounded-full border-2 border-emerald-700">
+            <div></div>
+            <button id="pad-up" class="cthulhu-btn rounded flex items-center justify-center active:bg-emerald-600"><i class="fa-solid fa-caret-up text-xl text-emerald-200"></i></button>
+            <div></div>
+            <button id="pad-left" class="cthulhu-btn rounded flex items-center justify-center active:bg-emerald-600"><i class="fa-solid fa-caret-left text-xl text-emerald-200"></i></button>
+            <div class="bg-slate-950/80 rounded-full"></div>
+            <button id="pad-right" class="cthulhu-btn rounded flex items-center justify-center active:bg-emerald-600"><i class="fa-solid fa-caret-right text-xl text-emerald-200"></i></button>
+            <div></div>
+            <button id="pad-down" class="cthulhu-btn rounded flex items-center justify-center active:bg-emerald-600"><i class="fa-solid fa-caret-down text-xl text-emerald-200"></i></button>
+            <div></div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="flex gap-3">
+            <button id="btn-action-a" class="cthulhu-btn w-16 h-16 rounded-full bg-emerald-800 border-emerald-400 text-white font-bold text-lg flex items-center justify-center shadow-lg active:scale-95">A</button>
+            <button id="btn-action-b" class="cthulhu-btn w-16 h-16 rounded-full bg-purple-900 border-purple-400 text-white font-bold text-lg flex items-center justify-center shadow-lg active:scale-95">B</button>
+        </div>
+    </footer>
+
+    <!-- Menu Modal -->
+    <div id="modal-menu" class="hidden fixed inset-0 bg-slate-950/85 z-50 flex items-center justify-center p-4">
+        <div class="cthulhu-box w-full max-w-md p-4 rounded text-sm space-y-4">
+            <h2 class="text-emerald-400 font-bold text-base border-b border-emerald-600 pb-1 flex justify-between items-center">
+                <span><i class="fa-solid fa-book-skull mr-2"></i>探索者ステータス / 手荷物</span>
+                <button class="close-modal text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+            </h2>
+            <div class="space-y-2">
+                <div class="bg-slate-900 p-2 rounded border border-slate-700">
+                    <p class="text-emerald-300 font-bold mb-1">能力値 & 装備</p>
+                    <p>戦闘力 (ATK): <span id="menu-atk" class="text-white">8</span></p>
+                    <p>意志力 (DEF): <span id="menu-def" class="text-white">3</span></p>
+                    <p>装備ダイス: <span id="menu-dice-type" class="text-amber-300 font-bold">標準のダイス</span> (<span id="menu-dice-count" class="text-emerald-400 font-bold">2 個</span>)</p>
+                    <p>次の知識レベルまで: <span id="menu-next-exp" class="text-white">20</span> EXP</p>
+                </div>
+
+                <!-- Dice Equipment Selection in Menu -->
+                <div class="bg-slate-900 p-2 rounded border border-slate-700">
+                    <p class="text-emerald-300 font-bold mb-1"><i class="fa-solid fa-dice mr-1"></i>所持ダイス切り替え</p>
+                    <div id="menu-dice-selection" class="grid grid-cols-2 gap-1.5">
+                        <!-- Populated dynamically -->
+                    </div>
+                </div>
+
+                <div class="bg-slate-900 p-2 rounded border border-slate-700">
+                    <p class="text-emerald-300 font-bold mb-1">所持品・魔道書</p>
+                    <div id="menu-inventory-list" class="space-y-1 max-h-28 overflow-y-auto"></div>
+                </div>
+            </div>
+            <div class="flex justify-between gap-2 pt-1">
+                <button id="btn-save" class="cthulhu-btn flex-1 py-2 rounded text-xs text-white"><i class="fa-solid fa-floppy-disk mr-1"></i>記録を残す</button>
+                <button class="close-modal cthulhu-btn flex-1 py-2 rounded text-xs text-white">閉じる</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Shop Modal -->
+    <div id="modal-shop" class="hidden fixed inset-0 bg-slate-950/85 z-50 flex items-center justify-center p-4">
+        <div class="cthulhu-box w-full max-w-md p-4 rounded text-sm space-y-4">
+            <h2 class="text-emerald-400 font-bold text-base border-b border-emerald-600 pb-1 flex justify-between items-center">
+                <span><i class="fa-solid fa-masks-theater mr-2"></i>アンティーク古書店 & サイコロ屋</span>
+                <button class="close-modal text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+            </h2>
+            <p id="shop-greeting" class="text-xs text-emerald-200">「太古の魔導書や特殊な能力を秘めた秘伝のダイスをお探しかな...？」</p>
+            <div id="shop-item-list" class="space-y-2 max-h-52 overflow-y-auto"></div>
+            <div class="text-right border-t border-slate-700 pt-2">
+                <button class="close-modal cthulhu-btn px-4 py-2 rounded text-xs text-white">店を出る</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Cthulhu Audio Synthesizer Engine
+        class AudioEngine {
+            constructor() {
+                this.ctx = null;
+            }
+
+            init() {
+                if (!this.ctx) {
+                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+            }
+
+            playTone(freq, type = 'square', duration = 0.1, vol = 0.1) {
+                if (!this.ctx) return;
+                try {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = type;
+                    osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+                    gain.gain.setValueAtTime(vol, this.ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.0001, this.ctx.currentTime + duration);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start();
+                    osc.stop(this.ctx.currentTime + duration);
+                } catch (e) {}
+            }
+
+            playSelect() { this.init(); this.playTone(320, 'triangle', 0.05, 0.08); }
+            playHit() { this.init(); this.playTone(110, 'sawtooth', 0.18, 0.25); }
+            playDiceRoll() { this.init(); this.playTone(600 + Math.random() * 300, 'sine', 0.03, 0.06); }
+            playSpell() {
+                this.init();
+                if (!this.ctx) return;
+                [180, 220, 270, 310, 440].forEach((freq, idx) => {
+                    setTimeout(() => this.playTone(freq, 'sawtooth', 0.1, 0.1), idx * 50);
+                });
+            }
+            playMadness() {
+                this.init();
+                if (!this.ctx) return;
+                [80, 120, 90, 150, 60].forEach((freq, idx) => {
+                    setTimeout(() => this.playTone(freq, 'square', 0.15, 0.2), idx * 60);
+                });
+            }
+            playFanfare() {
+                this.init();
+                [220, 277, 329, 440].forEach((freq, idx) => {
+                    setTimeout(() => this.playTone(freq, 'sine', 0.2, 0.15), idx * 120);
+                });
+            }
+        }
+
+        const audio = new AudioEngine();
+
+        // Game Constants & Map Definitions
+        const TILE_SIZE = 16;
+        const MAP_SIZE = 16;
+
+        const TILE = {
+            GRASS: 0, WALL: 1, WATER: 2, TOWN: 3, DUNGEON: 4,
+            CASTLE: 5, TREE: 6, FLOOR: 7, TREASURE: 8, INN: 9, SHOP: 10, BOSS: 11
+        };
+
+        // Dice Types System
+        const DICE_TYPES = {
+            standard: {
+                id: 'standard',
+                name: '標準のダイス',
+                cssClass: 'dice-standard',
+                desc: 'バランスの取れた標準的なダイス。',
+                price: 0,
+                legend: [
+                    '⚀:精神統一(防御+SAN)', '⚁:拳銃射撃', '⚂:応急手当(回復)',
+                    '⚃:魔道の呪文', '⚄:弱点撃ち(重撃)', '⚅:狂気の覚醒'
+                ],
+                effects: {
+                    1: { name: '精神統一', type: 'def' },
+                    2: { name: '拳銃射撃', type: 'atk', mult: 1.0 },
+                    3: { name: '応急手当', type: 'heal', val: 12 },
+                    4: { name: '魔道の呪文', type: 'spell', sanCost: 2, baseDmg: 18 },
+                    5: { name: '弱点撃ち', type: 'atk', mult: 1.6 },
+                    6: { name: '狂気の覚醒', type: 'crit', mult: 2.3 }
+                }
+            },
+            blood: {
+                id: 'blood',
+                name: '血塗られたダイス',
+                cssClass: 'dice-blood',
+                desc: '攻撃特化！高い火力を叩き出すが自傷や発狂リスクを伴う。',
+                price: 120,
+                legend: [
+                    '⚀:威嚇の一撃', '⚁:連続乱射', '⚂:連続乱射',
+                    '⚃:急所穿ち(重撃)', '⚄:急所穿ち(重撃)', '⚅:血の狂乱(反動)'
+                ],
+                effects: {
+                    1: { name: '威嚇の一撃', type: 'atk', mult: 0.8 },
+                    2: { name: '連続乱射', type: 'atk', mult: 1.2 },
+                    3: { name: '連続乱射', type: 'atk', mult: 1.2 },
+                    4: { name: '急所穿ち', type: 'atk', mult: 1.8 },
+                    5: { name: '急所穿ち', type: 'atk', mult: 1.8 },
+                    6: { name: '血の狂乱', type: 'blood_crit', mult: 2.8, selfDmg: 4 }
+                }
+            },
+            sanctuary: {
+                id: 'sanctuary',
+                name: '聖護のダイス',
+                cssClass: 'dice-sanctuary',
+                desc: '防御・回復特化！SAN値とHPを強固に護る。',
+                price: 130,
+                legend: [
+                    '⚀:精神統一(防御)', '⚁:精神統一(SAN回復)', '⚂:高度応急手当',
+                    '⚃:高度応急手当', '⚄:魔除けの光(攻撃)', '⚅:神聖なる加護(全回復)'
+                ],
+                effects: {
+                    1: { name: '精神統一', type: 'def' },
+                    2: { name: '精神瞑想', type: 'san_heal', val: 6 },
+                    3: { name: '高度応急手当', type: 'heal', val: 18 },
+                    4: { name: '高度応急手当', type: 'heal', val: 18 },
+                    5: { name: '魔除けの光', type: 'atk', mult: 1.1 },
+                    6: { name: '神聖なる加護', type: 'holy_blessing', healHp: 25, healSan: 10 }
+                }
+            },
+            arcane: {
+                id: 'arcane',
+                name: '魔導のダイス',
+                cssClass: 'dice-arcane',
+                desc: '大魔法特化！精神(SAN)を犠牲に壊滅的な魔力を解き放つ。',
+                price: 160,
+                legend: [
+                    '⚀:魔力充填', '⚁:精神統一', '⚂:破滅の呪文',
+                    '⚃:破滅の呪文', '⚄:時空の歪み', '⚅:クトゥルフの幻影'
+                ],
+                effects: {
+                    1: { name: '魔力充填', type: 'san_heal', val: 4 },
+                    2: { name: '精神統一', type: 'def' },
+                    3: { name: '破滅の呪文', type: 'spell', sanCost: 3, baseDmg: 24 },
+                    4: { name: '破滅の呪文', type: 'spell', sanCost: 3, baseDmg: 24 },
+                    5: { name: '時空の歪み', type: 'spell', sanCost: 4, baseDmg: 32 },
+                    6: { name: 'クトゥルフの幻影', type: 'ultimate_spell', sanCost: 6, baseDmg: 50 }
+                }
+            }
+        };
+
+        // Items Database
+        const ITEMS = {
+            sanitizer: { id: 'sanitizer', name: '鎮静剤', price: 15, healSan: 20, desc: 'SAN(正気度)を20回復' },
+            medkit: { id: 'medkit', name: '応急手当キット', price: 20, healHp: 25, desc: 'HPを25回復' },
+            revolver: { id: 'revolver', name: '38口径リボルバー', price: 60, atk: 7, desc: '攻撃力+7' },
+            eldersign: { id: 'eldersign', name: '旧き印の護符', price: 50, def: 5, desc: '防御力+5' },
+            necronomicon: { id: 'necronomicon', name: 'ネクロノミコンの断章', price: 180, diceAdd: 1, desc: '太古の智慧でダイス+1個追加！' },
+            
+            // Dice Items in Shop
+            blood_dice: { id: 'blood_dice', diceTypeId: 'blood', name: '血塗られたダイス', price: 120, desc: '【ダイス】攻撃特化。重爆撃と血の狂乱' },
+            sanctuary_dice: { id: 'sanctuary_dice', diceTypeId: 'sanctuary', name: '聖護のダイス', price: 130, desc: '【ダイス】回復・防衛特化。HP/SANを保護' },
+            arcane_dice: { id: 'arcane_dice', diceTypeId: 'arcane', name: '魔導のダイス', price: 160, desc: '【ダイス】魔法特化。超火力魔法を連続展開' }
+        };
+
+        // Monsters Database
+        const MONSTERS = {
+            field: [
+                { name: '深きもの (Deep One)', hp: 20, maxHp: 20, atk: 7, def: 2, sanDamage: 3, exp: 8, gold: 10, icon: 'fa-spaghetti-monster-flying', color: 'text-emerald-500' },
+                { name: '怪しい狂信者', hp: 24, maxHp: 24, atk: 9, def: 2, sanDamage: 2, exp: 12, gold: 15, icon: 'fa-user-ninja', color: 'text-purple-400' }
+            ],
+            dungeon: [
+                { name: 'ミ＝ゴ (Mi-Go)', hp: 42, maxHp: 42, atk: 15, def: 4, sanDamage: 5, exp: 25, gold: 30, icon: 'fa-bug', color: 'text-pink-500' },
+                { name: 'ショゴス (Shoggoth)', hp: 65, maxHp: 65, atk: 22, def: 7, sanDamage: 8, exp: 40, gold: 45, icon: 'fa-virus', color: 'text-teal-400' }
+            ],
+            bosses: {
+                nyarlathotep: { id: 'nyarlathotep', name: '『這い寄る混沌』ニャルラトホテプ', hp: 110, maxHp: 110, atk: 18, def: 5, sanDamage: 8, exp: 120, gold: 200, icon: 'fa-mask', color: 'text-purple-400 animate-pulse' },
+                dagon: { id: 'dagon', name: '『深淵の父』ダゴン', hp: 175, maxHp: 175, atk: 26, def: 9, sanDamage: 10, exp: 250, gold: 400, icon: 'fa-fish', color: 'text-cyan-400 animate-pulse' },
+                cthulhu: { id: 'cthulhu', name: '『邪神』クトゥルフ', hp: 260, maxHp: 260, atk: 35, def: 13, sanDamage: 14, exp: 600, gold: 1000, icon: 'fa-dragon', color: 'text-emerald-400 animate-pulse' },
+                azathoth: { id: 'azathoth', name: '『盲目愚昧の原初神』アザトース', hp: 420, maxHp: 420, atk: 48, def: 18, sanDamage: 20, exp: 1500, gold: 2500, icon: 'fa-sun', color: 'text-amber-400 animate-pulse' }
+            }
+        };
+
+        // MAPS Configuration
+        const MAPS = {
+            world: {
+                name: 'アーカム郊外',
+                data: [
+                    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                    [1,0,0,0,6,6,0,0,0,0,0,0,0,0,0,1],
+                    [1,0,3,0,6,0,0,0,2,2,2,0,0,4,0,1],
+                    [1,0,0,0,0,0,0,2,2,2,2,2,0,0,0,1],
+                    [1,6,6,0,0,0,0,2,2,2,2,0,0,0,0,1],
+                    [1,6,0,0,0,0,0,0,2,2,0,0,6,6,0,1],
+                    [1,0,0,0,0,0,0,0,0,0,0,6,6,6,0,1],
+                    [1,0,2,2,0,0,0,0,0,0,0,6,6,0,0,1],
+                    [1,0,2,2,2,0,0,0,0,0,0,0,0,0,0,1],
+                    [1,0,0,2,2,0,0,0,0,0,0,0,0,0,0,1],
+                    [1,0,0,0,0,0,6,6,0,0,0,0,2,2,0,1],
+                    [1,0,0,0,0,6,6,6,6,0,0,2,2,2,0,1],
+                    [1,0,0,0,0,6,6,5,6,0,0,2,2,0,0,1],
+                    [1,0,0,0,0,0,6,6,0,0,0,0,0,0,0,1],
+                    [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+                    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+                ]
+            },
+            town: {
+                name: 'アーカムの街',
+                data: [
+                    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                    [1,7,7,7,7,7,7,1,7,7,7,7,7,7,7,1],
+                    [1,7,9,7,7,7,7,1,7,10,7,7,7,7,7,1],
+                    [1,7,7,7,7,7,7,1,7,7,7,7,7,7,7,1],
+                    [1,1,1,7,1,1,1,1,1,1,7,1,1,1,1,1],
+                    [1,7,7,7,7,7,7,7,7,7,7,7,7,7,7,1],
+                    [1,7,7,7,7,7,7,7,7,7,7,7,7,7,7,1],
+                    [1,7,7,7,7,7,7,7,7,7,7,7,7,7,7,1],
+                    [1,7,7,7,7,7,7,7,7,7,7,7,7,7,7,1],
+                    [1,7,7,7,7,7,7,7,7,7,7,7,7,7,7,1],
+                    [1,7,7,7,7,7,7,7,7,7,7,7,7,7,7,1],
+                    [1,7,7,7,7,7,7,7,7,7,7,7,7,7,7,1],
+                    [1,7,7,7,7,7,7,7,7,7,7,7,7,7,7,1],
+                    [1,7,7,7,7,7,7,7,7,7,7,7,7,7,7,1],
+                    [1,7,7,7,7,7,7,0,0,7,7,7,7,7,7,1],
+                    [1,1,1,1,1,1,1,0,0,1,1,1,1,1,1,1]
+                ]
+            },
+            dungeon: {
+                name: 'ミスカトニック地下遺構',
+                data: [
+                    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                    [1,7,7,7,1,7,7,7,7,7,7,1,8,11,1],
+                    [1,7,1,7,1,7,1,1,1,1,7,1,1,1,7,1],
+                    [1,7,1,7,7,7,7,7,7,1,7,7,7,1,7,1],
+                    [1,7,1,1,1,1,1,1,7,1,1,1,7,1,7,1],
+                    [1,7,7,7,7,7,7,1,7,7,7,1,7,7,7,1],
+                    [1,1,1,1,1,1,7,1,1,1,7,1,1,1,1,1],
+                    [1,7,7,7,7,1,7,7,7,1,7,7,7,7,7,1],
+                    [1,7,1,1,7,1,1,1,7,1,1,1,1,1,7,1],
+                    [1,7,7,1,7,7,7,1,7,7,7,7,7,1,7,1],
+                    [1,1,7,1,1,1,7,1,1,1,1,1,7,1,7,1],
+                    [1,8,7,7,7,1,7,7,7,7,7,1,7,7,7,1],
+                    [1,1,1,1,7,1,1,1,1,1,7,1,1,1,1,1],
+                    [1,7,7,7,7,7,7,7,7,1,7,7,7,7,7,1],
+                    [1,0,0,7,7,7,7,7,7,7,7,7,7,7,7,1],
+                    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+                ]
+            },
+            castle: {
+                name: '海底都市ルルイエの神殿',
+                data: [
+                    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                    [1,7,7,7,7,7,7,11,7,7,7,7,7,7,7,1],
+                    [1,7,7,7,7,7,7,7,7,7,7,7,7,7,7,1],
+                    [1,7,7,7,7,7,7,7,7,7,7,7,7,7,7,1],
+                    [1,1,1,1,1,7,7,7,7,7,7,1,1,1,1,1],
+                    [1,7,7,7,1,7,7,7,7,7,7,1,7,7,7,1],
+                    [1,7,7,7,1,1,1,7,7,1,1,1,7,7,7,1],
+                    [1,7,7,7,7,7,7,11,7,7,7,7,7,7,7,1],
+                    [1,7,7,7,7,7,7,7,7,7,7,7,7,7,7,1],
+                    [1,7,7,7,1,1,1,7,7,1,1,1,7,7,7,1],
+                    [1,7,7,7,1,7,7,7,7,7,7,1,7,7,7,1],
+                    [1,1,1,1,1,7,7,7,7,7,7,1,1,1,1,1],
+                    [1,7,7,7,7,7,7,7,7,7,7,7,7,7,7,1],
+                    [1,7,7,7,7,7,7,7,7,7,7,7,7,7,7,1],
+                    [1,7,7,7,7,7,7,0,0,7,7,7,7,7,7,1],
+                    [1,1,1,1,1,1,1,0,0,1,1,1,1,1,1,1]
+                ]
+            },
+            altar: {
+                name: '原初の宇宙・混沌の祭壇',
+                data: [
+                    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                    [1,7,7,7,7,7,7,11,7,7,7,7,7,7,7,1],
+                    [1,7,7,7,7,7,7,7,7,7,7,7,7,7,7,1],
+                    [1,7,7,7,7,7,7,7,7,7,7,7,7,7,7,1],
+                    [1,7,7,7,7,7,7,7,7,7,7,7,7,7,7,1],
+                    [1,7,7,7,7,7,7,7,7,7,7,7,7,7,7,1],
+                    [1,7,7,7,7,7,7,7,7,7,7,7,7,7,7,1],
+                    [1,7,7,7,7,7,7,7,7,7,7,7,7,7,7,1],
+                    [1,7,7,7,7,7,7,7,7,7,7,7,7,7,7,1],
+                    [1,7,7,7,7,7,7,7,7,7,7,7,7,7,7,1],
+                    [1,7,7,7,7,7,7,7,7,7,7,7,7,7,7,1],
+                    [1,7,7,7,7,7,7,7,7,7,7,7,7,7,7,1],
+                    [1,7,7,7,7,7,7,7,7,7,7,7,7,7,7,1],
+                    [1,7,7,7,7,7,7,7,7,7,7,7,7,7,7,1],
+                    [1,7,7,7,7,7,7,5,5,7,7,7,7,7,7,1],
+                    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+                ]
+            }
+        };
+
+        class Game {
+            constructor() {
+                this.canvas = document.getElementById('gameCanvas');
+                this.ctx = this.canvas.getContext('2d');
+                
+                // Player State
+                this.currentMapKey = 'world';
+                this.player = {
+                    x: 2,
+                    y: 2,
+                    level: 1,
+                    hp: 30,
+                    maxHp: 30,
+                    san: 50,
+                    maxSan: 50,
+                    atk: 8,
+                    def: 3,
+                    diceCount: 2,
+                    equippedDiceType: 'standard',
+                    unlockedDiceTypes: ['standard'],
+                    defeatedBosses: [],
+                    hasNecronomicon: false,
+                    exp: 0,
+                    nextExp: 20,
+                    gold: 50,
+                    inventory: { 'sanitizer': 2, 'medkit': 1 }
+                };
+
+                this.inBattle = false;
+                this.isRolling = false;
+                this.inDialogue = false;
+                this.dialogueQueue = [];
+                this.dialogueCallback = null;
+                this.currentEnemy = null;
+                this.playerDefenseBuff = false;
+
+                this.initEvents();
+                this.loadGame();
+                this.updateUI();
+                this.render();
+            }
+
+            updateUI() {
+                document.getElementById('stat-level').innerText = this.player.level;
+                document.getElementById('stat-hp').innerText = this.player.hp;
+                document.getElementById('stat-maxhp').innerText = this.player.maxHp;
+                document.getElementById('stat-san').innerText = this.player.san;
+                document.getElementById('stat-maxsan').innerText = this.player.maxSan;
+                document.getElementById('stat-gold').innerText = this.player.gold;
+
+                if (this.player.san <= 15) {
+                    document.body.classList.add('madness-glitch');
+                } else {
+                    document.body.classList.remove('madness-glitch');
+                }
+            }
+
+            render() {
+                const map = MAPS[this.currentMapKey].data;
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+                for (let r = 0; r < MAP_SIZE; r++) {
+                    for (let c = 0; c < MAP_SIZE; c++) {
+                        const tile = map[r][c];
+                        const x = c * TILE_SIZE;
+                        const y = r * TILE_SIZE;
+
+                        switch (tile) {
+                            case TILE.GRASS:
+                                this.ctx.fillStyle = '#064e3b'; this.ctx.fillRect(x, y, TILE_SIZE, TILE_SIZE); break;
+                            case TILE.WALL:
+                                this.ctx.fillStyle = '#1e293b'; this.ctx.fillRect(x, y, TILE_SIZE, TILE_SIZE);
+                                this.ctx.fillStyle = '#0f172a'; this.ctx.fillRect(x+1, y+1, TILE_SIZE-2, TILE_SIZE-2); break;
+                            case TILE.WATER:
+                                this.ctx.fillStyle = '#0f4c5c'; this.ctx.fillRect(x, y, TILE_SIZE, TILE_SIZE); break;
+                            case TILE.TOWN:
+                                this.ctx.fillStyle = '#1e3a8a'; this.ctx.fillRect(x, y, TILE_SIZE, TILE_SIZE);
+                                this.ctx.fillStyle = '#93c5fd'; this.ctx.fillRect(x+4, y+4, 8, 8); break;
+                            case TILE.DUNGEON:
+                                this.ctx.fillStyle = '#312e81'; this.ctx.fillRect(x, y, TILE_SIZE, TILE_SIZE);
+                                this.ctx.fillStyle = '#1e1b4b'; this.ctx.fillRect(x+3, y+3, 10, 10); break;
+                            case TILE.CASTLE:
+                                this.ctx.fillStyle = '#065f46'; this.ctx.fillRect(x, y, TILE_SIZE, TILE_SIZE);
+                                this.ctx.fillStyle = '#34d399'; this.ctx.fillRect(x+3, y+1, 10, 14); break;
+                            case TILE.TREE:
+                                this.ctx.fillStyle = '#022c22'; this.ctx.fillRect(x, y, TILE_SIZE, TILE_SIZE); break;
+                            case TILE.FLOOR:
+                                this.ctx.fillStyle = '#334155'; this.ctx.fillRect(x, y, TILE_SIZE, TILE_SIZE); break;
+                            case TILE.TREASURE:
+                                this.ctx.fillStyle = '#334155'; this.ctx.fillRect(x, y, TILE_SIZE, TILE_SIZE);
+                                this.ctx.fillStyle = '#f59e0b'; this.ctx.fillRect(x+3, y+4, 10, 8); break;
+                            case TILE.INN:
+                                this.ctx.fillStyle = '#334155'; this.ctx.fillRect(x, y, TILE_SIZE, TILE_SIZE);
+                                this.ctx.fillStyle = '#38bdf8'; this.ctx.fillRect(x+2, y+2, 12, 12); break;
+                            case TILE.SHOP:
+                                this.ctx.fillStyle = '#334155'; this.ctx.fillRect(x, y, TILE_SIZE, TILE_SIZE);
+                                this.ctx.fillStyle = '#a855f7'; this.ctx.fillRect(x+2, y+2, 12, 12); break;
+                            case TILE.BOSS:
+                                this.ctx.fillStyle = '#334155'; this.ctx.fillRect(x, y, TILE_SIZE, TILE_SIZE);
+                                this.ctx.fillStyle = '#10b981'; this.ctx.fillRect(x+3, y+2, 10, 12); break;
+                        }
+                    }
+                }
+
+                // Draw Player
+                const px = this.player.x * TILE_SIZE;
+                const py = this.player.y * TILE_SIZE;
+                this.ctx.fillStyle = '#38bdf8'; this.ctx.fillRect(px + 3, py + 3, 10, 10);
+                this.ctx.fillStyle = '#fbbf24'; this.ctx.fillRect(px + 4, py + 1, 8, 4);
+
+                requestAnimationFrame(() => this.render());
+            }
+
+            movePlayer(dx, dy) {
+                if (this.inBattle || this.inDialogue) return;
+
+                const newX = this.player.x + dx;
+                const newY = this.player.y + dy;
+                const map = MAPS[this.currentMapKey].data;
+
+                if (newX < 0 || newX >= MAP_SIZE || newY < 0 || newY >= MAP_SIZE) return;
+
+                const targetTile = map[newY][newX];
+                if (targetTile === TILE.WALL || targetTile === TILE.WATER || targetTile === TILE.TREE) return;
+
+                audio.playSelect();
+                this.player.x = newX;
+                this.player.y = newY;
+
+                this.handleTileTrigger(targetTile, newX, newY);
+            }
+
+            handleTileTrigger(tile, x, y) {
+                if (this.currentMapKey === 'world') {
+                    if (tile === TILE.TOWN) {
+                        this.switchMap('town', 7, 14);
+                        this.showDialogue(["「アーカムの街」に到着した。静けさの中に不気味な気配を感じる..."]);
+                    } else if (tile === TILE.DUNGEON) {
+                        this.switchMap('dungeon', 1, 14);
+                        this.showDialogue(["ミスカトニック大学地下遺構へ足を踏み入れた... 異形の足音が響く！"]);
+                    } else if (tile === TILE.CASTLE) {
+                        this.switchMap('castle', 7, 14);
+                        this.showDialogue(["海底都市ルルイエの神殿に立ち入った... 狂気が頭を苛む！"]);
+                    } else if (tile === TILE.GRASS && Math.random() < 0.16) {
+                        this.startEncounter(MONSTERS.field);
+                    }
+                } else if (this.currentMapKey === 'town') {
+                    if (tile === TILE.GRASS) {
+                        this.switchMap('world', 2, 2);
+                    } else if (tile === TILE.INN) {
+                        this.showDialogue([
+                            "アーカム精神病院・療養所「静かな部屋で心を休めなさい...」",
+                            "HPとSAN(正気度)が全回復した！"
+                        ], () => {
+                            this.player.hp = this.player.maxHp;
+                            this.player.san = this.player.maxSan;
+                            this.updateUI();
+                        });
+                    } else if (tile === TILE.SHOP) {
+                        this.openShopModal();
+                    }
+                } else if (this.currentMapKey === 'dungeon') {
+                    if (tile === TILE.GRASS) {
+                        this.switchMap('world', 13, 2);
+                    } else if (tile === TILE.TREASURE) {
+                        MAPS.dungeon.data[y][x] = TILE.FLOOR;
+                        const rewardGold = 70;
+                        this.player.gold += rewardGold;
+                        this.showDialogue([`古びた木箱を発見した！\n${rewardGold} ドルを獲得した！`]);
+                        this.updateUI();
+                    } else if (tile === TILE.BOSS) {
+                        if (!this.player.defeatedBosses.includes('nyarlathotep')) {
+                            this.startBattle(MONSTERS.bosses.nyarlathotep);
+                        } else {
+                            this.showDialogue(["ニャルラトホテプの黒い影は立ち去り、古代の封印が解かれている。"]);
+                        }
+                    } else if (tile === TILE.FLOOR && Math.random() < 0.22) {
+                        this.startEncounter(MONSTERS.dungeon);
+                    }
+                } else if (this.currentMapKey === 'castle') {
+                    if (tile === TILE.GRASS) {
+                        this.switchMap('world', 7, 12);
+                    } else if (tile === TILE.BOSS) {
+                        if (y === 7) {
+                            if (!this.player.defeatedBosses.includes('nyarlathotep')) {
+                                this.showDialogue(["強烈な狂気の結界が立ちはだかる！\n地下遺構のボス『ニャルラトホテプ』をまず倒さねば進めない！"]);
+                            } else if (!this.player.defeatedBosses.includes('dagon')) {
+                                this.startBattle(MONSTERS.bosses.dagon);
+                            } else {
+                                this.showDialogue(["『父なるダゴン』の巨躯が沈黙している。玉座への道が開かれている！"]);
+                            }
+                        } else if (y === 1) {
+                            if (!this.player.defeatedBosses.includes('dagon')) {
+                                this.showDialogue(["深海の水流障壁が玉座を遮っている！\n先に『父なるダゴン』を撃破せよ！"]);
+                            } else if (!this.player.defeatedBosses.includes('cthulhu')) {
+                                this.startBattle(MONSTERS.bosses.cthulhu);
+                            } else {
+                                this.showDialogue([
+                                    "クトゥルフの玉座の奥に、時空が歪んだ『混沌の祭壇』への暗黒ポータルが開いている...",
+                                    "原初神アザトースの待つ領域へ足を踏み入れますか？"
+                                ], () => {
+                                    this.switchMap('altar', 7, 14);
+                                });
+                            }
+                        }
+                    }
+                } else if (this.currentMapKey === 'altar') {
+                    if (tile === TILE.CASTLE) {
+                        this.switchMap('castle', 7, 2);
+                    } else if (tile === TILE.BOSS) {
+                        if (!this.player.defeatedBosses.includes('azathoth')) {
+                            this.startBattle(MONSTERS.bosses.azathoth);
+                        } else {
+                            this.showDialogue(["原初神アザトースは混沌の渦へと帰還した... あなたは全ての神話生物を凌駕した！"]);
+                        }
+                    }
+                }
+            }
+
+            switchMap(mapKey, startX, startY) {
+                this.currentMapKey = mapKey;
+                this.player.x = startX;
+                this.player.y = startY;
+            }
+
+            showDialogue(lines, callback = null) {
+                this.inDialogue = true;
+                this.dialogueQueue = [...lines];
+                this.dialogueCallback = callback;
+                document.getElementById('dialogue-overlay').classList.remove('hidden');
+                this.advanceDialogue();
+            }
+
+            advanceDialogue() {
+                if (this.dialogueQueue.length > 0) {
+                    const text = this.dialogueQueue.shift();
+                    document.getElementById('dialogue-text').innerText = text;
+                    audio.playSelect();
+                } else {
+                    document.getElementById('dialogue-overlay').classList.add('hidden');
+                    this.inDialogue = false;
+                    if (this.dialogueCallback) {
+                        const cb = this.dialogueCallback;
+                        this.dialogueCallback = null;
+                        cb();
+                    }
+                }
+            }
+
+            startEncounter(monsterPool) {
+                const enemyTemplate = monsterPool[Math.floor(Math.random() * monsterPool.length)];
+                this.startBattle(enemyTemplate);
+            }
+
+            startBattle(enemyTemplate) {
+                this.inBattle = true;
+                this.isRolling = false;
+                this.playerDefenseBuff = false;
+                this.currentEnemy = { ...enemyTemplate };
+
+                document.getElementById('battle-overlay').classList.remove('hidden');
+                document.getElementById('enemy-name').innerText = this.currentEnemy.name;
+                
+                const iconEl = document.getElementById('enemy-icon');
+                iconEl.className = `fa-solid ${this.currentEnemy.icon} ${this.currentEnemy.color}`;
+
+                this.updateEnemyHpBar();
+
+                const diceConfig = DICE_TYPES[this.player.equippedDiceType] || DICE_TYPES.standard;
+                document.getElementById('dice-type-name').innerText = diceConfig.name;
+                document.getElementById('dice-count-badge').innerText = `${this.player.diceCount}個`;
+
+                const diceContainer = document.getElementById('dice-container');
+                diceContainer.innerHTML = '';
+                for (let i = 0; i < this.player.diceCount; i++) {
+                    const diceDiv = document.createElement('div');
+                    diceDiv.className = `dice ${diceConfig.cssClass}`;
+                    diceDiv.id = `dice-slot-${i}`;
+                    diceDiv.innerHTML = '<i class="fa-solid fa-dice-d6"></i>';
+                    diceContainer.appendChild(diceDiv);
+                }
+
+                const legendContainer = document.getElementById('dice-legend');
+                legendContainer.innerHTML = '';
+                diceConfig.legend.forEach(item => {
+                    const p = document.createElement('p');
+                    p.innerText = item;
+                    legendContainer.appendChild(p);
+                });
+
+                document.getElementById('battle-log').innerText = `怪異『${this.currentEnemy.name}』が現れた！狂気のダイスを振れ！`;
+            }
+
+            updateEnemyHpBar() {
+                if (!this.currentEnemy) return;
+                const pct = Math.max(0, Math.min(100, (this.currentEnemy.hp / this.currentEnemy.maxHp) * 100));
+                document.getElementById('enemy-hp-bar').style.width = `${pct}%`;
+            }
+
+            endBattle() {
+                this.inBattle = false;
+                this.isRolling = false;
+                this.currentEnemy = null;
+                document.getElementById('battle-overlay').classList.add('hidden');
+                this.updateUI();
+            }
+
+            rollPlayerDice() {
+                if (!this.inBattle || this.isRolling) return;
+                this.isRolling = true;
+
+                const diceConfig = DICE_TYPES[this.player.equippedDiceType] || DICE_TYPES.standard;
+                const diceContainer = document.getElementById('dice-container');
+                const slots = diceContainer.children;
+
+                audio.playDiceRoll();
+                for (let slot of slots) {
+                    slot.classList.add('dice-rolling');
+                }
+
+                let rollInterval = setInterval(() => {
+                    audio.playDiceRoll();
+                    for (let slot of slots) {
+                        const randomVal = Math.floor(Math.random() * 6) + 1;
+                        slot.innerText = ['⚀','⚁','⚂','⚃','⚄','⚅'][randomVal - 1];
+                    }
+                }, 80);
+
+                setTimeout(() => {
+                    clearInterval(rollInterval);
+                    for (let slot of slots) {
+                        slot.classList.remove('dice-rolling');
+                    }
+
+                    const rolledValues = [];
+                    for (let i = 0; i < this.player.diceCount; i++) {
+                        const val = Math.floor(Math.random() * 6) + 1;
+                        rolledValues.push(val);
+                        if (slots[i]) {
+                            slots[i].innerText = ['⚀','⚁','⚂','⚃','⚄','⚅'][val - 1];
+                        }
+                    }
+
+                    this.resolveDiceRoll(rolledValues, diceConfig);
+                }, 600);
+            }
+
+            resolveDiceRoll(rolledValues, diceConfig) {
+                let totalDmg = 0;
+                let logMsgs = [];
+                this.playerDefenseBuff = false;
+
+                rolledValues.forEach(val => {
+                    const eff = diceConfig.effects[val];
+                    if (!eff) return;
+
+                    if (eff.type === 'def') {
+                        this.playerDefenseBuff = true;
+                        this.player.san = Math.min(this.player.maxSan, this.player.san + 1);
+                        logMsgs.push(`【${eff.name}】防御体制を整えSAN回復`);
+                    } else if (eff.type === 'atk') {
+                        const dmg = Math.max(1, Math.floor(this.player.atk * eff.mult) - this.currentEnemy.def);
+                        totalDmg += dmg;
+                        logMsgs.push(`【${eff.name}】${dmg}ダメージ`);
+                    } else if (eff.type === 'heal') {
+                        const healVal = eff.val;
+                        this.player.hp = Math.min(this.player.maxHp, this.player.hp + healVal);
+                        logMsgs.push(`【${eff.name}】HP+${healVal}回復`);
+                    } else if (eff.type === 'san_heal') {
+                        const healSan = eff.val;
+                        this.player.san = Math.min(this.player.maxSan, this.player.san + healSan);
+                        logMsgs.push(`【${eff.name}】SAN+${healSan}回復`);
+                    } else if (eff.type === 'spell') {
+                        if (this.player.san >= eff.sanCost) {
+                            this.player.san -= eff.sanCost;
+                            const dmg = Math.max(1, eff.baseDmg - this.currentEnemy.def);
+                            totalDmg += dmg;
+                            audio.playSpell();
+                            logMsgs.push(`【${eff.name}】(SAN-${eff.sanCost}) ${dmg}魔導ダメ`);
+                        } else {
+                            logMsgs.push(`【${eff.name}】SAN不発！`);
+                        }
+                    } else if (eff.type === 'crit') {
+                        const dmg = Math.max(1, Math.floor(this.player.atk * eff.mult) - this.currentEnemy.def);
+                        totalDmg += dmg;
+                        audio.playHit();
+                        logMsgs.push(`【${eff.name}】会心${dmg}ダメ`);
+                    } else if (eff.type === 'blood_crit') {
+                        const dmg = Math.max(1, Math.floor(this.player.atk * eff.mult) - this.currentEnemy.def);
+                        totalDmg += dmg;
+                        this.player.hp = Math.max(1, this.player.hp - eff.selfDmg);
+                        audio.playMadness();
+                        logMsgs.push(`【${eff.name}】自傷${eff.selfDmg} 反動会心${dmg}ダメ`);
+                    } else if (eff.type === 'holy_blessing') {
+                        this.player.hp = Math.min(this.player.maxHp, this.player.hp + eff.healHp);
+                        this.player.san = Math.min(this.player.maxSan, this.player.san + eff.healSan);
+                        logMsgs.push(`【${eff.name}】聖護! HP+${eff.healHp} SAN+${eff.healSan}`);
+                    } else if (eff.type === 'ultimate_spell') {
+                        if (this.player.san >= eff.sanCost) {
+                            this.player.san -= eff.sanCost;
+                            const dmg = Math.max(1, eff.baseDmg - this.currentEnemy.def);
+                            totalDmg += dmg;
+                            audio.playMadness();
+                            logMsgs.push(`【${eff.name}】(SAN-${eff.sanCost}) 壊滅爆裂${dmg}ダメ`);
+                        } else {
+                            logMsgs.push(`【${eff.name}】精神力不足！不発`);
+                        }
+                    }
+                });
+
+                if (totalDmg > 0) {
+                    this.currentEnemy.hp -= totalDmg;
+                    this.updateEnemyHpBar();
+                    audio.playHit();
+                    
+                    const enemySprite = document.getElementById('enemy-sprite-container');
+                    enemySprite.classList.add('shake-effect');
+                    setTimeout(() => enemySprite.classList.remove('shake-effect'), 300);
+                }
+
+                let resultLog = logMsgs.join(' / ');
+
+                if (this.currentEnemy.hp <= 0) {
+                    this.currentEnemy.hp = 0;
+                    this.updateEnemyHpBar();
+                    document.getElementById('battle-log').innerText = `${resultLog} ➔ 怪異を倒した！`;
+                    setTimeout(() => {
+                        this.winBattle();
+                    }, 600);
+                    return;
+                }
+
+                setTimeout(() => {
+                    const defStat = this.player.def + (this.playerDefenseBuff ? 5 : 0);
+                    const enemyDmg = Math.max(1, this.currentEnemy.atk - defStat);
+                    const enemySanHit = this.currentEnemy.sanDamage || 2;
+
+                    this.player.hp -= enemyDmg;
+                    this.player.san = Math.max(0, this.player.san - enemySanHit);
+
+                    audio.playHit();
+
+                    document.getElementById('battle-log').innerText = `${resultLog}\n⚡敵の反撃！${enemyDmg}ダメージ (SAN-${enemySanHit})`;
+                    this.updateUI();
+
+                    if (this.player.hp <= 0) {
+                        this.player.hp = 0;
+                        this.updateUI();
+                        setTimeout(() => {
+                            this.showDialogue([
+                                "あなたの視界は漆黒の闇に沈み、意識は神話の狂気へと溶けていった...",
+                                "【GAME OVER】正気を保ち、再び挑戦しなさい..."
+                            ], () => {
+                                this.player.hp = this.player.maxHp;
+                                this.player.san = this.player.maxSan;
+                                this.endBattle();
+                                this.switchMap('world', 2, 2);
+                            });
+                        }, 500);
+                    } else if (this.player.san <= 0) {
+                        audio.playMadness();
+                        document.getElementById('battle-log').innerText += "\n💀 SAN値ゼロ！精神が狂気に汚染された！";
+                        this.player.san = 10;
+                    }
+
+                    this.isRolling = false;
+                }, 700);
+            }
+
+            winBattle() {
+                audio.playFanfare();
+                const expGained = this.currentEnemy.exp;
+                const goldGained = this.currentEnemy.gold;
+
+                this.player.exp += expGained;
+                this.player.gold += goldGained;
+
+                let msg = `${this.currentEnemy.name}を撃退した！\n知識 +${expGained} EXP / 資金 +${goldGained} $ を獲得！`;
+
+                if (this.player.exp >= this.player.nextExp) {
+                    this.player.level++;
+                    this.player.nextExp = Math.floor(this.player.nextExp * 1.8);
+                    this.player.maxHp += 6;
+                    this.player.maxSan += 5;
+                    this.player.hp = this.player.maxHp;
+                    this.player.san = this.player.maxSan;
+                    this.player.atk += 3;
+                    this.player.def += 2;
+                    msg += `\n探索者レベルが上がった！ Lv.${this.player.level} に到達！`;
+                }
+
+                const enemyId = this.currentEnemy.id;
+
+                if (enemyId && !this.player.defeatedBosses.includes(enemyId)) {
+                    this.player.defeatedBosses.push(enemyId);
+                }
+
+                this.endBattle();
+                this.updateUI();
+
+                if (enemyId === 'nyarlathotep') {
+                    this.showDialogue([
+                        msg,
+                        "ニャルラトホテプ「ふふふ... 見事だな探索者よ。だがルルイエの深淵はこれほど甘くはない...」",
+                        "『這い寄る混沌』を撃破！ルルイエ神殿の封印が解除された！"
+                    ]);
+                } else if (enemyId === 'dagon') {
+                    this.showDialogue([
+                        msg,
+                        "『深淵の父』ダゴンは唸り声を上げて深海へと沈んだ！",
+                        "ルルイエの玉座を守る水流障壁が消滅し、邪神クトゥルフへの道が開かれた！"
+                    ]);
+                } else if (enemyId === 'cthulhu') {
+                    this.showDialogue([
+                        msg,
+                        "クトゥルフ「グワアアア... 狂気に抗いし人間よ...」",
+                        "大いなるクトゥルフは深海へと沈んだ！世界は滅亡から救われた！",
+                        "【アナウンス】クトゥルフの玉座奥に、さらなる神々が潜む裏ダンジョン『混沌の祭壇』へのポータルが出現した！"
+                    ]);
+                } else if (enemyId === 'azathoth') {
+                    this.showDialogue([
+                        msg,
+                        "『盲目愚昧の神』アザトースの太古の混沌すら打ち破った！",
+                        "あなたは宇宙の全なる狂気を克服し、究極の「神話の解明者」となった！",
+                        "✨ ALL BOSSES CLEARED! PERFECT GAME CLEAR! ✨"
+                    ]);
+                } else {
+                    this.showDialogue([msg]);
+                }
+            }
+
+            useItemInBattle() {
+                if (!this.inBattle || this.isRolling) return;
+                if (this.player.inventory['sanitizer'] > 0) {
+                    this.player.inventory['sanitizer']--;
+                    this.player.san = Math.min(this.player.maxSan, this.player.san + 20);
+                    audio.playSelect();
+                    document.getElementById('battle-log').innerText = "鎮静剤を使用し、SAN値(正気度)を20回復した！";
+                    this.updateUI();
+                } else if (this.player.inventory['medkit'] > 0) {
+                    this.player.inventory['medkit']--;
+                    this.player.hp = Math.min(this.player.maxHp, this.player.hp + 25);
+                    audio.playSelect();
+                    document.getElementById('battle-log').innerText = "応急手当キットを使用し、HPを25回復した！";
+                    this.updateUI();
+                } else {
+                    document.getElementById('battle-log').innerText = "回復アイテムを所持していません！";
+                }
+            }
+
+            attemptRun() {
+                if (!this.inBattle || this.isRolling) return;
+                if (this.currentEnemy && this.currentEnemy.id) {
+                    document.getElementById('battle-log').innerText = "強大なボスからは逃げられない！";
+                    return;
+                }
+
+                if (Math.random() < 0.5) {
+                    document.getElementById('battle-log').innerText = "無事に逃走した！";
+                    setTimeout(() => {
+                        this.endBattle();
+                    }, 500);
+                } else {
+                    document.getElementById('battle-log').innerText = "逃走に失敗した！敵の攻撃を受ける！";
+                    this.isRolling = true;
+                    setTimeout(() => {
+                        const enemyDmg = Math.max(1, this.currentEnemy.atk - this.player.def);
+                        this.player.hp -= enemyDmg;
+                        audio.playHit();
+                        this.updateUI();
+                        this.isRolling = false;
+                        if (this.player.hp <= 0) {
+                            this.player.hp = 0;
+                            this.endBattle();
+                            this.switchMap('world', 2, 2);
+                        }
+                    }, 600);
+                }
+            }
+
+            openMenuModal() {
+                document.getElementById('menu-atk').innerText = this.player.atk;
+                document.getElementById('menu-def').innerText = this.player.def;
+                document.getElementById('menu-next-exp').innerText = this.player.nextExp - this.player.exp;
+
+                const currentDiceObj = DICE_TYPES[this.player.equippedDiceType] || DICE_TYPES.standard;
+                document.getElementById('menu-dice-type').innerText = currentDiceObj.name;
+                document.getElementById('menu-dice-count').innerText = `${this.player.diceCount} 個`;
+
+                const diceSelectContainer = document.getElementById('menu-dice-selection');
+                diceSelectContainer.innerHTML = '';
+
+                this.player.unlockedDiceTypes.forEach(diceKey => {
+                    const diceData = DICE_TYPES[diceKey];
+                    if (!diceData) return;
+
+                    const isEquipped = (this.player.equippedDiceType === diceKey);
+                    const btn = document.createElement('button');
+                    btn.className = `p-1.5 rounded text-xs text-left border ${isEquipped ? 'bg-emerald-900 border-emerald-400 text-emerald-200 font-bold' : 'bg-slate-800 border-slate-600 text-slate-300 hover:bg-slate-700'}`;
+                    btn.innerHTML = `${diceData.name} ${isEquipped ? '【装備中】' : ''}`;
+                    btn.onclick = () => {
+                        this.player.equippedDiceType = diceKey;
+                        audio.playSelect();
+                        this.openMenuModal();
+                        this.updateUI();
+                    };
+                    diceSelectContainer.appendChild(btn);
+                });
+
+                const invList = document.getElementById('menu-inventory-list');
+                invList.innerHTML = '';
+                
+                let hasItems = false;
+                for (let itemId in this.player.inventory) {
+                    const count = this.player.inventory[itemId];
+                    if (count > 0 && ITEMS[itemId]) {
+                        hasItems = true;
+                        const p = document.createElement('p');
+                        p.className = 'text-xs text-slate-300 flex justify-between';
+                        p.innerHTML = `<span>・${ITEMS[itemId].name} (${ITEMS[itemId].desc})</span> <span class="text-amber-300 font-bold">x${count}</span>`;
+                        invList.appendChild(p);
+                    }
+                }
+
+                if (!hasItems) {
+                    invList.innerHTML = '<p class="text-xs text-slate-500">所持品なし</p>';
+                }
+
+                document.getElementById('modal-menu').classList.remove('hidden');
+            }
+
+            openShopModal() {
+                const shopList = document.getElementById('shop-item-list');
+                shopList.innerHTML = '';
+
+                const shopItems = [
+                    ITEMS.sanitizer,
+                    ITEMS.medkit,
+                    ITEMS.revolver,
+                    ITEMS.eldersign,
+                    ITEMS.necronomicon,
+                    ITEMS.blood_dice,
+                    ITEMS.sanctuary_dice,
+                    ITEMS.arcane_dice
+                ];
+
+                shopItems.forEach(item => {
+                    const div = document.createElement('div');
+                    div.className = 'bg-slate-900 p-2 rounded border border-slate-700 flex justify-between items-center text-xs';
+
+                    let buyable = true;
+                    let statusLabel = `${item.price} $`;
+
+                    if (item.id === 'necronomicon' && this.player.hasNecronomicon) {
+                        buyable = false;
+                        statusLabel = '購入済';
+                    } else if (item.diceTypeId && this.player.unlockedDiceTypes.includes(item.diceTypeId)) {
+                        buyable = false;
+                        statusLabel = '所有済';
+                    }
+
+                    div.innerHTML = `
+                        <div>
+                            <p class="font-bold text-emerald-300">${item.name}</p>
+                            <p class="text-[10px] text-slate-400">${item.desc}</p>
+                        </div>
+                        <button class="buy-btn cthulhu-btn px-2.5 py-1 text-xs rounded text-amber-300 ${!buyable ? 'opacity-50 cursor-not-allowed' : ''}">
+                            ${statusLabel}
+                        </button>
+                    `;
+
+                    const btn = div.querySelector('.buy-btn');
+                    if (buyable) {
+                        btn.onclick = () => this.buyShopItem(item);
+                    }
+
+                    shopList.appendChild(div);
+                });
+
+                document.getElementById('modal-shop').classList.remove('hidden');
+            }
+
+            buyShopItem(item) {
+                if (this.player.gold < item.price) {
+                    this.showDialogue(["資金が不足しています！"]);
+                    return;
+                }
+
+                this.player.gold -= item.price;
+                audio.playSelect();
+
+                if (item.id === 'sanitizer') {
+                    this.player.inventory['sanitizer'] = (this.player.inventory['sanitizer'] || 0) + 1;
+                } else if (item.id === 'medkit') {
+                    this.player.inventory['medkit'] = (this.player.inventory['medkit'] || 0) + 1;
+                } else if (item.id === 'revolver') {
+                    this.player.atk += item.atk;
+                } else if (item.id === 'eldersign') {
+                    this.player.def += item.def;
+                } else if (item.id === 'necronomicon') {
+                    this.player.hasNecronomicon = true;
+                    this.player.diceCount += 1;
+                } else if (item.diceTypeId) {
+                    if (!this.player.unlockedDiceTypes.includes(item.diceTypeId)) {
+                        this.player.unlockedDiceTypes.push(item.diceTypeId);
+                        this.player.equippedDiceType = item.diceTypeId;
+                    }
+                }
+
+                this.updateUI();
+                this.openShopModal();
+            }
+
+            loadGame() {
+                const saved = localStorage.getItem('cthulhu_dice_rpg_save');
+                if (saved) {
+                    try {
+                        const parsed = JSON.parse(saved);
+                        this.player = { ...this.player, ...parsed.player };
+                        if (!this.player.unlockedDiceTypes) this.player.unlockedDiceTypes = ['standard'];
+                        if (!this.player.equippedDiceType) this.player.equippedDiceType = 'standard';
+                        if (!this.player.defeatedBosses) this.player.defeatedBosses = [];
+                        this.currentMapKey = parsed.currentMapKey || 'world';
+                    } catch (e) {}
+                }
+            }
+
+            saveGame() {
+                const saveData = {
+                    player: this.player,
+                    currentMapKey: this.currentMapKey
+                };
+                localStorage.setItem('cthulhu_dice_rpg_save', JSON.stringify(saveData));
+                this.showDialogue(["進捗を刻んだ... 狂気の記憶は保存された。"]);
+            }
+
+            initEvents() {
+                // Keyboard Controls
+                window.addEventListener('keydown', (e) => {
+                    if (this.inDialogue) {
+                        if (e.key === 'Enter' || e.key === ' ') this.advanceDialogue();
+                        return;
+                    }
+
+                    switch (e.key) {
+                        case 'ArrowUp': case 'w': case 'W': this.movePlayer(0, -1); break;
+                        case 'ArrowDown': case 's': case 'S': this.movePlayer(0, 1); break;
+                        case 'ArrowLeft': case 'a': case 'A': this.movePlayer(-1, 0); break;
+                        case 'ArrowRight': case 'd': case 'D': this.movePlayer(1, 0); break;
+                    }
+                });
+
+                // Mobile D-Pad
+                document.getElementById('pad-up').onclick = () => this.movePlayer(0, -1);
+                document.getElementById('pad-down').onclick = () => this.movePlayer(0, 1);
+                document.getElementById('pad-left').onclick = () => this.movePlayer(-1, 0);
+                document.getElementById('pad-right').onclick = () => this.movePlayer(1, 0);
+
+                // Action Buttons
+                document.getElementById('btn-action-a').onclick = () => {
+                    if (this.inDialogue) this.advanceDialogue();
+                    else if (this.inBattle) this.rollPlayerDice();
+                };
+                document.getElementById('btn-action-b').onclick = () => {
+                    if (!this.inBattle && !this.inDialogue) this.openMenuModal();
+                };
+
+                // Dialogue Tap
+                document.getElementById('dialogue-overlay').onclick = () => this.advanceDialogue();
+
+                // Battle Actions
+                document.getElementById('btn-roll-dice').onclick = () => this.rollPlayerDice();
+                document.getElementById('btn-use-item').onclick = () => this.useItemInBattle();
+                document.getElementById('btn-run').onclick = () => this.attemptRun();
+
+                // Menu & Save
+                document.getElementById('btn-menu').onclick = () => this.openMenuModal();
+                document.getElementById('btn-save').onclick = () => {
+                    document.getElementById('modal-menu').classList.add('hidden');
+                    this.saveGame();
+                };
+
+                // Close Modals
+                document.querySelectorAll('.close-modal').forEach(btn => {
+                    btn.onclick = () => {
+                        document.getElementById('modal-menu').classList.add('hidden');
+                        document.getElementById('modal-shop').classList.add('hidden');
+                    };
+                });
+            }
+        }
+
+        window.onload = () => {
+            new Game();
+        };
+    </script>
+</body>
 </html>

@@ -1,11 +1,1060 @@
 <!DOCTYPE html>
-<html lang="ja">
- <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title></title>
- </head>
- <body>
-  <h1>l9nc1p0a</h1>
- </body>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Lethal Web: Facility Scavenger</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts for Retro Sci-Fi CRT Vibe -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=VT323&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <!-- Three.js 3D Engine -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+    <style>
+        * {
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none;
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #050508;
+            font-family: 'Share Tech Mono', monospace;
+            color: #10b981;
+        }
+
+        .crt-font {
+            font-family: 'VT323', monospace;
+        }
+
+        /* CRT Overlay Filter */
+        .crt-screen::before {
+            content: " ";
+            display: block;
+            position: absolute;
+            top: 0; left: 0; bottom: 0; right: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+            z-index: 20;
+            background-size: 100% 3px, 3px 100%;
+            pointer-events: none;
+        }
+
+        /* Vignette effect */
+        .vignette {
+            box-shadow: inset 0 0 100px rgba(0,0,0,0.8);
+        }
+
+        /* Scan ping ring animation */
+        @keyframes scanPulse {
+            0% { transform: translate(-50%, -50%) scale(0.1); opacity: 0.9; }
+            100% { transform: translate(-50%, -50%) scale(4); opacity: 0; }
+        }
+
+        .scan-ring {
+            position: absolute;
+            border: 2px solid #06b6d4;
+            border-radius: 50%;
+            pointer-events: none;
+            animation: scanPulse 0.8s ease-out forwards;
+        }
+
+        /* Touch Button Styling */
+        .touch-action-btn {
+            background: rgba(16, 185, 129, 0.15);
+            border: 1.5px solid rgba(16, 185, 129, 0.5);
+            backdrop-filter: blur(4px);
+            color: #34d399;
+            transition: all 0.1s ease;
+        }
+
+        .touch-action-btn:active {
+            background: rgba(16, 185, 129, 0.5);
+            transform: scale(0.95);
+        }
+
+        /* Crosshair */
+        .crosshair {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 8px;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.7);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            z-index: 15;
+        }
+    </style>
+</head>
+<body class="relative w-full h-full crt-screen overflow-hidden select-none">
+
+    <!-- 3D WebGL Canvas -->
+    <div id="canvas-container" class="absolute inset-0 w-full h-full z-0"></div>
+
+    <!-- Crosshair -->
+    <div class="crosshair" id="crosshair"></div>
+
+    <!-- Scanner VFX Container -->
+    <div id="scan-vfx-container" class="absolute inset-0 pointer-events-none z-10 overflow-hidden"></div>
+
+    <!-- HUD Overlay -->
+    <div id="hud-layer" class="absolute inset-0 z-10 pointer-events-none flex flex-col justify-between p-3 sm:p-6 text-emerald-400">
+        
+        <!-- Top Status Bar -->
+        <div class="flex justify-between items-start w-full">
+            <!-- Left Info: Days left & Quota -->
+            <div class="bg-black/75 p-3 rounded-lg border border-emerald-500/40 backdrop-blur-md max-w-xs">
+                <div class="text-xs text-emerald-500 uppercase tracking-widest">PROFIT QUOTA</div>
+                <div class="text-2xl sm:text-3xl font-bold text-amber-400 crt-font leading-none">
+                    $<span id="hud-collected">0</span> / $<span id="hud-quota">300</span>
+                </div>
+                <div class="text-xs text-gray-400 mt-1 flex justify-between">
+                    <span>DEADLINE: <span id="hud-days" class="text-red-400 font-bold">3 DAYS</span></span>
+                    <span>TIME: <span id="hud-time" class="text-emerald-300">08:00 AM</span></span>
+                </div>
+            </div>
+
+            <!-- Right Info: Flashlight & Scanner hints -->
+            <div class="flex flex-col items-end gap-2">
+                <div class="bg-black/75 p-2.5 rounded-lg border border-emerald-500/40 text-xs backdrop-blur-md hidden sm:block">
+                    <div>[WASD] Move | [Shift] Run | [Space] Jump</div>
+                    <div>[E / Click] Pick/Drop | [R-Click / F] Scan</div>
+                    <div>[Q] Toggle Light</div>
+                </div>
+                
+                <!-- Flashlight Battery -->
+                <div class="bg-black/75 px-3 py-2 rounded-lg border border-emerald-500/40 flex items-center gap-2 backdrop-blur-md">
+                    <i class="fa-solid fa-flashlight text-amber-400 text-sm"></i>
+                    <div class="w-20 bg-gray-800 h-2.5 rounded-full overflow-hidden border border-gray-600">
+                        <div id="battery-bar" class="bg-amber-400 h-full w-full transition-all"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Center Notification Toast -->
+        <div class="self-center text-center">
+            <div id="toast-msg" class="text-lg sm:text-2xl font-bold crt-font text-amber-300 bg-black/80 px-4 py-2 rounded-lg border border-amber-500/50 opacity-0 transition-opacity duration-300">
+                SCANNED: NO TARGETS
+            </div>
+        </div>
+
+        <!-- Bottom Status Bar -->
+        <div class="flex justify-between items-end w-full">
+            <!-- Health & Stamina -->
+            <div class="bg-black/75 p-3 rounded-lg border border-emerald-500/40 backdrop-blur-md w-44 sm:w-56 space-y-2">
+                <div>
+                    <div class="flex justify-between text-xs mb-0.5">
+                        <span class="text-red-400 font-bold"><i class="fa-solid fa-heart mr-1"></i>HEALTH</span>
+                        <span id="hp-val" class="text-red-400 font-bold">100%</span>
+                    </div>
+                    <div class="w-full bg-gray-900 h-2 rounded-full overflow-hidden border border-gray-700">
+                        <div id="hp-bar" class="bg-red-500 h-full w-full transition-all"></div>
+                    </div>
+                </div>
+                <div>
+                    <div class="flex justify-between text-xs mb-0.5">
+                        <span class="text-cyan-400 font-bold"><i class="fa-solid fa-bolt mr-1"></i>STAMINA</span>
+                        <span id="stamina-val" class="text-cyan-400 font-bold">100%</span>
+                    </div>
+                    <div class="w-full bg-gray-900 h-2 rounded-full overflow-hidden border border-gray-700">
+                        <div id="stamina-bar" class="bg-cyan-400 h-full w-full transition-all"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Inventory Slot Box -->
+            <div class="bg-black/80 p-2 sm:p-3 rounded-lg border border-emerald-500/40 backdrop-blur-md flex gap-2">
+                <div id="slot-0" class="w-12 h-12 sm:w-14 sm:h-14 bg-emerald-950/40 border-2 border-emerald-500/60 rounded-md flex flex-col items-center justify-center text-xs relative">
+                    <span class="text-[10px] text-emerald-600 absolute top-0.5 left-1">1</span>
+                    <i id="slot-0-icon" class="fa-solid fa-hand text-lg text-emerald-400 opacity-40"></i>
+                    <span id="slot-0-name" class="text-[9px] truncate max-w-full px-1">Empty</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mobile Touch Control Layer -->
+    <div id="mobile-controls" class="absolute inset-0 z-20 pointer-events-none flex justify-between items-end p-4 sm:hidden">
+        <!-- Virtual Joystick Area Left -->
+        <div id="joystick-zone" class="w-32 h-32 bg-black/30 border border-emerald-500/30 rounded-full pointer-events-auto relative flex items-center justify-center">
+            <div id="joystick-thumb" class="w-12 h-12 bg-emerald-500/50 rounded-full border border-emerald-300"></div>
+        </div>
+
+        <!-- Action Buttons Right -->
+        <div class="flex flex-col gap-2.5 pointer-events-auto items-end mb-2">
+            <div class="flex gap-2">
+                <button id="btn-scan" class="touch-action-btn w-12 h-12 rounded-full flex items-center justify-center text-lg">
+                    <i class="fa-solid fa-radar"></i>
+                </button>
+                <button id="btn-light" class="touch-action-btn w-12 h-12 rounded-full flex items-center justify-center text-lg">
+                    <i class="fa-solid fa-flashlight"></i>
+                </button>
+            </div>
+            <div class="flex gap-2">
+                <button id="btn-run" class="touch-action-btn w-12 h-12 rounded-full flex items-center justify-center text-lg">
+                    <i class="fa-solid fa-person-running"></i>
+                </button>
+                <button id="btn-interact" class="touch-action-btn w-14 h-14 bg-emerald-500/30 border-2 border-emerald-400 rounded-full flex items-center justify-center text-xl font-bold">
+                    <i class="fa-solid fa-hand"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Start / Menu Screen Overlay -->
+    <div id="start-overlay" class="absolute inset-0 z-30 bg-black/90 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center text-emerald-400">
+        <div class="max-w-md w-full bg-emerald-950/20 border-2 border-emerald-500/50 rounded-2xl p-6 shadow-2xl shadow-emerald-950/50 space-y-5">
+            <h1 class="text-4xl sm:text-5xl font-black crt-font tracking-wider text-emerald-400 flex items-center justify-center gap-3">
+                <i class="fa-solid fa-biohazard text-amber-500 animate-pulse"></i> LETHAL WEB
+            </h1>
+            <p class="text-xs sm:text-sm text-gray-300 leading-relaxed">
+                Welcome, Great Asset. Enter the abandoned facility, collect scrap metal, and meet the Company's profit quota before the 3-day deadline expires. Beware of unknown entities inside.
+            </p>
+
+            <div class="bg-black/60 p-3 rounded-xl border border-emerald-800 text-left text-xs space-y-1.5 text-emerald-300">
+                <div class="font-bold text-amber-400 mb-1"><i class="fa-solid fa-triangle-exclamation mr-1"></i> SURVIVAL GUIDELINES:</div>
+                <div>• Use <b>SCAN [R-Click / F]</b> to locate valuable scrap and exits.</div>
+                <div>• <b>SPRING-HEAD MONSTER</b>: Only moves when you look AWAY from it!</div>
+                <div>• Bring scrap back to the Drop Ship counter to sell ($).</div>
+            </div>
+
+            <button id="start-game-btn" class="w-full py-4 bg-emerald-600 hover:bg-emerald-500 text-black font-black text-xl rounded-xl transition shadow-lg active:scale-95 crt-font tracking-widest border-2 border-emerald-300">
+                ENTER FACILITY 🚀
+            </button>
+        </div>
+    </div>
+
+    <!-- Game Over / Quota Result Overlay -->
+    <div id="end-overlay" class="absolute inset-0 z-30 bg-black/95 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center text-emerald-400 hidden">
+        <div class="max-w-md w-full bg-emerald-950/30 border-2 border-red-500/50 rounded-2xl p-6 shadow-2xl space-y-4">
+            <h2 id="end-title" class="text-4xl sm:text-5xl font-black crt-font text-red-500">YOU WERE FIRED</h2>
+            <p id="end-subtitle" class="text-sm text-gray-300">Failed to meet profit quota. The Company has ejected you into deep space.</p>
+
+            <div class="bg-black/60 p-4 rounded-xl border border-emerald-800 space-y-2 text-sm font-bold">
+                <div class="flex justify-between"><span>TOTAL SCRAP SOLD:</span><span id="end-total-value" class="text-amber-400">$0</span></div>
+                <div class="flex justify-between"><span>QUOTA TARGET:</span><span id="end-quota-target" class="text-emerald-400">$300</span></div>
+            </div>
+
+            <button id="restart-btn" class="w-full py-3.5 bg-emerald-600 hover:bg-emerald-500 text-black font-black text-lg rounded-xl transition active:scale-95 crt-font tracking-wider">
+                TRY AGAIN 🔄
+            </button>
+        </div>
+    </div>
+
+    <script>
+        class SynthAudioEngine {
+            constructor() {
+                this.ctx = null;
+            }
+
+            init() {
+                if (!this.ctx) {
+                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                if (this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                }
+            }
+
+            playScanPing() {
+                if (!this.ctx) return;
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(880, now);
+                osc.frequency.exponentialRampToValueAtTime(1760, now + 0.15);
+
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(now);
+                osc.stop(now + 0.3);
+            }
+
+            playPickupSound() {
+                if (!this.ctx) return;
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(523.25, now);
+                osc.frequency.setValueAtTime(659.25, now + 0.08);
+
+                gain.gain.setValueAtTime(0.3, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.25);
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(now);
+                osc.stop(now + 0.25);
+            }
+
+            playFootstep() {
+                if (!this.ctx) return;
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(120, now);
+                osc.frequency.exponentialRampToValueAtTime(30, now + 0.08);
+
+                gain.gain.setValueAtTime(0.15, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.08);
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(now);
+                osc.stop(now + 0.08);
+            }
+
+            playFlashlightToggle() {
+                if (!this.ctx) return;
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(1200, now);
+                gain.gain.setValueAtTime(0.1, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.04);
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(now);
+                osc.stop(now + 0.04);
+            }
+
+            playMonsterFootstep() {
+                if (!this.ctx) return;
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(80, now);
+                osc.frequency.exponentialRampToValueAtTime(20, now + 0.2);
+
+                gain.gain.setValueAtTime(0.3, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.2);
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(now);
+                osc.stop(now + 0.2);
+            }
+
+            playSellCash() {
+                if (!this.ctx) return;
+                const now = this.ctx.currentTime;
+                for (let i = 0; i < 3; i++) {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(600 + i * 200, now + i * 0.06);
+                    gain.gain.setValueAtTime(0.25, now + i * 0.06);
+                    gain.gain.linearRampToValueAtTime(0.01, now + i * 0.06 + 0.15);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(now + i * 0.06);
+                    osc.stop(now + i * 0.06 + 0.15);
+                }
+            }
+        }
+
+        const audio = new SynthAudioEngine();
+
+        let scene, camera, renderer, flashlight;
+        let ambientLight;
+
+        // Player State
+        const player = {
+            position: new THREE.Vector3(0, 1.6, 12),
+            velocity: new THREE.Vector3(),
+            rotation: new THREE.Euler(0, 0, 0, 'YXZ'),
+            speed: 4.5,
+            runSpeed: 8.0,
+            isRunning: false,
+            health: 100,
+            stamina: 100,
+            battery: 100,
+            heldItem: null,
+            collectedScrapValue: 0,
+            quota: 300,
+            daysLeft: 3,
+            timeOfDaySec: 28800 // 8:00 AM (seconds)
+        };
+
+        // Game World Entities & Physics
+        let facilityWalls = [];
+        let scrapItems = [];
+        let monsterEntities = [];
+        let shipDesk = null;
+
+        // Input Controls State
+        const keys = {};
+        let isPointerLocked = false;
+        let touchMoveDir = { x: 0, y: 0 };
+        let touchLookPrev = null;
+
+        // Setup Three.js World
+        function init3DWorld() {
+            const container = document.getElementById('canvas-container');
+            
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x020406);
+            scene.fog = new THREE.FogExp2(0x020406, 0.08);
+
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 100);
+            camera.rotation.order = 'YXZ';
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            container.appendChild(renderer.domElement);
+
+            // Flashlight on player camera
+            flashlight = new THREE.SpotLight(0xfff1d0, 3.5, 22, Math.PI / 6, 0.4, 1);
+            flashlight.position.set(0, 0, 0);
+            flashlight.castShadow = true;
+            camera.add(flashlight);
+            flashlight.target.position.set(0, 0, -1);
+            camera.add(flashlight.target);
+            scene.add(camera);
+
+            // Ambient Light (Very Dim for Lethal atmosphere)
+            ambientLight = new THREE.AmbientLight(0x1a2430, 0.3);
+            scene.add(ambientLight);
+
+            buildEnvironment();
+            spawnScrapItems();
+            spawnMonsters();
+
+            window.addEventListener('resize', onWindowResize);
+        }
+
+        function buildEnvironment() {
+            // Floor & Ceiling Materials
+            const floorMat = new THREE.MeshStandardMaterial({ color: 0x1f2937, roughness: 0.8 });
+            const wallMat = new THREE.MeshStandardMaterial({ color: 0x374151, roughness: 0.6 });
+            const pipeMat = new THREE.MeshStandardMaterial({ color: 0x9ca3af, metalness: 0.8, roughness: 0.3 });
+            const shipMat = new THREE.MeshStandardMaterial({ color: 0xd97706, metalness: 0.2, roughness: 0.5 });
+
+            // Outdoor Ground
+            const groundGeo = new THREE.PlaneGeometry(80, 80);
+            const ground = new THREE.Mesh(groundGeo, new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.9 }));
+            ground.rotation.x = -Math.PI / 2;
+            scene.add(ground);
+
+            // Drop Ship Base Area (Outside at Z = 12)
+            const shipGeo = new THREE.BoxGeometry(6, 3.5, 8);
+            const ship = new THREE.Mesh(shipGeo, shipMat);
+            ship.position.set(0, 1.75, 12);
+            scene.add(ship);
+
+            // Ship Interior Hollow Light
+            const shipLight = new THREE.PointLight(0xfbbf24, 1.5, 8);
+            shipLight.position.set(0, 2.5, 12);
+            scene.add(shipLight);
+
+            // Ship Sell Counter Desk
+            const deskGeo = new THREE.BoxGeometry(2, 1, 1.2);
+            shipDesk = new THREE.Mesh(deskGeo, new THREE.MeshStandardMaterial({ color: 0x059669 }));
+            shipDesk.position.set(0, 0.5, 9.2);
+            scene.add(shipDesk);
+
+            // Facility Exterior Wall Structure (Z = 2 to -40)
+            const wallGeo = new THREE.BoxGeometry(1, 4, 1);
+
+            function createWallBlock(x, z, w, d) {
+                const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, 4, d), wallMat);
+                mesh.position.set(x + w / 2, 2, z - d / 2);
+                scene.add(mesh);
+                facilityWalls.push(new THREE.Box3().setFromObject(mesh));
+            }
+
+            // Facility Main Outer Perimeter Corridor
+            createWallBlock(-12, 4, 1, 44); // Left Outer
+            createWallBlock(12, 4, 1, 44);  // Right Outer
+            createWallBlock(-12, -40, 25, 1); // Back Wall
+
+            // Front Wall with Entrance Door
+            createWallBlock(-12, 4, 9, 1);
+            createWallBlock(3, 4, 9, 1);
+
+            // Entrance Tunnel Frame
+            const doorFrameMat = new THREE.MeshStandardMaterial({ color: 0xd97706 });
+            const doorFrame = new THREE.Mesh(new THREE.BoxGeometry(4, 3.5, 0.5), doorFrameMat);
+            doorFrame.position.set(0, 1.75, 4);
+            scene.add(doorFrame);
+
+            // Interior Facility Maze Wall Segments
+            // Hallway 1
+            createWallBlock(-6, -4, 1, 16);
+            createWallBlock(6, -4, 1, 16);
+
+            // Rooms & Junctions
+            createWallBlock(-12, -12, 7, 1);
+            createWallBlock(5, -12, 7, 1);
+
+            createWallBlock(-4, -22, 9, 1);
+            createWallBlock(-8, -26, 1, 12);
+            createWallBlock(8, -26, 1, 12);
+
+            // Interior Dim Emergency Red Lights
+            const redLight1 = new THREE.PointLight(0xef4444, 1.2, 12);
+            redLight1.position.set(0, 3, -10);
+            scene.add(redLight1);
+
+            const redLight2 = new THREE.PointLight(0xef4444, 1.2, 12);
+            redLight2.position.set(0, 3, -28);
+            scene.add(redLight2);
+
+            // Ceiling Pipes details
+            for (let i = -35; i <= 0; i += 6) {
+                const pipe = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 22), pipeMat);
+                pipe.rotation.z = Math.PI / 2;
+                pipe.position.set(0, 3.7, i);
+                scene.add(pipe);
+            }
+        }
+
+        const SCRAP_TYPES = [
+            { name: "Rubber Ducky", minVal: 15, maxVal: 35, color: 0xfacc15, geo: new THREE.SphereGeometry(0.2, 8, 8) },
+            { name: "Big Bolt", minVal: 20, maxVal: 45, color: 0x9ca3af, geo: new THREE.CylinderGeometry(0.15, 0.15, 0.5) },
+            { name: "Apparatus", minVal: 80, maxVal: 140, color: 0x06b6d4, geo: new THREE.BoxGeometry(0.4, 0.6, 0.4) },
+            { name: "Brass Bell", minVal: 40, maxVal: 75, color: 0xd97706, geo: new THREE.ConeGeometry(0.25, 0.4, 8) },
+            { name: "Gold Bar", minVal: 120, maxVal: 210, color: 0xeab308, geo: new THREE.BoxGeometry(0.5, 0.2, 0.3) }
+        ];
+
+        function spawnScrapItems() {
+            const spawnPoints = [
+                { x: 0, z: -8 }, { x: -8, z: -8 }, { x: 8, z: -8 },
+                { x: -3, z: -18 }, { x: 3, z: -18 }, { x: -9, z: -32 },
+                { x: 9, z: -32 }, { x: 0, z: -36 }
+            ];
+
+            spawnPoints.forEach((pt) => {
+                const type = SCRAP_TYPES[Math.floor(Math.random() * SCRAP_TYPES.length)];
+                const val = Math.floor(Math.random() * (type.maxVal - type.minVal + 1)) + type.minVal;
+
+                const mat = new THREE.MeshStandardMaterial({ color: type.color, metalness: 0.5, roughness: 0.4 });
+                const mesh = new THREE.Mesh(type.geo, mat);
+                mesh.position.set(pt.x + (Math.random() - 0.5) * 2, 0.3, pt.z + (Math.random() - 0.5) * 2);
+                mesh.castShadow = true;
+                scene.add(mesh);
+
+                scrapItems.push({
+                    mesh: mesh,
+                    name: type.name,
+                    value: val,
+                    isHeld: false
+                });
+            });
+        }
+
+        function spawnMonsters() {
+            // Spring Dummy / Coil-Head Creature (Only moves when player is NOT looking!)
+            const coilGeo = new THREE.CylinderGeometry(0.35, 0.4, 1.8, 12);
+            const coilMat = new THREE.MeshStandardMaterial({ color: 0x991b1b, roughness: 0.3 });
+            const coilMesh = new THREE.Mesh(coilGeo, coilMat);
+            coilMesh.position.set(0, 0.9, -30);
+            scene.add(coilMesh);
+
+            // Head spring
+            const headGeo = new THREE.SphereGeometry(0.3, 8, 8);
+            const headMesh = new THREE.Mesh(headGeo, new THREE.MeshStandardMaterial({ color: 0xd1d5db }));
+            headMesh.position.set(0, 1.2, 0);
+            coilMesh.add(headMesh);
+
+            monsterEntities.push({
+                type: 'coilhead',
+                mesh: coilMesh,
+                speed: 7.5,
+                attackRange: 1.5,
+                damage: 40
+            });
+        }
+
+        function setupInputListeners() {
+            // PC Keyboard & Pointer Lock
+            window.addEventListener('keydown', (e) => {
+                keys[e.code] = true;
+                if (e.code === 'KeyF' || e.code === 'RightClick') triggerScan();
+                if (e.code === 'KeyQ') toggleFlashlight();
+                if (e.code === 'KeyE') interactObject();
+            });
+
+            window.addEventListener('keyup', (e) => {
+                keys[e.code] = false;
+            });
+
+            const canvas = renderer.domElement;
+            canvas.addEventListener('click', () => {
+                if (!isPointerLocked && window.innerWidth >= 640) {
+                    canvas.requestPointerLock();
+                } else if (isPointerLocked) {
+                    interactObject();
+                }
+            });
+
+            window.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+                triggerScan();
+            });
+
+            document.addEventListener('pointerlockchange', () => {
+                isPointerLocked = (document.pointerLockElement === canvas);
+            });
+
+            document.addEventListener('mousemove', (e) => {
+                if (isPointerLocked) {
+                    const sensitivity = 0.0022;
+                    player.rotation.y -= e.movementX * sensitivity;
+                    player.rotation.x -= e.movementY * sensitivity;
+                    player.rotation.x = Math.max(-Math.PI / 2.2, Math.min(Math.PI / 2.2, player.rotation.x));
+                }
+            });
+
+            // Mobile Touch Joystick and Camera Look
+            setupMobileTouchControls();
+
+            // UI Start & Retry Buttons
+            document.getElementById('start-game-btn').addEventListener('click', startGame);
+            document.getElementById('restart-btn').addEventListener('click', restartGame);
+        }
+
+        function setupMobileTouchControls() {
+            const joystickZone = document.getElementById('joystick-zone');
+            const joystickThumb = document.getElementById('joystick-thumb');
+
+            let touchId = null;
+            let joystickCenter = { x: 0, y: 0 };
+
+            joystickZone.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                const touch = e.changedTouches[0];
+                touchId = touch.identifier;
+                const rect = joystickZone.getBoundingClientRect();
+                joystickCenter = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+            });
+
+            window.addEventListener('touchmove', (e) => {
+                for (let touch of e.changedTouches) {
+                    if (touch.identifier === touchId) {
+                        const dx = touch.clientX - joystickCenter.x;
+                        const dy = touch.clientY - joystickCenter.y;
+                        const dist = Math.min(Math.hypot(dx, dy), 40);
+                        const angle = Math.atan2(dy, dx);
+
+                        const thumbX = Math.cos(angle) * dist;
+                        const thumbY = Math.sin(angle) * dist;
+                        joystickThumb.style.transform = `translate(${thumbX}px, ${thumbY}px)`;
+
+                        touchMoveDir.x = thumbX / 40;
+                        touchMoveDir.y = thumbY / 40;
+                    }
+                }
+            });
+
+            const resetJoystick = (e) => {
+                for (let touch of e.changedTouches) {
+                    if (touch.identifier === touchId) {
+                        touchId = null;
+                        joystickThumb.style.transform = `translate(0px, 0px)`;
+                        touchMoveDir = { x: 0, y: 0 };
+                    }
+                }
+            };
+            window.addEventListener('touchend', resetJoystick);
+            window.addEventListener('touchcancel', resetJoystick);
+
+            // Right Screen Camera Look Swipe
+            window.addEventListener('touchstart', (e) => {
+                for (let touch of e.changedTouches) {
+                    if (touch.clientX > window.innerWidth / 2) {
+                        touchLookPrev = { x: touch.clientX, y: touch.clientY };
+                    }
+                }
+            });
+
+            window.addEventListener('touchmove', (e) => {
+                if (touchLookPrev) {
+                    for (let touch of e.changedTouches) {
+                        if (touch.clientX > window.innerWidth / 2) {
+                            const dx = touch.clientX - touchLookPrev.x;
+                            const dy = touch.clientY - touchLookPrev.y;
+
+                            player.rotation.y -= dx * 0.005;
+                            player.rotation.x -= dy * 0.005;
+                            player.rotation.x = Math.max(-Math.PI / 2.2, Math.min(Math.PI / 2.2, player.rotation.x));
+
+                            touchLookPrev = { x: touch.clientX, y: touch.clientY };
+                        }
+                    }
+                }
+            });
+
+            window.addEventListener('touchend', () => { touchLookPrev = null; });
+
+            // Touch Action Buttons
+            document.getElementById('btn-scan').addEventListener('touchstart', (e) => { e.preventDefault(); triggerScan(); });
+            document.getElementById('btn-light').addEventListener('touchstart', (e) => { e.preventDefault(); toggleFlashlight(); });
+            document.getElementById('btn-interact').addEventListener('touchstart', (e) => { e.preventDefault(); interactObject(); });
+            document.getElementById('btn-run').addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                player.isRunning = !player.isRunning;
+            });
+        }
+
+        function triggerScan() {
+            audio.playScanPing();
+
+            // Create Ring VFX
+            const container = document.getElementById('scan-vfx-container');
+            const ring = document.createElement('div');
+            ring.className = 'scan-ring w-48 h-48 left-1/2 top-1/2';
+            container.appendChild(ring);
+            setTimeout(() => ring.remove(), 800);
+
+            let targetsFound = 0;
+
+            // Highlight scrap within range
+            scrapItems.forEach((item) => {
+                if (item.isHeld) return;
+                const dist = player.position.distanceTo(item.mesh.position);
+                if (dist < 18) {
+                    targetsFound++;
+                    showToast(`[SCRAP] ${item.name} (~$${item.value}) - ${dist.toFixed(1)}m`);
+                }
+            });
+
+            // Check distance to Ship
+            const distToShip = player.position.distanceTo(shipDesk.position);
+            if (distToShip < 25) {
+                showToast(`[SHIP DESK] Sell Counter - ${distToShip.toFixed(1)}m`);
+            }
+
+            if (targetsFound === 0 && distToShip >= 25) {
+                showToast("SCAN: NO TARGETS NEARBY");
+            }
+        }
+
+        function toggleFlashlight() {
+            if (player.battery > 0) {
+                flashlight.visible = !flashlight.visible;
+                audio.playFlashlightToggle();
+            }
+        }
+
+        function interactObject() {
+            // If already holding an item, drop it
+            if (player.heldItem) {
+                dropHeldItem();
+                return;
+            }
+
+            // Check for Scrap pickup nearby
+            let closestItem = null;
+            let minDist = 2.5;
+
+            scrapItems.forEach((item) => {
+                if (!item.isHeld) {
+                    const dist = player.position.distanceTo(item.mesh.position);
+                    if (dist < minDist) {
+                        minDist = dist;
+                        closestItem = item;
+                    }
+                }
+            });
+
+            if (closestItem) {
+                pickUpScrap(closestItem);
+                return;
+            }
+
+            // Check for Selling at Ship Desk
+            const distToDesk = player.position.distanceTo(shipDesk.position);
+            if (distToDesk < 3.0 && player.heldItem) {
+                sellItemAtShip();
+            }
+        }
+
+        function pickUpScrap(item) {
+            item.isHeld = true;
+            player.heldItem = item;
+            scene.remove(item.mesh);
+
+            audio.playPickupSound();
+            showToast(`Picked up: ${item.name} ($${item.value})`);
+
+            // Update UI Slot
+            document.getElementById('slot-0-name').textContent = item.name;
+            document.getElementById('slot-0-icon').className = "fa-solid fa-box text-amber-400 text-lg";
+        }
+
+        function dropHeldItem() {
+            if (!player.heldItem) return;
+
+            const item = player.heldItem;
+            item.isHeld = false;
+
+            // Place item in front of player
+            const dropPos = new THREE.Vector3(0, 0, -1.2).applyEuler(player.rotation).add(player.position);
+            dropPos.y = 0.3;
+            item.mesh.position.copy(dropPos);
+            scene.add(item.mesh);
+
+            // Check if dropped directly on Ship Counter Desk
+            if (player.position.distanceTo(shipDesk.position) < 3.5) {
+                sellItemAtShip(item);
+            } else {
+                showToast(`Dropped: ${item.name}`);
+            }
+
+            player.heldItem = null;
+            document.getElementById('slot-0-name').textContent = "Empty";
+            document.getElementById('slot-0-icon').className = "fa-solid fa-hand text-emerald-400 opacity-40 text-lg";
+        }
+
+        function sellItemAtShip(item = player.heldItem) {
+            if (!item) return;
+
+            player.collectedScrapValue += item.value;
+            audio.playSellCash();
+            showToast(`SOLD ${item.name} FOR +$${item.value}!`);
+
+            // Remove item permanently
+            const idx = scrapItems.indexOf(item);
+            if (idx > -1) scrapItems.splice(idx, 1);
+
+            if (player.heldItem === item) {
+                player.heldItem = null;
+                document.getElementById('slot-0-name').textContent = "Empty";
+                document.getElementById('slot-0-icon').className = "fa-solid fa-hand text-emerald-400 opacity-40 text-lg";
+            }
+
+            document.getElementById('hud-collected').textContent = player.collectedScrapValue;
+
+            // Check if Profit Quota Met!
+            if (player.collectedScrapValue >= player.quota) {
+                setTimeout(() => {
+                    endGame(true);
+                }, 1000);
+            }
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast-msg');
+            toast.textContent = msg;
+            toast.style.opacity = '1';
+            clearTimeout(toast.timer);
+            toast.timer = setTimeout(() => {
+                toast.style.opacity = '0';
+            }, 2500);
+        }
+
+        function isPlayerLookingAt(targetPos) {
+            const dirToTarget = targetPos.clone().sub(player.position).normalize();
+            const forward = new THREE.Vector3(0, 0, -1).applyEuler(player.rotation).normalize();
+            const dot = forward.dot(dirToTarget);
+            return dot > 0.4; // True if monster is in camera view cone
+        }
+
+        function updateMonsters(dt) {
+            monsterEntities.forEach((m) => {
+                if (m.type === 'coilhead') {
+                    const distToPlayer = player.position.distanceTo(m.mesh.position);
+                    const isSpotted = isPlayerLookingAt(m.mesh.position) && flashlight.visible;
+
+                    if (!isSpotted) {
+                        // Move rapidly towards player when unobserved!
+                        const moveDir = player.position.clone().sub(m.mesh.position);
+                        moveDir.y = 0;
+                        moveDir.normalize();
+
+                        m.mesh.position.add(moveDir.multiplyScalar(m.speed * dt));
+
+                        if (Math.random() < 0.1) audio.playMonsterFootstep();
+
+                        // Attack player if close
+                        if (distToPlayer < m.attackRange) {
+                            damagePlayer(m.damage);
+                        }
+                    }
+                }
+            });
+        }
+
+        function damagePlayer(amount) {
+            player.health = Math.max(0, player.health - amount);
+            document.getElementById('hp-val').textContent = `${Math.round(player.health)}%`;
+            document.getElementById('hp-bar').style.width = `${player.health}%`;
+
+            if (player.health <= 0) {
+                endGame(false);
+            }
+        }
+
+        let clock = new THREE.Clock();
+
+        function gameLoop() {
+            requestAnimationFrame(gameLoop);
+
+            const dt = clock.getDelta();
+
+            // Player Movement & Physics
+            updatePlayerMovement(dt);
+
+            // Flashlight Battery Drain
+            if (flashlight.visible) {
+                player.battery = Math.max(0, player.battery - dt * 2.0);
+                document.getElementById('battery-bar').style.width = `${player.battery}%`;
+                if (player.battery <= 0) {
+                    flashlight.visible = false;
+                }
+            }
+
+            // Time advancement (Reduced from 15 to 7.5 to double the time limit)
+            player.timeOfDaySec += dt * 7.5;
+            updateTimeHUD();
+
+            // Enemy AI
+            updateMonsters(dt);
+
+            // Camera transform sync
+            camera.position.copy(player.position);
+            camera.rotation.copy(player.rotation);
+
+            renderer.render(scene, camera);
+        }
+
+        function updatePlayerMovement(dt) {
+            const moveVector = new THREE.Vector3();
+
+            // PC WASD Controls
+            if (keys['KeyW'] || keys['ArrowUp']) moveVector.z -= 1;
+            if (keys['KeyS'] || keys['ArrowDown']) moveVector.z += 1;
+            if (keys['KeyA'] || keys['ArrowLeft']) moveVector.x -= 1;
+            if (keys['KeyD'] || keys['ArrowRight']) moveVector.x += 1;
+
+            // Mobile Joystick Controls
+            if (touchMoveDir.x !== 0 || touchMoveDir.y !== 0) {
+                moveVector.x = touchMoveDir.x;
+                moveVector.z = touchMoveDir.y;
+            }
+
+            // Stamina & Speed
+            const isMoving = moveVector.lengthSq() > 0;
+            const isShift = keys['ShiftLeft'] || keys['ShiftRight'] || player.isRunning;
+
+            let currentSpeed = player.speed;
+            if (isShift && isMoving && player.stamina > 0) {
+                currentSpeed = player.runSpeed;
+                player.stamina = Math.max(0, player.stamina - dt * 25);
+            } else if (!isShift) {
+                player.stamina = Math.min(100, player.stamina + dt * 15);
+            }
+
+            // Update Stamina UI
+            document.getElementById('stamina-val').textContent = `${Math.round(player.stamina)}%`;
+            document.getElementById('stamina-bar').style.width = `${player.stamina}%`;
+
+            if (isMoving) {
+                moveVector.normalize();
+                moveVector.applyEuler(new THREE.Euler(0, player.rotation.y, 0, 'YXZ'));
+
+                const moveStep = moveVector.multiplyScalar(currentSpeed * dt);
+                const targetPos = player.position.clone().add(moveStep);
+
+                // Collision Check with Facility Walls
+                const playerBB = new THREE.Box3().setFromCenterAndSize(targetPos, new THREE.Vector3(0.6, 1.8, 0.6));
+                let collided = false;
+
+                for (let wall of facilityWalls) {
+                    if (playerBB.intersectsBox(wall)) {
+                        collided = true;
+                        break;
+                    }
+                }
+
+                if (!collided) {
+                    player.position.copy(targetPos);
+                    if (Math.random() < 0.05) audio.playFootstep();
+                }
+            }
+        }
+
+        function updateTimeHUD() {
+            const hrs = Math.floor(player.timeOfDaySec / 3600) % 24;
+            const mins = Math.floor((player.timeOfDaySec % 3600) / 60);
+            const period = hrs >= 12 ? 'PM' : 'AM';
+            const displayHrs = hrs % 12 === 0 ? 12 : hrs % 12;
+
+            document.getElementById('hud-time').textContent = 
+                `${displayHrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')} ${period}`;
+        }
+
+        function startGame() {
+            audio.init();
+            document.getElementById('start-overlay').classList.add('hidden');
+            clock.start();
+        }
+
+        function endGame(isVictory) {
+            document.getElementById('end-overlay').classList.remove('hidden');
+            const title = document.getElementById('end-title');
+            const subtitle = document.getElementById('end-subtitle');
+
+            if (isVictory) {
+                title.textContent = "QUOTA MET! 🎉";
+                title.className = "text-4xl sm:text-5xl font-black crt-font text-emerald-400";
+                subtitle.textContent = "Great job, asset. The Company appreciates your profitable service.";
+            } else {
+                title.textContent = "YOU WERE FIRED 💀";
+                title.className = "text-4xl sm:text-5xl font-black crt-font text-red-500";
+                subtitle.textContent = "You died or failed to meet profit quota. Replaced by next contractor.";
+            }
+
+            document.getElementById('end-total-value').textContent = `$${player.collectedScrapValue}`;
+            document.getElementById('end-quota-target').textContent = `$${player.quota}`;
+        }
+
+        function restartGame() {
+            location.reload();
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        // Initialize on load
+        window.onload = () => {
+            init3DWorld();
+            setupInputListeners();
+            requestAnimationFrame(gameLoop);
+        };
+    </script>
+</body>
 </html>

@@ -1,11 +1,1054 @@
 <!DOCTYPE html>
 <html lang="ja">
- <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title></title>
- </head>
- <body>
-  <h1>oid835lf</h1>
- </body>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>REAL WILDERNESS - Open World Nature Explorer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #87ceeb;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        #canvas-container {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
+        }
+        .hud-panel {
+            background: rgba(18, 28, 20, 0.65);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.25);
+        }
+        .nature-btn {
+            background: linear-gradient(135deg, rgba(74, 133, 5, 0.4) 0%, rgba(30, 90, 40, 0.6) 100%);
+            border: 1px solid rgba(180, 230, 100, 0.6);
+            color: #ffffff;
+            transition: all 0.2s ease;
+        }
+        .nature-btn:active, .nature-btn.active {
+            background: rgba(120, 200, 50, 0.8);
+            color: #112200;
+            box-shadow: 0 0 15px rgba(180, 255, 100, 0.6);
+        }
+        /* Touch Joystick */
+        .joystick-base {
+            width: 120px;
+            height: 120px;
+            background: rgba(255, 255, 255, 0.2);
+            border: 2px solid rgba(255, 255, 255, 0.5);
+            border-radius: 50%;
+            position: relative;
+            touch-action: none;
+        }
+        .joystick-stick {
+            width: 50px;
+            height: 50px;
+            background: radial-gradient(circle, #a3e635 0%, #4d7c0f 100%);
+            border-radius: 50%;
+            position: absolute;
+            top: 35px;
+            left: 35px;
+            box-shadow: 0 0 12px rgba(163, 230, 53, 0.8);
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body class="text-white select-none">
+
+    <!-- Loading Screen -->
+    <div id="loading" class="absolute inset-0 z-50 flex flex-col items-center justify-center bg-slate-900 transition-opacity duration-700">
+        <div class="relative flex items-center justify-center">
+            <div class="w-24 h-24 border-4 border-lime-500/20 border-t-lime-400 rounded-full animate-spin"></div>
+            <div class="absolute text-lime-400 text-xs font-mono font-bold">LOADING</div>
+        </div>
+        <h2 class="mt-6 text-xl font-bold tracking-widest text-lime-300 uppercase">REAL WILDERNESS WORLD</h2>
+        <p class="text-xs text-slate-300 mt-2">自然地形・大気・森林・4WDジープ生成中...</p>
+    </div>
+
+    <!-- 3D Canvas -->
+    <div id="canvas-container"></div>
+
+    <!-- UI / HUD Layer -->
+    <div id="ui-layer" class="absolute inset-0 z-10 pointer-events-none flex flex-col justify-between p-4 md:p-6">
+        <!-- Top Bar -->
+        <div class="flex justify-between items-start w-full">
+            <!-- Left Info Panel -->
+            <div class="hud-panel p-4 rounded-xl flex flex-col gap-1 pointer-events-auto max-w-xs">
+                <div class="flex items-center gap-2">
+                    <div id="mode-badge" class="px-2 py-0.5 text-[10px] font-black tracking-wider bg-lime-400 text-slate-950 rounded uppercase">徒歩移動</div>
+                    <span id="location-name" class="text-sm font-bold tracking-wider text-lime-200">グランドバレー公園</span>
+                </div>
+                <div class="text-2xl font-extrabold tracking-widest font-mono text-white mt-1">
+                    <span id="speed-display">0</span> <span class="text-xs text-slate-300 font-normal">KM/H</span>
+                </div>
+                <!-- Altitude & Time of Day -->
+                <div class="flex justify-between text-xs text-lime-300 font-mono mt-1">
+                    <span>高度: <span id="alt-display">12</span>m</span>
+                    <span>時間: <span id="time-display">12:00</span></span>
+                </div>
+                <!-- Energy / Stamina Bar -->
+                <div class="w-full bg-slate-800/80 h-2 rounded-full overflow-hidden mt-1 border border-slate-600">
+                    <div id="stamina-bar" class="bg-gradient-to-r from-lime-400 to-emerald-500 h-full w-full transition-all duration-75"></div>
+                </div>
+            </div>
+
+            <!-- Center Objective / Quest Box -->
+            <div class="hidden md:flex flex-col items-center hud-panel px-6 py-3 rounded-xl border-lime-500/40">
+                <div class="text-[10px] tracking-widest font-bold text-lime-400 uppercase">WILDERNESS EXPLORATION</div>
+                <div id="objective-text" class="text-sm font-semibold text-slate-100 mt-0.5">絶景スポットを探索せよ (<span id="spots-found">1</span>/5)</div>
+            </div>
+
+            <!-- Mini Map -->
+            <div class="hud-panel p-2 rounded-xl flex flex-col items-center pointer-events-auto">
+                <canvas id="minimap" width="120" height="120" class="rounded-lg bg-emerald-950/80 border border-lime-500/30"></canvas>
+                <div class="text-[10px] text-slate-300 mt-1 font-mono">X: <span id="pos-x">0</span> Z: <span id="pos-z">0</span></div>
+            </div>
+        </div>
+
+        <!-- Center Location Discovery Notification -->
+        <div id="banner" class="self-center hud-panel px-8 py-4 rounded-2xl text-center border-2 border-lime-400 shadow-2xl shadow-lime-900/40 opacity-0 transition-all duration-300 transform scale-95 pointer-events-none">
+            <h1 id="banner-title" class="text-2xl md:text-3xl font-black tracking-widest text-lime-300 uppercase">LOCATION DISCOVERED</h1>
+            <p id="banner-sub" class="text-sm text-slate-200 mt-1">クリスタルレイク湖畔</p>
+        </div>
+
+        <!-- Bottom Controls Bar -->
+        <div class="flex justify-between items-end w-full">
+            <!-- Desktop Instructions -->
+            <div class="hidden md:block hud-panel p-3 rounded-xl text-xs text-slate-200 space-y-1">
+                <div><span class="text-lime-400 font-bold">[WASD / 矢印]</span> 移動</div>
+                <div><span class="text-lime-400 font-bold">[Space]</span> ジャンプ</div>
+                <div><span class="text-lime-400 font-bold">[Shift]</span> ダッシュ / 加速</div>
+                <div><span class="text-lime-400 font-bold">[E]</span> 4WDジープ 乗り降り</div>
+                <div><span class="text-lime-400 font-bold">[マウスドラッグ]</span> 360°カメラ視点</div>
+            </div>
+
+            <!-- Mobile Touch Controls -->
+            <div class="flex md:hidden justify-between w-full pointer-events-auto items-end">
+                <div id="joystick-container" class="joystick-base">
+                    <div id="joystick-stick" class="joystick-stick"></div>
+                </div>
+
+                <div class="flex flex-col gap-3">
+                    <button id="btn-vehicle" class="nature-btn w-14 h-14 rounded-full flex items-center justify-center font-bold text-xs shadow-lg">
+                        🚙<br>乗降
+                    </button>
+                    <button id="btn-jump" class="nature-btn w-16 h-16 rounded-full flex items-center justify-center font-bold text-sm shadow-lg">
+                        JUMP
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Main Variables
+        let scene, camera, renderer;
+        let clock = new THREE.Clock();
+        let terrainMesh, waterMesh, minimapCtx;
+        let sunLight, ambientLight, skyDome;
+        
+        // Player & Vehicle State
+        const player = {
+            mesh: null,
+            pos: new THREE.Vector3(0, 10, 0),
+            vel: new THREE.Vector3(0, 0, 0),
+            rotationY: 0,
+            speed: 0,
+            isGrounded: false,
+            inVehicle: false,
+            stamina: 100,
+            // 人型手足のアニメーション制御用パーツ参照
+            limbs: {
+                leftArm: null,
+                rightArm: null,
+                leftLeg: null,
+                rightLeg: null
+            },
+            animTime: 0
+        };
+
+        const vehicle = {
+            mesh: null,
+            pos: new THREE.Vector3(15, 0, 15),
+            vel: new THREE.Vector3(0, 0, 0),
+            rotationY: 0,
+            speed: 0,
+            wheels: []
+        };
+
+        // Camera State
+        let cameraAngleX = 0;
+        let cameraAngleY = 0.25;
+        let cameraDistance = 12;
+        let isMouseDown = false;
+        let lastMouseX = 0, lastMouseY = 0;
+
+        // Inputs
+        const keys = { w: false, a: false, s: false, d: false, space: false, shift: false, e: false };
+        const touchInput = { x: 0, y: 0, active: false };
+
+        // World Time & Locations
+        let worldTime = 12.0; // 0.0 ~ 24.0 hours
+        const locations = [
+            { name: "グランドバレー緑地", x: 0, z: 0, radius: 90, discovered: true },
+            { name: "クリスタルレイク湖畔", x: -140, z: -120, radius: 85, discovered: false },
+            { name: "サンセット風車ヒルズ", x: 160, z: 140, radius: 80, discovered: false },
+            { name: "サイレントパイン森林", x: -150, z: 150, radius: 80, discovered: false },
+            { name: "スノーピーク山頂", x: 180, z: -160, radius: 70, discovered: false }
+        ];
+        let currentLocation = "グランドバレー緑地";
+        let discoveredCount = 1;
+
+        // Sound System (Web Audio API)
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        let audioCtx = null;
+
+        function playSound(type) {
+            if (!audioCtx) return;
+            try {
+                const now = audioCtx.currentTime;
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                if (type === 'jump') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(180, now);
+                    osc.frequency.exponentialRampToValueAtTime(320, now + 0.15);
+                    gain.gain.setValueAtTime(0.2, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+                    osc.start(now);
+                    osc.stop(now + 0.15);
+                } else if (type === 'engine') {
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(60, now);
+                    osc.frequency.linearRampToValueAtTime(120, now + 0.3);
+                    gain.gain.setValueAtTime(0.15, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+                    osc.start(now);
+                    osc.stop(now + 0.3);
+                } else if (type === 'discover') {
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(440, now);
+                    osc.frequency.setValueAtTime(554.37, now + 0.12);
+                    osc.frequency.setValueAtTime(659.25, now + 0.24);
+                    gain.gain.setValueAtTime(0.3, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+                    osc.start(now);
+                    osc.stop(now + 0.5);
+                }
+            } catch (e) {}
+        }
+
+        // Natural Procedural Terrain Elevation
+        function getTerrainHeight(x, z) {
+            // Layered Sine & CoSine Noise for Rolling Hills & Mountains
+            const s1 = 0.012, s2 = 0.035, s3 = 0.08;
+            let h = Math.sin(x * s1) * Math.cos(z * s1) * 22 +
+                    Math.sin(x * s2 + z * s2 * 0.8) * 8 +
+                    Math.cos(x * s3) * Math.sin(z * s3) * 2.5;
+
+            // Deep Lake Bed at Lakeshore location
+            const distLake = Math.hypot(x - (-140), z - (-120));
+            if (distLake < 90) {
+                const lakeFactor = Math.cos((distLake / 90) * Math.PI * 0.5);
+                h -= lakeFactor * 26;
+            }
+
+            // Mountain Peak elevation at Snow Peak location
+            const distPeak = Math.hypot(x - 180, z - (-160));
+            if (distPeak < 100) {
+                const peakFactor = Math.cos((distPeak / 100) * Math.PI * 0.5);
+                h += peakFactor * 42;
+            }
+
+            // Map outer borders high mountains
+            const distCenter = Math.hypot(x, z);
+            if (distCenter > 220) {
+                h += Math.pow((distCenter - 220) * 0.3, 1.7);
+            }
+
+            return h;
+        }
+
+        function initGraphics() {
+            const container = document.getElementById('canvas-container');
+
+            // Scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x87ceeb);
+            scene.fog = new THREE.FogExp2(0x87ceeb, 0.0028);
+
+            // Camera
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+
+            // Renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            container.appendChild(renderer.domElement);
+
+            // Lighting Setup
+            ambientLight = new THREE.AmbientLight(0xfff5ea, 0.8);
+            scene.add(ambientLight);
+
+            sunLight = new THREE.DirectionalLight(0xfff0dd, 1.4);
+            sunLight.position.set(150, 200, 100);
+            sunLight.castShadow = true;
+            sunLight.shadow.mapSize.width = 2048;
+            sunLight.shadow.mapSize.height = 2048;
+            sunLight.shadow.camera.near = 1;
+            sunLight.shadow.camera.far = 600;
+            const d = 220;
+            sunLight.shadow.camera.left = -d;
+            sunLight.shadow.camera.right = d;
+            sunLight.shadow.camera.top = d;
+            sunLight.shadow.camera.bottom = -d;
+            scene.add(sunLight);
+
+            // Build Terrain, Water, Environment
+            buildNatureTerrain();
+            buildWaterPlane();
+            buildTreesAndRocks();
+            buildWindmillsAndCamps();
+
+            // Build Explorer & 4WD Vehicle
+            createExplorerPlayer();
+            createJeepVehicle();
+
+            // Minimap context
+            minimapCtx = document.getElementById('minimap').getContext('2d');
+
+            // Hide Loading Overlay
+            document.getElementById('loading').style.opacity = '0';
+            setTimeout(() => document.getElementById('loading').style.display = 'none', 700);
+        }
+
+        function buildNatureTerrain() {
+            const size = 600;
+            const segments = 140;
+            const geo = new THREE.PlaneGeometry(size, size, segments, segments);
+            geo.rotateX(-Math.PI / 2);
+
+            const pos = geo.attributes.position;
+            const colors = [];
+
+            const cSand = new THREE.Color(0xd2b48c);
+            const cGrass = new THREE.Color(0x4e8d22);
+            const cForest = new THREE.Color(0x2d5a1e);
+            const cRock = new THREE.Color(0x6b705c);
+            const cSnow = new THREE.Color(0xf0f4f8);
+
+            for (let i = 0; i < pos.count; i++) {
+                const x = pos.getX(i);
+                const z = pos.getZ(i);
+                const h = getTerrainHeight(x, z);
+                pos.setY(i, h);
+
+                // Natural Biome Coloring based on Altitude
+                let col = new THREE.Color();
+                if (h < -2) {
+                    col.copy(cSand); // Lakebed & Beach
+                } else if (h < 12) {
+                    col.copy(cGrass).lerp(cForest, Math.random() * 0.3); // Lowland lush grass
+                } else if (h < 30) {
+                    col.copy(cForest).lerp(cRock, (h - 12) / 18); // Upland forest/rock
+                } else {
+                    col.copy(cRock).lerp(cSnow, Math.min(1, (h - 30) / 15)); // High rock & snow
+                }
+
+                colors.push(col.r, col.g, col.b);
+            }
+
+            geo.computeVertexNormals();
+            geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+
+            const mat = new THREE.MeshStandardMaterial({
+                vertexColors: true,
+                roughness: 0.85,
+                metalness: 0.1
+            });
+
+            terrainMesh = new THREE.Mesh(geo, mat);
+            terrainMesh.receiveShadow = true;
+            scene.add(terrainMesh);
+        }
+
+        function buildWaterPlane() {
+            const waterGeo = new THREE.PlaneGeometry(600, 600);
+            waterGeo.rotateX(-Math.PI / 2);
+            const waterMat = new THREE.MeshStandardMaterial({
+                color: 0x1d70a2,
+                roughness: 0.1,
+                metalness: 0.8,
+                transparent: true,
+                opacity: 0.75
+            });
+            waterMesh = new THREE.Mesh(waterGeo, waterMat);
+            waterMesh.position.y = -3; // Water level
+            scene.add(waterMesh);
+        }
+
+        function buildTreesAndRocks() {
+            const treeGeoPine = new THREE.ConeGeometry(3, 10, 6);
+            const treeMatPine = new THREE.MeshStandardMaterial({ color: 0x1e4620, roughness: 0.8 });
+            const trunkGeo = new THREE.CylinderGeometry(0.5, 0.7, 3, 6);
+            const trunkMat = new THREE.MeshStandardMaterial({ color: 0x4a2e12, roughness: 0.9 });
+
+            const rockGeo = new THREE.DodecahedronGeometry(2);
+            const rockMat = new THREE.MeshStandardMaterial({ color: 0x5a6065, roughness: 0.9 });
+
+            // Scatter Trees and Rocks across the world
+            for (let i = 0; i < 220; i++) {
+                const x = (Math.random() - 0.5) * 440;
+                const z = (Math.random() - 0.5) * 440;
+                const h = getTerrainHeight(x, z);
+
+                // Avoid placing trees deep underwater or on high snow peaks
+                if (h > 0 && h < 28) {
+                    const treeGroup = new THREE.Group();
+                    
+                    // Trunk
+                    const trunk = new THREE.Mesh(trunkGeo, trunkMat);
+                    trunk.position.y = 1.5;
+                    trunk.castShadow = true;
+                    treeGroup.add(trunk);
+
+                    // Foliage
+                    const foliage = new THREE.Mesh(treeGeoPine, treeMatPine);
+                    foliage.position.y = 6;
+                    foliage.castShadow = true;
+                    treeGroup.add(foliage);
+
+                    const scale = 0.7 + Math.random() * 0.7;
+                    treeGroup.scale.set(scale, scale, scale);
+                    treeGroup.position.set(x, h, z);
+                    scene.add(treeGroup);
+                }
+
+                // Scatter Rocks
+                if (h > -2 && Math.random() > 0.4) {
+                    const rx = (Math.random() - 0.5) * 460;
+                    const rz = (Math.random() - 0.5) * 460;
+                    const rh = getTerrainHeight(rx, rz);
+                    const rock = new THREE.Mesh(rockGeo, rockMat);
+                    const rScale = 0.5 + Math.random() * 1.5;
+                    rock.scale.set(rScale, rScale * (0.6 + Math.random() * 0.8), rScale);
+                    rock.position.set(rx, rh + rScale * 0.5, rz);
+                    rock.rotation.set(Math.random(), Math.random(), Math.random());
+                    rock.castShadow = true;
+                    scene.add(rock);
+                }
+            }
+        }
+
+        function buildWindmillsAndCamps() {
+            // Windmills at Sunset Hills (160, 140)
+            for (let i = 0; i < 3; i++) {
+                const wx = 150 + i * 20;
+                const wz = 130 + i * 15;
+                const wy = getTerrainHeight(wx, wz);
+
+                const wmGroup = new THREE.Group();
+                
+                // Tower
+                const tGeo = new THREE.CylinderGeometry(1, 2, 22, 8);
+                const tMat = new THREE.MeshStandardMaterial({ color: 0xeeeeee });
+                const tower = new THREE.Mesh(tGeo, tMat);
+                tower.position.y = 11;
+                tower.castShadow = true;
+                wmGroup.add(tower);
+
+                // Blade Hub
+                const hubGeo = new THREE.SphereGeometry(1, 8, 8);
+                const hubMat = new THREE.MeshStandardMaterial({ color: 0x333333 });
+                const hub = new THREE.Mesh(hubGeo, hubMat);
+                hub.position.set(0, 21, 1.2);
+                wmGroup.add(hub);
+
+                wmGroup.position.set(wx, wy, wz);
+                scene.add(wmGroup);
+            }
+        }
+
+        function createExplorerPlayer() {
+            const group = new THREE.Group();
+
+            // マテリアル（質感・カラー）
+            const skinMat = new THREE.MeshStandardMaterial({ color: 0xf5d0a9, roughness: 0.6 });
+            const hairMat = new THREE.MeshStandardMaterial({ color: 0x3a2512, roughness: 0.8 });
+            const jacketMat = new THREE.MeshStandardMaterial({ color: 0x2a5223, roughness: 0.5 }); // アンプランツグリーンジャケット
+            const shirtMat = new THREE.MeshStandardMaterial({ color: 0xe8e3d5, roughness: 0.7 });  // インナー
+            const pantsMat = new THREE.MeshStandardMaterial({ color: 0x2b3844, roughness: 0.6 });  // ダークブルーデニム
+            const bootMat = new THREE.MeshStandardMaterial({ color: 0x4a2e16, roughness: 0.8 });   // トレッキングブーツ
+            const hatMat = new THREE.MeshStandardMaterial({ color: 0x8b5a2b, roughness: 0.7 });    // サファリハット
+            const gearMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.4 });   // バックル・ギア
+
+            // --- 胴体・チェスト (Torso) ---
+            const torsoGroup = new THREE.Group();
+            torsoGroup.position.y = 1.35;
+
+            // ジャケット & インナー
+            const chestMesh = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.7, 0.4), jacketMat);
+            chestMesh.position.y = 0.35;
+            chestMesh.castShadow = true;
+            torsoGroup.add(chestMesh);
+
+            const innerMesh = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.65, 0.41), shirtMat);
+            innerMesh.position.set(0, 0.35, 0.01);
+            torsoGroup.add(innerMesh);
+
+            // ウエスト & ベルト
+            const waistMesh = new THREE.Mesh(new THREE.BoxGeometry(0.64, 0.25, 0.38), pantsMat);
+            waistMesh.position.y = -0.05;
+            torsoGroup.add(waistMesh);
+
+            const beltMesh = new THREE.Mesh(new THREE.BoxGeometry(0.66, 0.08, 0.4), gearMat);
+            beltMesh.position.y = 0.05;
+            torsoGroup.add(beltMesh);
+
+            group.add(torsoGroup);
+
+            // --- 頭部 & 顔 & ハット (Head & Hat) ---
+            const headGroup = new THREE.Group();
+            headGroup.position.y = 1.95;
+
+            // 首
+            const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.14, 0.15, 8), skinMat);
+            neck.position.y = -0.15;
+            headGroup.add(neck);
+
+            // 頭の形
+            const headMesh = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.38, 0.38), skinMat);
+            headMesh.castShadow = true;
+            headGroup.add(headMesh);
+
+            // 髪の毛
+            const hairMesh = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.18, 0.4), hairMat);
+            hairMesh.position.set(0, 0.12, -0.02);
+            headGroup.add(hairMesh);
+
+            // 目
+            const eyeGeo = new THREE.BoxGeometry(0.06, 0.06, 0.02);
+            const eyeMat = new THREE.MeshBasicMaterial({ color: 0x111111 });
+            const leftEye = new THREE.Mesh(eyeGeo, eyeMat);
+            leftEye.position.set(-0.1, 0.03, -0.2);
+            const rightEye = new THREE.Mesh(eyeGeo, eyeMat);
+            rightEye.position.set(0.1, 0.03, -0.2);
+            headGroup.add(leftEye);
+            headGroup.add(rightEye);
+
+            // サファリハット
+            const hatBrim = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.55, 0.04, 12), hatMat);
+            hatBrim.position.y = 0.22;
+            const hatCrown = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.32, 0.22, 10), hatMat);
+            hatCrown.position.y = 0.33;
+            headGroup.add(hatBrim);
+            headGroup.add(hatCrown);
+
+            group.add(headGroup);
+
+            // --- 探検リュックサック (Backpack) ---
+            const packGroup = new THREE.Group();
+            const mainPack = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.65, 0.28), hatMat);
+            mainPack.position.set(0, 1.35, 0.32);
+            mainPack.castShadow = true;
+            packGroup.add(mainPack);
+
+            const packPocket = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.3, 0.12), hatMat);
+            packPocket.position.set(0, 1.2, 0.48);
+            packGroup.add(packPocket);
+            group.add(packGroup);
+
+            // --- 腕関節グループの作成関数 ---
+            function createArm(isLeft) {
+                const armGroup = new THREE.Group();
+                const side = isLeft ? -1 : 1;
+                armGroup.position.set(side * 0.44, 1.65, 0); // 肩のピボット位置
+
+                // 肩パッド / 袖
+                const shoulder = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.22, 0.22), jacketMat);
+                shoulder.position.y = -0.08;
+                armGroup.add(shoulder);
+
+                // 腕 (腕部)
+                const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.07, 0.45, 8), skinMat);
+                arm.position.y = -0.32;
+                arm.castShadow = true;
+                armGroup.add(arm);
+
+                // 手 (Hand)
+                const hand = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 8), skinMat);
+                hand.position.y = -0.58;
+                armGroup.add(hand);
+
+                return armGroup;
+            }
+
+            // --- 脚関節グループの作成関数 ---
+            function createLeg(isLeft) {
+                const legGroup = new THREE.Group();
+                const side = isLeft ? -1 : 1;
+                legGroup.position.set(side * 0.2, 1.25, 0); // 股関節のピボット位置
+
+                // 太もも & すね (ズボン)
+                const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.1, 0.65, 8), pantsMat);
+                leg.position.y = -0.32;
+                leg.castShadow = true;
+                legGroup.add(leg);
+
+                // トレッキングブーツ
+                const boot = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.22, 0.35), bootMat);
+                boot.position.set(0, -0.68, -0.06);
+                boot.castShadow = true;
+                legGroup.add(boot);
+
+                return legGroup;
+            }
+
+            // 腕と脚を配置・保持
+            player.limbs.leftArm = createArm(true);
+            player.limbs.rightArm = createArm(false);
+            player.limbs.leftLeg = createLeg(true);
+            player.limbs.rightLeg = createLeg(false);
+
+            group.add(player.limbs.leftArm);
+            group.add(player.limbs.rightArm);
+            group.add(player.limbs.leftLeg);
+            group.add(player.limbs.rightLeg);
+
+            player.mesh = group;
+            player.pos.set(0, getTerrainHeight(0, 0), 0);
+            player.mesh.position.copy(player.pos);
+            scene.add(player.mesh);
+        }
+
+        function createJeepVehicle() {
+            const vGroup = new THREE.Group();
+
+            // Chassis Body
+            const bodyGeo = new THREE.BoxGeometry(2.4, 1.0, 4.2);
+            const bodyMat = new THREE.MeshStandardMaterial({ color: 0xc25923, roughness: 0.4, metalness: 0.3 });
+            const body = new THREE.Mesh(bodyGeo, bodyMat);
+            body.position.y = 0.9;
+            body.castShadow = true;
+            vGroup.add(body);
+
+            // Cabin Roof / Frame
+            const cabinGeo = new THREE.BoxGeometry(2.2, 0.9, 2.2);
+            const cabinMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.5 });
+            const cabin = new THREE.Mesh(cabinGeo, cabinMat);
+            cabin.position.set(0, 1.7, -0.3);
+            vGroup.add(cabin);
+
+            // Headlights
+            for (let x of [-0.8, 0.8]) {
+                const light = new THREE.Mesh(
+                    new THREE.CylinderGeometry(0.2, 0.2, 0.2, 8),
+                    new THREE.MeshBasicMaterial({ color: 0xfff5cc })
+                );
+                light.rotation.x = Math.PI / 2;
+                light.position.set(x, 1.0, 2.1);
+                vGroup.add(light);
+            }
+
+            // Off-Road Wheels
+            const wheelGeo = new THREE.CylinderGeometry(0.55, 0.55, 0.4, 12);
+            wheelGeo.rotateZ(Math.PI / 2);
+            const wheelMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.9 });
+
+            const wheelOffsets = [
+                [-1.3, 0.55, 1.3], [1.3, 0.55, 1.3],
+                [-1.3, 0.55, -1.3], [1.3, 0.55, -1.3]
+            ];
+
+            wheelOffsets.forEach(offset => {
+                const w = new THREE.Mesh(wheelGeo, wheelMat);
+                w.position.set(...offset);
+                w.castShadow = true;
+                vGroup.add(w);
+            });
+
+            vehicle.mesh = vGroup;
+            vehicle.pos.set(12, getTerrainHeight(12, 12), 12);
+            vehicle.mesh.position.copy(vehicle.pos);
+            scene.add(vehicle.mesh);
+        }
+
+        function setupControls() {
+            window.addEventListener('keydown', (e) => {
+                const k = e.key.toLowerCase();
+                if (k === 'w' || k === 'arrowup') keys.w = true;
+                if (k === 's' || k === 'arrowdown') keys.s = true;
+                if (k === 'a' || k === 'arrowleft') keys.a = true;
+                if (k === 'd' || k === 'arrowright') keys.d = true;
+                if (e.code === 'Space') keys.space = true;
+                if (e.shiftKey) keys.shift = true;
+                if (k === 'e') toggleVehicle();
+
+                if (!audioCtx) audioCtx = new AudioContext();
+            });
+
+            window.addEventListener('keyup', (e) => {
+                const k = e.key.toLowerCase();
+                if (k === 'w' || k === 'arrowup') keys.w = false;
+                if (k === 's' || k === 'arrowdown') keys.s = false;
+                if (k === 'a' || k === 'arrowleft') keys.a = false;
+                if (k === 'd' || k === 'arrowright') keys.d = false;
+                if (e.code === 'Space') keys.space = false;
+                if (!e.shiftKey) keys.shift = false;
+            });
+
+            // Camera Rotation via Mouse Drag
+            window.addEventListener('mousedown', (e) => {
+                if (e.button === 0 && e.target.tagName === 'CANVAS') {
+                    isMouseDown = true;
+                    lastMouseX = e.clientX;
+                    lastMouseY = e.clientY;
+                }
+            });
+
+            window.addEventListener('mousemove', (e) => {
+                if (isMouseDown) {
+                    const dx = e.clientX - lastMouseX;
+                    const dy = e.clientY - lastMouseY;
+                    cameraAngleX -= dx * 0.005;
+                    cameraAngleY = Math.max(0.05, Math.min(Math.PI / 2.3, cameraAngleY + dy * 0.005));
+                    lastMouseX = e.clientX;
+                    lastMouseY = e.clientY;
+                }
+            });
+
+            window.addEventListener('mouseup', () => isMouseDown = false);
+
+            // Touch Joystick Controls
+            const joystickBase = document.getElementById('joystick-container');
+            const joystickStick = document.getElementById('joystick-stick');
+
+            if (joystickBase) {
+                joystickBase.addEventListener('touchstart', (e) => {
+                    touchInput.active = true;
+                    updateTouchJoystick(e.touches[0], joystickBase, joystickStick);
+                }, { passive: true });
+
+                joystickBase.addEventListener('touchmove', (e) => {
+                    if (touchInput.active) updateTouchJoystick(e.touches[0], joystickBase, joystickStick);
+                }, { passive: true });
+
+                const resetTouch = () => {
+                    touchInput.active = false;
+                    touchInput.x = 0;
+                    touchInput.y = 0;
+                    joystickStick.style.transform = `translate(0px, 0px)`;
+                };
+
+                joystickBase.addEventListener('touchend', resetTouch);
+                joystickBase.addEventListener('touchcancel', resetTouch);
+            }
+
+            document.getElementById('btn-jump').addEventListener('click', () => {
+                keys.space = true;
+                setTimeout(() => keys.space = false, 250);
+            });
+
+            document.getElementById('btn-vehicle').addEventListener('click', toggleVehicle);
+
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+        }
+
+        function updateTouchJoystick(touch, base, stick) {
+            const rect = base.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+            let dx = touch.clientX - centerX;
+            let dy = touch.clientY - centerY;
+            const dist = Math.hypot(dx, dy);
+            const maxR = 40;
+
+            if (dist > maxR) {
+                dx = (dx / dist) * maxR;
+                dy = (dy / dist) * maxR;
+            }
+
+            stick.style.transform = `translate(${dx}px, ${dy}px)`;
+            touchInput.x = dx / maxR;
+            touchInput.y = dy / maxR;
+        }
+
+        function toggleVehicle() {
+            const distToVehicle = player.pos.distanceTo(vehicle.pos);
+
+            if (player.inVehicle) {
+                // Exit Vehicle
+                player.inVehicle = false;
+                player.pos.copy(vehicle.pos).add(new THREE.Vector3(2.5, 0.5, 0));
+                player.mesh.visible = true;
+                document.getElementById('mode-badge').textContent = '徒歩移動';
+                document.getElementById('mode-badge').className = 'px-2 py-0.5 text-[10px] font-black tracking-wider bg-lime-400 text-slate-950 rounded uppercase';
+                playSound('jump');
+            } else if (distToVehicle < 5.5) {
+                // Enter Vehicle
+                player.inVehicle = true;
+                player.mesh.visible = false;
+                document.getElementById('mode-badge').textContent = '4WDジープ乗車中';
+                document.getElementById('mode-badge').className = 'px-2 py-0.5 text-[10px] font-black tracking-wider bg-orange-500 text-white rounded uppercase';
+                playSound('engine');
+            }
+        }
+
+        function updatePhysics(delta) {
+            // Day / Night Cycle (World Time Progression)
+            worldTime = (worldTime + delta * 0.1) % 24.0;
+            const timeAngle = ((worldTime - 6) / 24) * Math.PI * 2;
+            
+            // Move Sun Light
+            sunLight.position.x = Math.cos(timeAngle) * 250;
+            sunLight.position.y = Math.sin(timeAngle) * 250;
+            
+            // Adjust Sky and Lighting tone based on time
+            if (worldTime >= 6 && worldTime <= 18) {
+                // Daytime
+                scene.background.setHex(0x87ceeb);
+                scene.fog.color.setHex(0x87ceeb);
+                ambientLight.intensity = 0.8;
+            } else {
+                // Sunset / Night
+                scene.background.setHex(0x111827);
+                scene.fog.color.setHex(0x111827);
+                ambientLight.intensity = 0.25;
+            }
+
+            // Movement Logic
+            let moveX = 0, moveZ = 0;
+            // 移動入力を上下左右すべて反転
+            if (keys.w) moveZ += 1;
+            if (keys.s) moveZ -= 1;
+            if (keys.a) moveX += 1;
+            if (keys.d) moveX -= 1;
+
+            if (touchInput.active) {
+                moveX = -touchInput.x;
+                moveZ = -touchInput.y;
+            }
+
+            const isMoving = Math.abs(moveX) > 0.05 || Math.abs(moveZ) > 0.05;
+
+            if (player.inVehicle) {
+                // Jeep Vehicle Physics
+                const maxSpeed = keys.shift ? 36 : 22;
+                if (isMoving) {
+                    const moveAngle = Math.atan2(moveX, moveZ) + cameraAngleX;
+                    vehicle.rotationY = THREE.MathUtils.lerp(vehicle.rotationY, moveAngle, 0.08);
+                    vehicle.speed = THREE.MathUtils.lerp(vehicle.speed, maxSpeed, delta * 2);
+                } else {
+                    vehicle.speed = THREE.MathUtils.lerp(vehicle.speed, 0, delta * 2.5);
+                }
+
+                const dir = new THREE.Vector3(0, 0, -1).applyAxisAngle(new THREE.Vector3(0, 1, 0), vehicle.rotationY);
+                vehicle.pos.addScaledVector(dir, vehicle.speed * delta);
+
+                const groundH = getTerrainHeight(vehicle.pos.x, vehicle.pos.z);
+                vehicle.pos.y = THREE.MathUtils.lerp(vehicle.pos.y, Math.max(groundH, -2.5), 0.25);
+
+                vehicle.mesh.position.copy(vehicle.pos);
+                vehicle.mesh.rotation.y = vehicle.rotationY;
+
+            } else {
+                // On-Foot Explorer Physics
+                const maxSpeed = keys.shift ? 12 : 6.5;
+
+                if (isMoving) {
+                    const moveAngle = Math.atan2(moveX, moveZ) + cameraAngleX;
+                    player.rotationY = THREE.MathUtils.lerp(player.rotationY, moveAngle, 0.15);
+                    player.speed = THREE.MathUtils.lerp(player.speed, maxSpeed, delta * 6);
+                } else {
+                    player.speed = THREE.MathUtils.lerp(player.speed, 0, delta * 8);
+                }
+
+                const dir = new THREE.Vector3(0, 0, -1).applyAxisAngle(new THREE.Vector3(0, 1, 0), player.rotationY);
+                player.pos.addScaledVector(dir, player.speed * delta);
+
+                const groundH = getTerrainHeight(player.pos.x, player.pos.z);
+                const targetY = Math.max(groundH, -2.6);
+
+                if (player.pos.y > targetY + 0.1) {
+                    player.vel.y -= 22 * delta; // Gravity
+                    player.isGrounded = false;
+                } else {
+                    player.pos.y = targetY;
+                    player.vel.y = 0;
+                    player.isGrounded = true;
+                }
+
+                if (keys.space && player.isGrounded) {
+                    player.vel.y = 8.5; // Jump
+                    playSound('jump');
+                }
+
+                player.pos.y += player.vel.y * delta;
+                player.mesh.position.copy(player.pos);
+                player.mesh.rotation.y = player.rotationY;
+
+                // --- 人型キャラクターの手足アニメーション（歩行・走るスイング） ---
+                if (player.speed > 0.3 && player.isGrounded) {
+                    player.animTime += delta * player.speed * 2.2;
+                    const limbAngle = Math.sin(player.animTime) * 0.75;
+
+                    // 腕と脚を交互に正負スイング
+                    if (player.limbs.leftArm) player.limbs.leftArm.rotation.x = limbAngle;
+                    if (player.limbs.rightArm) player.limbs.rightArm.rotation.x = -limbAngle;
+                    if (player.limbs.leftLeg) player.limbs.leftLeg.rotation.x = -limbAngle;
+                    if (player.limbs.rightLeg) player.limbs.rightLeg.rotation.x = limbAngle;
+                } else {
+                    // 停止時は自然な直立ポーズへ補間復帰
+                    player.animTime = 0;
+                    if (player.limbs.leftArm) player.limbs.leftArm.rotation.x = THREE.MathUtils.lerp(player.limbs.leftArm.rotation.x, 0, 0.2);
+                    if (player.limbs.rightArm) player.limbs.rightArm.rotation.x = THREE.MathUtils.lerp(player.limbs.rightArm.rotation.x, 0, 0.2);
+                    if (player.limbs.leftLeg) player.limbs.leftLeg.rotation.x = THREE.MathUtils.lerp(player.limbs.leftLeg.rotation.x, 0, 0.2);
+                    if (player.limbs.rightLeg) player.limbs.rightLeg.rotation.x = THREE.MathUtils.lerp(player.limbs.rightLeg.rotation.x, 0, 0.2);
+                }
+            }
+
+            // Stamina Management
+            if (keys.shift && isMoving) {
+                player.stamina = Math.max(0, player.stamina - delta * 20);
+            } else {
+                player.stamina = Math.min(100, player.stamina + delta * 15);
+            }
+
+            // Camera Tracking
+            const camTarget = player.inVehicle ? vehicle.pos : player.pos;
+            const camX = camTarget.x + Math.sin(cameraAngleX) * cameraDistance * Math.cos(cameraAngleY);
+            const camY = camTarget.y + Math.sin(cameraAngleY) * cameraDistance + 1.8;
+            const camZ = camTarget.z + Math.cos(cameraAngleX) * cameraDistance * Math.cos(cameraAngleY);
+
+            camera.position.set(camX, camY, camZ);
+            camera.lookAt(camTarget.x, camTarget.y + 1.2, camTarget.z);
+
+            // Location Discovery Checks
+            locations.forEach(loc => {
+                const dist = Math.hypot(camTarget.x - loc.x, camTarget.z - loc.z);
+                if (dist < loc.radius) {
+                    if (currentLocation !== loc.name) {
+                        currentLocation = loc.name;
+                    }
+                    if (!loc.discovered) {
+                        loc.discovered = true;
+                        discoveredCount++;
+                        playSound('discover');
+                        showBanner('NEW LOCATION DISCOVERED', loc.name);
+                        document.getElementById('spots-found').textContent = discoveredCount;
+                    }
+                }
+            });
+
+            // Update UI
+            const curSpeed = Math.round(player.inVehicle ? vehicle.speed * 3.6 : player.speed * 3.6);
+            document.getElementById('speed-display').textContent = curSpeed;
+            document.getElementById('alt-display').textContent = Math.round(camTarget.y);
+            document.getElementById('location-name').textContent = currentLocation;
+            document.getElementById('stamina-bar').style.width = `${player.stamina}%`;
+
+            const hrs = Math.floor(worldTime).toString().padStart(2, '0');
+            const mins = Math.floor((worldTime % 1) * 60).toString().padStart(2, '0');
+            document.getElementById('time-display').textContent = `${hrs}:${mins}`;
+
+            document.getElementById('pos-x').textContent = Math.round(camTarget.x);
+            document.getElementById('pos-z').textContent = Math.round(camTarget.z);
+
+            // Render Minimap
+            drawMinimap(camTarget);
+        }
+
+        function drawMinimap(targetPos) {
+            if (!minimapCtx) return;
+            const ctx = minimapCtx;
+            ctx.clearRect(0, 0, 120, 120);
+
+            // Radar Ring
+            ctx.strokeStyle = '#a3e63555';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.arc(60, 60, 52, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // Player Marker
+            ctx.fillStyle = '#a3e635';
+            ctx.beginPath();
+            ctx.arc(60, 60, 4, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Location Markers
+            locations.forEach(loc => {
+                const relX = (loc.x - targetPos.x) * 0.22;
+                const relZ = (loc.z - targetPos.z) * 0.22;
+                if (Math.hypot(relX, relZ) < 50) {
+                    ctx.fillStyle = loc.discovered ? '#facc15' : '#ffffff88';
+                    ctx.beginPath();
+                    ctx.arc(60 + relX, 60 + relZ, 3, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            });
+        }
+
+        let bannerTimeout = null;
+        function showBanner(title, sub) {
+            const banner = document.getElementById('banner');
+            document.getElementById('banner-title').textContent = title;
+            document.getElementById('banner-sub').textContent = sub;
+            banner.classList.remove('opacity-0', 'scale-95');
+            banner.classList.add('opacity-100', 'scale-100');
+
+            if (bannerTimeout) clearTimeout(bannerTimeout);
+            bannerTimeout = setTimeout(() => {
+                banner.classList.remove('opacity-100', 'scale-100');
+                banner.classList.add('opacity-0', 'scale-95');
+            }, 3200);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            const delta = Math.min(clock.getDelta(), 0.1);
+            updatePhysics(delta);
+            renderer.render(scene, camera);
+        }
+
+        function startApp() {
+            try {
+                initGraphics();
+                setupControls();
+                animate();
+            } catch (err) {
+                console.error("App Launch Error:", err);
+            }
+        }
+
+        if (document.readyState === 'complete' || document.readyState === 'interactive') {
+            startApp();
+        } else {
+            document.addEventListener('DOMContentLoaded', startApp);
+        }
+    </script>
+</body>
 </html>

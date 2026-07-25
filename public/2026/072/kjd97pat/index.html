@@ -1,11 +1,1230 @@
 <!DOCTYPE html>
-<html lang="ja">
- <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title></title>
- </head>
- <body>
-  <h1>kjd97pat</h1>
- </body>
+<html lang="ja" class="h-full bg-slate-950 text-slate-100">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>魔導タワー放置RPG 〜アルケミー・バスター〜</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;700;900&family=Teko:wght@600;700&display=swap" rel="stylesheet">
+
+    <style>
+        * {
+            font-family: 'M PLUS Rounded 1c', sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+        }
+
+        .number-font {
+            font-family: 'Teko', sans-serif;
+            letter-spacing: 0.03em;
+        }
+
+        /* Glassmorphism containers */
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.82);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 5px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.6);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(139, 92, 246, 0.5);
+            border-radius: 4px;
+        }
+
+        /* Floating Damage Text Animation */
+        @keyframes floatDamage {
+            0% {
+                opacity: 1;
+                transform: translate(-50%, -50%) scale(0.8) translateY(0);
+            }
+            30% {
+                transform: translate(-50%, -50%) scale(1.2) translateY(-20px);
+            }
+            100% {
+                opacity: 0;
+                transform: translate(-50%, -50%) scale(1) translateY(-60px);
+            }
+        }
+
+        .floating-text {
+            position: absolute;
+            pointer-events: none;
+            animation: floatDamage 0.8s ease-out forwards;
+            font-family: 'Teko', sans-serif;
+            font-weight: 700;
+            z-index: 50;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+        }
+
+        /* Pulsing Monster Effect */
+        @keyframes monsterHit {
+            0% { transform: scale(1); filter: brightness(1); }
+            50% { transform: scale(0.92); filter: brightness(1.6) sepia(0.8) hue-rotate(-50deg); }
+            100% { transform: scale(1); filter: brightness(1); }
+        }
+
+        .monster-hit {
+            animation: monsterHit 0.12s ease-in-out;
+        }
+
+        @keyframes monsterIdle {
+            0%, 100% { transform: translateY(0px) scale(1); }
+            50% { transform: translateY(-8px) scale(1.02); }
+        }
+
+        .monster-idle {
+            animation: monsterIdle 2.5s ease-in-out infinite;
+        }
+
+        /* Shimmer Glow Buttons */
+        .btn-glow-purple {
+            box-shadow: 0 0 15px rgba(168, 85, 247, 0.4);
+        }
+        .btn-glow-amber {
+            box-shadow: 0 0 15px rgba(245, 158, 11, 0.4);
+        }
+
+        /* Skill Active Glow */
+        .skill-active {
+            box-shadow: 0 0 20px #facc15, inset 0 0 10px #facc15;
+            border-color: #facc15 !important;
+        }
+    </style>
+</head>
+<body class="h-full flex flex-col justify-between overflow-hidden bg-slate-950 text-slate-100">
+
+    <!-- TOP RESOURCE BAR -->
+    <header class="glass-panel sticky top-0 z-30 px-3 py-2 border-b border-slate-800 shadow-lg">
+        <div class="max-w-md mx-auto flex items-center justify-between gap-2">
+            
+            <!-- Left: Stage Info & Boss Status -->
+            <div class="flex flex-col">
+                <div class="flex items-center gap-1.5">
+                    <span id="stageBadge" class="bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                        STAGE 1
+                    </span>
+                    <span id="bossTag" class="hidden bg-rose-600 text-white text-[10px] font-black px-1.5 py-0.5 rounded animate-pulse">
+                        BOSS!!
+                    </span>
+                </div>
+                <span id="stageName" class="text-xs font-bold text-slate-300 truncate max-w-[110px] sm:max-w-[150px]">
+                    始まりの森
+                </span>
+            </div>
+
+            <!-- Center: Core Currencies (Gold & Mana & Souls) -->
+            <div class="flex items-center gap-3">
+                <!-- Gold -->
+                <div class="flex items-center gap-1">
+                    <div class="w-6 h-6 rounded-full bg-gradient-to-tr from-amber-600 to-yellow-300 flex items-center justify-center text-slate-950 text-xs shadow-md">
+                        <i class="fa-solid fa-coins"></i>
+                    </div>
+                    <div class="flex flex-col">
+                        <span id="goldDisplay" class="number-font text-lg font-bold text-yellow-400 leading-none">0</span>
+                        <span class="text-[9px] text-slate-400 leading-none">ゴールド</span>
+                    </div>
+                </div>
+
+                <!-- Mana -->
+                <div class="flex items-center gap-1">
+                    <div class="w-6 h-6 rounded-full bg-gradient-to-tr from-cyan-600 to-blue-400 flex items-center justify-center text-slate-950 text-xs shadow-md">
+                        <i class="fa-solid fa-bolt"></i>
+                    </div>
+                    <div class="flex flex-col">
+                        <span id="manaDisplay" class="number-font text-lg font-bold text-cyan-300 leading-none">0</span>
+                        <span class="text-[9px] text-slate-400 leading-none">マナ/秒: <span id="dpsDisplay">0</span></span>
+                    </div>
+                </div>
+
+                <!-- Souls (Prestige Currency) -->
+                <div class="flex items-center gap-1">
+                    <div class="w-6 h-6 rounded-full bg-gradient-to-tr from-purple-600 to-fuchsia-400 flex items-center justify-center text-slate-950 text-xs shadow-md">
+                        <i class="fa-solid fa-gem"></i>
+                    </div>
+                    <div class="flex flex-col">
+                        <span id="soulDisplay" class="number-font text-lg font-bold text-fuchsia-300 leading-none">0</span>
+                        <span class="text-[9px] text-slate-400 leading-none">ソウル</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right: Settings & Sound Controls -->
+            <div class="flex items-center gap-1">
+                <button id="btnSoundToggle" class="w-8 h-8 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 flex items-center justify-center text-xs transition active:scale-95">
+                    <i id="soundIcon" class="fa-solid fa-volume-high"></i>
+                </button>
+                <button id="btnSettings" class="w-8 h-8 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 flex items-center justify-center text-xs transition active:scale-95">
+                    <i class="fa-solid fa-gear"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN CONTENT CONTAINER -->
+    <main class="flex-1 max-w-md w-full mx-auto flex flex-col justify-between overflow-hidden relative">
+
+        <!-- BATTLE AREA (Interactive Monster Canvas/Zone) -->
+        <section id="battleArea" class="relative flex-1 flex flex-col items-center justify-between p-3 overflow-hidden select-none cursor-pointer">
+            
+            <!-- Background Magic Effect & Glow -->
+            <div class="absolute inset-0 bg-gradient-to-b from-indigo-950/40 via-purple-950/20 to-slate-950 pointer-events-none"></div>
+            <div id="bgPulse" class="absolute w-64 h-64 rounded-full bg-purple-600/10 blur-3xl pointer-events-none top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 transition-all duration-300"></div>
+
+            <!-- Stage Progress Bar (Monsters slain to Boss) -->
+            <div class="w-full relative z-10 flex flex-col items-center gap-1">
+                <div class="flex justify-between w-full text-[11px] font-bold text-slate-400">
+                    <span id="monsterName" class="text-purple-300">スライム</span>
+                    <span id="stageProgressText">討伐数: 0 / 10</span>
+                </div>
+                <!-- HP Bar -->
+                <div class="w-full h-3.5 bg-slate-900/90 rounded-full border border-slate-700 p-0.5 relative overflow-hidden shadow-inner">
+                    <div id="hpBar" class="h-full bg-gradient-to-r from-emerald-500 via-green-400 to-teal-300 rounded-full transition-all duration-100" style="width: 100%;"></div>
+                    <div id="hpText" class="absolute inset-0 flex items-center justify-center text-[10px] font-black text-slate-100 drop-shadow">
+                        100 / 100
+                    </div>
+                </div>
+                <!-- Boss Timer Bar (Only visible on Boss) -->
+                <div id="bossTimerContainer" class="w-full hidden flex-col items-center mt-0.5">
+                    <div class="w-full h-1.5 bg-slate-900 rounded-full overflow-hidden border border-rose-900">
+                        <div id="bossTimerBar" class="h-full bg-rose-500 transition-all duration-100" style="width: 100%;"></div>
+                    </div>
+                    <span id="bossTimerText" class="text-[9px] text-rose-400 font-bold">残り時間: 30.0秒</span>
+                </div>
+            </div>
+
+            <!-- Monster Avatar Stage -->
+            <div id="monsterStage" class="relative z-10 flex-1 flex items-center justify-center my-2 w-full">
+                <!-- Floating damage numbers parent -->
+                <div id="damageContainer" class="absolute inset-0 pointer-events-none z-30"></div>
+
+                <!-- Monster Icon Display -->
+                <div id="monsterAvatar" class="monster-idle text-7xl sm:text-8xl transition-transform duration-75 relative flex items-center justify-center filter drop-shadow-[0_10px_20px_rgba(168,85,247,0.3)]">
+                    <i id="monsterIcon" class="fa-solid fa-ghost text-emerald-400"></i>
+                </div>
+            </div>
+
+            <!-- Active Skill Buttons Overlay Bar -->
+            <div class="w-full relative z-20 flex justify-center items-center gap-2 mb-1">
+                <button id="skillBerserk" data-skill="berserk" class="flex-1 bg-slate-900/90 hover:bg-slate-800 border border-purple-500/50 rounded-xl p-2 flex flex-col items-center relative overflow-hidden active:scale-95 transition">
+                    <div class="flex items-center gap-1 text-purple-300 text-xs font-bold">
+                        <i class="fa-solid fa-fire text-amber-400"></i> 狂乱連打
+                    </div>
+                    <span class="text-[9px] text-slate-400">タップ力 5倍 (10秒)</span>
+                    <div id="skillBerserkCD" class="absolute inset-0 bg-slate-950/80 flex items-center justify-center text-xs font-bold text-amber-400 hidden">
+                        0s
+                    </div>
+                </button>
+
+                <button id="skillGoldRain" data-skill="goldRain" class="flex-1 bg-slate-900/90 hover:bg-slate-800 border border-yellow-500/50 rounded-xl p-2 flex flex-col items-center relative overflow-hidden active:scale-95 transition">
+                    <div class="flex items-center gap-1 text-yellow-300 text-xs font-bold">
+                        <i class="fa-solid fa-hand-holding-dollar text-yellow-400"></i> 錬金ラッシュ
+                    </div>
+                    <span class="text-[9px] text-slate-400">ドロップ 3倍 (15秒)</span>
+                    <div id="skillGoldRainCD" class="absolute inset-0 bg-slate-950/80 flex items-center justify-center text-xs font-bold text-yellow-400 hidden">
+                        0s
+                    </div>
+                </button>
+
+                <button id="skillBigBang" data-skill="bigBang" class="flex-1 bg-slate-900/90 hover:bg-slate-800 border border-rose-500/50 rounded-xl p-2 flex flex-col items-center relative overflow-hidden active:scale-95 transition">
+                    <div class="flex items-center gap-1 text-rose-300 text-xs font-bold">
+                        <i class="fa-solid fa-meteor text-rose-400"></i> 隕石落とし
+                    </div>
+                    <span class="text-[9px] text-slate-400">全HP 50%一撃</span>
+                    <div id="skillBigBangCD" class="absolute inset-0 bg-slate-950/80 flex items-center justify-center text-xs font-bold text-rose-400 hidden">
+                        0s
+                    </div>
+                </button>
+            </div>
+        </section>
+
+        <!-- TABBED NAVIGATION & MANAGEMENT PANELS -->
+        <section class="glass-panel border-t border-slate-800 flex flex-col h-[48%] rounded-t-3xl shadow-2xl relative z-20 overflow-hidden">
+            
+            <!-- TAB BUTTON BAR -->
+            <div class="grid grid-cols-5 bg-slate-950/80 p-1 border-b border-slate-800 text-[11px] font-bold">
+                <button data-tab="tabClicker" class="tab-btn active py-2.5 rounded-xl text-amber-400 bg-slate-800 border border-amber-500/30 flex flex-col items-center gap-0.5 transition">
+                    <i class="fa-solid fa-hand-pointer text-sm"></i>
+                    <span>タップ強化</span>
+                </button>
+                <button data-tab="tabFacilities" class="tab-btn py-2.5 rounded-xl text-slate-400 hover:text-slate-200 flex flex-col items-center gap-0.5 transition">
+                    <i class="fa-solid fa-flask-vial text-sm"></i>
+                    <span>錬金施設</span>
+                </button>
+                <button data-tab="tabHeroes" class="tab-btn py-2.5 rounded-xl text-slate-400 hover:text-slate-200 flex flex-col items-center gap-0.5 transition">
+                    <i class="fa-solid fa-user-shield text-sm"></i>
+                    <span>召喚仲間</span>
+                </button>
+                <button data-tab="tabPrestige" class="tab-btn py-2.5 rounded-xl text-slate-400 hover:text-slate-200 flex flex-col items-center gap-0.5 transition">
+                    <i class="fa-solid fa-wand-magic-sparkles text-sm"></i>
+                    <span>転生・神器</span>
+                </button>
+                <button data-tab="tabStats" class="tab-btn py-2.5 rounded-xl text-slate-400 hover:text-slate-200 flex flex-col items-center gap-0.5 transition">
+                    <i class="fa-solid fa-trophy text-sm"></i>
+                    <span>実績・データ</span>
+                </button>
+            </div>
+
+            <!-- TAB CONTENT PANELS (Scrollable List Area) -->
+            <div class="flex-1 overflow-y-auto p-3 space-y-2.5">
+
+                <!-- TAB 1: CLICKER UPGRADES -->
+                <div id="tabClicker" class="tab-content space-y-2">
+                    <div class="flex justify-between items-center text-xs font-bold text-slate-400 px-1 mb-1">
+                        <span>現在のタップ攻撃力: <strong id="tapDmgDisplay" class="text-amber-300 font-extrabold text-sm">1</strong></span>
+                        <span>クリティカル率: <strong id="critRateDisplay" class="text-yellow-400">5%</strong></span>
+                    </div>
+
+                    <!-- Upgrade Cards -->
+                    <div id="clickerUpgradeList" class="space-y-2">
+                        <!-- Upgrades generated dynamically via JS -->
+                    </div>
+                </div>
+
+                <!-- TAB 2: FACILITIES (Mana & Gold Generators) -->
+                <div id="tabFacilities" class="tab-content hidden space-y-2">
+                    <div class="flex justify-between items-center text-xs font-bold text-slate-400 px-1 mb-1">
+                        <span>錬金施設による自動マナ獲得</span>
+                        <span>合計マナ: <strong id="facilityDpsDisplay" class="text-cyan-300 font-extrabold">+0/秒</strong></span>
+                    </div>
+
+                    <div id="facilityUpgradeList" class="space-y-2">
+                        <!-- Facilities generated dynamically via JS -->
+                    </div>
+                </div>
+
+                <!-- TAB 3: HERO COMPANIONS -->
+                <div id="tabHeroes" class="tab-content hidden space-y-2">
+                    <div class="flex justify-between items-center text-xs font-bold text-slate-400 px-1 mb-1">
+                        <span>戦闘をサポートする自動攻撃の仲間たち</span>
+                    </div>
+
+                    <div id="heroUpgradeList" class="space-y-2">
+                        <!-- Heroes generated dynamically via JS -->
+                    </div>
+                </div>
+
+                <!-- TAB 4: PRESTIGE & ARTIFACTS -->
+                <div id="tabPrestige" class="tab-content hidden space-y-3">
+                    
+                    <!-- Prestige Banner -->
+                    <div class="bg-gradient-to-r from-purple-900/60 to-fuchsia-900/60 p-3.5 rounded-2xl border border-purple-500/40 text-center space-y-2">
+                        <h3 class="font-extrabold text-base text-fuchsia-200 flex items-center justify-center gap-1.5">
+                            <i class="fa-solid fa-rotate text-fuchsia-400"></i> 魔導転生 (Prestige)
+                        </h3>
+                        <p class="text-xs text-slate-300 leading-relaxed">
+                            現在のステージ到達度に応じて<strong class="text-fuchsia-300">「ソウル」</strong>を獲得して最初からやり直します。<br>
+                            ソウルで強力な古の神器を購入できます！
+                        </p>
+                        <div class="text-xs font-bold text-yellow-300 pt-1">
+                            獲得可能ソウル: <span id="pendingSoulsDisplay" class="number-font text-2xl font-black text-fuchsia-300">0</span> 個
+                        </div>
+                        <button id="btnPrestige" class="w-full py-2.5 bg-gradient-to-r from-purple-600 to-fuchsia-600 hover:brightness-110 active:scale-95 rounded-xl font-extrabold text-sm text-white shadow-lg btn-glow-purple transition">
+                            魔導転生を実行する
+                        </button>
+                    </div>
+
+                    <!-- Artifact Store -->
+                    <div class="space-y-1.5 pt-1">
+                        <h4 class="text-xs font-bold text-slate-400 px-1">全周回永続ボーナス（古の神器）</h4>
+                        <div id="artifactIdList" class="space-y-2">
+                            <!-- Artifacts generated via JS -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TAB 5: STATS & SETTINGS -->
+                <div id="tabStats" class="tab-content hidden space-y-3">
+                    
+                    <div class="bg-slate-900/80 p-3 rounded-2xl border border-slate-800 space-y-2 text-xs">
+                        <h4 class="font-bold text-amber-400 border-b border-slate-800 pb-1">プレイ統計情報</h4>
+                        <div class="grid grid-cols-2 gap-2 text-slate-300">
+                            <div>累計タップ数: <strong id="statTotalTaps" class="text-white">0</strong></div>
+                            <div>通算撃破数: <strong id="statTotalKills" class="text-white">0</strong></div>
+                            <div>最高到達ステージ: <strong id="statMaxStage" class="text-amber-300">1</strong></div>
+                            <div>転生回数: <strong id="statPrestigeCount" class="text-fuchsia-300">0</strong></div>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-900/80 p-3 rounded-2xl border border-slate-800 space-y-2">
+                        <h4 class="font-bold text-cyan-400 text-xs border-b border-slate-800 pb-1">セーブデータの管理</h4>
+                        <div class="flex gap-2">
+                            <button id="btnSaveManual" class="flex-1 py-2 bg-slate-800 hover:bg-slate-700 active:scale-95 rounded-xl font-bold text-xs text-slate-200 border border-slate-700 transition flex items-center justify-center gap-1">
+                                <i class="fa-solid fa-floppy-disk text-cyan-400"></i> 手動保存
+                            </button>
+                            <button id="btnResetData" class="py-2 px-3 bg-rose-950/60 hover:bg-rose-900 active:scale-95 rounded-xl font-bold text-xs text-rose-300 border border-rose-800 transition flex items-center justify-center gap-1">
+                                <i class="fa-solid fa-trash-can"></i> データ初期化
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+    </main>
+
+    <!-- MODAL: Offline Earnings Screen -->
+    <div id="offlineModal" class="fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4 hidden">
+        <div class="glass-panel max-w-xs w-full p-5 rounded-3xl text-center border-2 border-amber-400/60 shadow-2xl space-y-3">
+            <div class="w-14 h-14 bg-gradient-to-tr from-amber-500 to-yellow-300 text-slate-950 rounded-2xl flex items-center justify-center text-2xl font-black mx-auto shadow-lg rotate-3">
+                <i class="fa-solid fa-moon"></i>
+            </div>
+            <h3 class="text-xl font-black text-amber-300">おかえりなさい！</h3>
+            <p class="text-xs text-slate-300">
+                あなたが離れている間に錬金タワーが稼働し、報酬を獲得しました！
+            </p>
+            <div class="bg-slate-900/80 p-3 rounded-2xl border border-slate-800 text-left space-y-1 text-xs">
+                <div class="flex justify-between text-yellow-300 font-bold">
+                    <span>獲得ゴールド:</span>
+                    <span id="offlineGoldText" class="number-font text-lg">+0</span>
+                </div>
+                <div class="flex justify-between text-cyan-300 font-bold">
+                    <span>獲得マナ:</span>
+                    <span id="offlineManaText" class="number-font text-lg">+0</span>
+                </div>
+                <div class="text-[10px] text-slate-400 text-center pt-1">
+                    経過時間: <span id="offlineTimeText">0分</span>
+                </div>
+            </div>
+            <button id="btnClaimOffline" class="w-full py-3 bg-gradient-to-r from-amber-500 to-yellow-400 hover:brightness-110 active:scale-95 rounded-xl font-black text-sm text-slate-950 shadow-lg transition">
+                報酬を受け取る
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const AudioEngine = {
+            ctx: null,
+            enabled: true,
+
+            init() {
+                if (!this.ctx) {
+                    const AudioContext = window.AudioContext || window.webkitAudioContext;
+                    this.ctx = new AudioContext();
+                }
+            },
+
+            playTone(freq, type = 'sine', duration = 0.08, gainVal = 0.08) {
+                if (!this.enabled || !this.ctx) return;
+                if (this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                }
+                try {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = type;
+                    osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+                    gain.gain.setValueAtTime(gainVal, this.ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.0001, this.ctx.currentTime + duration);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start();
+                    osc.stop(this.ctx.currentTime + duration);
+                } catch (e) {}
+            },
+
+            tap() {
+                this.playTone(520 + Math.random() * 100, 'sine', 0.05, 0.06);
+            },
+            crit() {
+                this.playTone(880, 'square', 0.12, 0.12);
+                setTimeout(() => this.playTone(1320, 'triangle', 0.1, 0.1), 40);
+            },
+            upgrade() {
+                this.playTone(440, 'sine', 0.08, 0.1);
+                setTimeout(() => this.playTone(660, 'sine', 0.08, 0.1), 60);
+                setTimeout(() => this.playTone(880, 'sine', 0.12, 0.12), 120);
+            },
+            monsterKill() {
+                this.playTone(220, 'sawtooth', 0.1, 0.08);
+            },
+            prestige() {
+                [523, 659, 783, 1046, 1318].forEach((f, i) => {
+                    setTimeout(() => this.playTone(f, 'sine', 0.2, 0.12), i * 90);
+                });
+            }
+        };
+
+        const MONSTERS = [
+            { name: "緑スライム", icon: "fa-ghost", color: "text-emerald-400" },
+            { name: "闇コウモリ", icon: "fa-frog", color: "text-purple-400" },
+            { name: "ガイコツ剣士", icon: "fa-skull", color: "text-slate-300" },
+            { name: "炎の精霊", icon: "fa-fire-burner", color: "text-rose-400" },
+            { name: "水棲ゴーレム", icon: "fa-spaghetti-monster-flying", color: "text-cyan-400" },
+            { name: "邪悪な魔法使い", icon: "fa-hat-wizard", color: "text-fuchsia-400" },
+            { name: "暗黒竜 (BOSS)", icon: "fa-dragon", color: "text-amber-400" }
+        ];
+
+        let gameState = {
+            gold: 0,
+            mana: 0,
+            souls: 0,
+            stage: 1,
+            subStage: 1, // 1 to 10 monsters slain
+            totalTaps: 0,
+            totalKills: 0,
+            maxStage: 1,
+            prestigeCount: 0,
+            lastSaveTime: Date.now(),
+
+            // Clicker
+            tapLevel: 1,
+            critRateLevel: 0,
+            critDmgLevel: 0,
+
+            // Facilities (Mana generators)
+            facilities: {
+                slimeFarm: 0,
+                manaLab: 0,
+                alchemicTower: 0,
+                astralReactor: 0
+            },
+
+            // Heroes (DPS Companions)
+            heroes: {
+                noviceMage: 0,
+                knightGuard: 0,
+                elvenArcher: 0,
+                dragonRider: 0
+            },
+
+            // Artifacts (Perma prestige upgrades)
+            artifacts: {
+                soulRing: 0,       // +% Global DPS
+                goldenGoblet: 0,   // +% Gold gain
+                featherBoots: 0    // +% Crit Chance
+            }
+        };
+
+        // Current Monster State
+        let currentMonster = {
+            hp: 10,
+            maxHp: 10,
+            isBoss: false,
+            bossTimer: 30.0
+        };
+
+        // Skills State
+        const skills = {
+            berserk: { active: false, timer: 0, cd: 0, maxCd: 30 },
+            goldRain: { active: false, timer: 0, cd: 0, maxCd: 45 },
+            bigBang: { cd: 0, maxCd: 60 }
+        };
+
+        function formatNum(num) {
+            if (num < 1000) return Math.floor(num).toString();
+            const units = ["", "K", "M", "B", "T", "Qa", "Qi", "Sx", "Sept"];
+            const i = Math.floor(Math.log10(num) / 3);
+            if (i >= units.length) return num.toExponential(2);
+            const formatted = (num / Math.pow(10, i * 3)).toFixed(2);
+            return `${formatted} ${units[i]}`;
+        }
+
+        function getTapDamage() {
+            let base = gameState.tapLevel;
+            // Base scaling per tap level
+            let dmg = base * Math.pow(1.15, gameState.tapLevel - 1);
+
+            // Berserk skill multiplier
+            if (skills.berserk.active) dmg *= 5;
+
+            // Soul multiplier (+10% per soul)
+            let soulBonus = 1 + (gameState.souls * 0.10);
+            
+            // Artifact bonus
+            let artifactBonus = 1 + (gameState.artifacts.soulRing * 0.25);
+
+            return Math.floor(dmg * soulBonus * artifactBonus);
+        }
+
+        function getCritRate() {
+            let base = 5 + (gameState.critRateLevel * 1); // 5% base + 1% per level
+            base += gameState.artifacts.featherBoots * 2;
+            return Math.min(75, base); // Cap at 75%
+        }
+
+        function getCritMultiplier() {
+            return 2 + (gameState.critDmgLevel * 0.25); // 2x base + 0.25x per level
+        }
+
+        function getManaPerSec() {
+            let m = 0;
+            m += gameState.facilities.slimeFarm * 1;
+            m += gameState.facilities.manaLab * 12;
+            m += gameState.facilities.alchemicTower * 80;
+            m += gameState.facilities.astralReactor * 500;
+
+            let soulBonus = 1 + (gameState.souls * 0.10);
+            let artifactBonus = 1 + (gameState.artifacts.soulRing * 0.25);
+            return Math.floor(m * soulBonus * artifactBonus);
+        }
+
+        function getHeroDps() {
+            let dps = 0;
+            dps += gameState.heroes.noviceMage * 2;
+            dps += gameState.heroes.knightGuard * 25;
+            dps += gameState.heroes.elvenArcher * 180;
+            dps += gameState.heroes.dragonRider * 1200;
+
+            let soulBonus = 1 + (gameState.souls * 0.10);
+            let artifactBonus = 1 + (gameState.artifacts.soulRing * 0.25);
+            return Math.floor(dps * soulBonus * artifactBonus);
+        }
+
+        function spawnMonster() {
+            const isBossStage = (gameState.subStage === 10);
+            currentMonster.isBoss = isBossStage;
+
+            // Scale HP exponentially with Stage
+            let baseHp = 10 * Math.pow(1.35, gameState.stage - 1);
+            if (isBossStage) {
+                baseHp *= 5;
+                currentMonster.bossTimer = 30.0;
+                document.getElementById('bossTag').classList.remove('hidden');
+                document.getElementById('bossTimerContainer').classList.remove('hidden');
+                document.getElementById('bossTimerContainer').classList.add('flex');
+            } else {
+                document.getElementById('bossTag').classList.add('hidden');
+                document.getElementById('bossTimerContainer').classList.add('hidden');
+                document.getElementById('bossTimerContainer').classList.remove('flex');
+            }
+
+            currentMonster.maxHp = Math.floor(baseHp);
+            currentMonster.hp = currentMonster.maxHp;
+
+            // Pick Monster Icon & Name
+            const monsterDef = isBossStage ? MONSTERS[MONSTERS.length - 1] : MONSTERS[(gameState.stage - 1) % (MONSTERS.length - 1)];
+            document.getElementById('monsterName').textContent = isBossStage ? `STAGE BOSS: ${monsterDef.name}` : monsterDef.name;
+            
+            const iconEl = document.getElementById('monsterIcon');
+            iconEl.className = `fa-solid ${monsterDef.icon} ${monsterDef.color}`;
+
+            updateMonsterHpUI();
+        }
+
+        function updateMonsterHpUI() {
+            const pct = Math.max(0, (currentMonster.hp / currentMonster.maxHp) * 100);
+            document.getElementById('hpBar').style.width = `${pct}%`;
+            document.getElementById('hpText').textContent = `${formatNum(currentMonster.hp)} / ${formatNum(currentMonster.maxHp)}`;
+            document.getElementById('stageProgressText').textContent = currentMonster.isBoss ? "BOSS BATTLE" : `討伐数: ${gameState.subStage} / 10`;
+        }
+
+        function applyDamageToMonster(dmg, isCrit = false, clickX = null, clickY = null) {
+            currentMonster.hp -= dmg;
+            AudioEngine.tap();
+
+            // Trigger visual hit bounce on monster avatar
+            const avatar = document.getElementById('monsterAvatar');
+            avatar.classList.remove('monster-hit');
+            void avatar.offsetWidth; // Force reflow
+            avatar.classList.add('monster-hit');
+
+            // Floating Damage Number
+            showFloatingText(dmg, isCrit, clickX, clickY);
+
+            if (currentMonster.hp <= 0) {
+                onMonsterDefeated();
+            } else {
+                updateMonsterHpUI();
+            }
+        }
+
+        function showFloatingText(dmg, isCrit, clickX = null, clickY = null) {
+            const container = document.getElementById('damageContainer');
+            const el = document.createElement('div');
+            el.className = 'floating-text';
+
+            if (isCrit) {
+                el.textContent = `CRITICAL! ${formatNum(dmg)}`;
+                el.classList.add('text-yellow-300', 'text-2xl');
+                AudioEngine.crit();
+            } else {
+                el.textContent = `-${formatNum(dmg)}`;
+                el.classList.add('text-white', 'text-lg');
+            }
+
+            // Position at click point or random center
+            if (clickX !== null && clickY !== null) {
+                const rect = container.getBoundingClientRect();
+                el.style.left = `${clickX - rect.left}px`;
+                el.style.top = `${clickY - rect.top}px`;
+            } else {
+                el.style.left = `${45 + (Math.random() - 0.5) * 30}%`;
+                el.style.top = `${45 + (Math.random() - 0.5) * 20}%`;
+            }
+
+            container.appendChild(el);
+            setTimeout(() => el.remove(), 800);
+        }
+
+        function onMonsterDefeated() {
+            AudioEngine.monsterKill();
+
+            // Reward Gold
+            let goldReward = 2 * Math.pow(1.25, gameState.stage - 1);
+            if (currentMonster.isBoss) goldReward *= 8;
+            if (skills.goldRain.active) goldReward *= 3;
+
+            let goldBonus = 1 + (gameState.artifacts.goldenGoblet * 0.30);
+            goldReward = Math.floor(goldReward * goldBonus);
+
+            gameState.gold += goldReward;
+            gameState.totalKills += 1;
+
+            // Stage Progression Logic
+            if (currentMonster.isBoss) {
+                gameState.stage += 1;
+                gameState.subStage = 1;
+                if (gameState.stage > gameState.maxStage) {
+                    gameState.maxStage = gameState.stage;
+                }
+            } else {
+                gameState.subStage += 1;
+            }
+
+            // Update Stage UI Header
+            document.getElementById('stageBadge').textContent = `STAGE ${gameState.stage}`;
+            
+            spawnMonster();
+            updateUI();
+        }
+
+        function getClickerUpgradesList() {
+            return [
+                {
+                    id: 'tapLevel',
+                    title: '魔導杖の強化 (Tap Damage)',
+                    desc: 'タップ攻撃力をアップ',
+                    icon: 'fa-wand-magic',
+                    color: 'text-amber-400',
+                    level: gameState.tapLevel,
+                    cost: Math.floor(10 * Math.pow(1.15, gameState.tapLevel - 1)),
+                    action: () => { gameState.tapLevel++; }
+                },
+                {
+                    id: 'critRateLevel',
+                    title: '心眼の極意 (Crit Rate)',
+                    desc: 'クリティカル発動率 +1%',
+                    icon: 'fa-eye',
+                    color: 'text-yellow-400',
+                    level: gameState.critRateLevel,
+                    cost: Math.floor(100 * Math.pow(1.3, gameState.critRateLevel)),
+                    action: () => { gameState.critRateLevel++; }
+                },
+                {
+                    id: 'critDmgLevel',
+                    title: '急所突き (Crit Dmg)',
+                    desc: 'クリティカルダメージ倍率 +25%',
+                    icon: 'fa-bolt-lightning',
+                    color: 'text-rose-400',
+                    level: gameState.critDmgLevel,
+                    cost: Math.floor(150 * Math.pow(1.35, gameState.critDmgLevel)),
+                    action: () => { gameState.critDmgLevel++; }
+                }
+            ];
+        }
+
+        function getFacilityUpgradesList() {
+            return [
+                {
+                    id: 'slimeFarm',
+                    title: 'スライム牧場',
+                    desc: 'マナ +1/秒 を自動生成',
+                    icon: 'fa-vial',
+                    color: 'text-emerald-400',
+                    count: gameState.facilities.slimeFarm,
+                    cost: Math.floor(25 * Math.pow(1.15, gameState.facilities.slimeFarm)),
+                    action: () => { gameState.facilities.slimeFarm++; }
+                },
+                {
+                    id: 'manaLab',
+                    title: 'マナ抽出研究室',
+                    desc: 'マナ +12/秒 を自動生成',
+                    icon: 'fa-flask-vial',
+                    color: 'text-cyan-400',
+                    count: gameState.facilities.manaLab,
+                    cost: Math.floor(250 * Math.pow(1.18, gameState.facilities.manaLab)),
+                    action: () => { gameState.facilities.manaLab++; }
+                },
+                {
+                    id: 'alchemicTower',
+                    title: 'アルケミー塔',
+                    desc: 'マナ +80/秒 を自動生成',
+                    icon: 'fa-tower-observation',
+                    color: 'text-purple-400',
+                    count: gameState.facilities.alchemicTower,
+                    cost: Math.floor(3000 * Math.pow(1.22, gameState.facilities.alchemicTower)),
+                    action: () => { gameState.facilities.alchemicTower++; }
+                },
+                {
+                    id: 'astralReactor',
+                    title: '星脈抽出炉',
+                    desc: 'マナ +500/秒 を自動生成',
+                    icon: 'fa-atom',
+                    color: 'text-fuchsia-400',
+                    count: gameState.facilities.astralReactor,
+                    cost: Math.floor(50000 * Math.pow(1.25, gameState.facilities.astralReactor)),
+                    action: () => { gameState.facilities.astralReactor++; }
+                }
+            ];
+        }
+
+        function getHeroUpgradesList() {
+            return [
+                {
+                    id: 'noviceMage',
+                    title: '見習い魔術師',
+                    desc: 'DPS +2 の自動魔法攻撃',
+                    icon: 'fa-hat-wizard',
+                    color: 'text-indigo-400',
+                    count: gameState.heroes.noviceMage,
+                    cost: Math.floor(50 * Math.pow(1.16, gameState.heroes.noviceMage)),
+                    action: () => { gameState.heroes.noviceMage++; }
+                },
+                {
+                    id: 'knightGuard',
+                    title: '重装騎士バスター',
+                    desc: 'DPS +25 の斬撃',
+                    icon: 'fa-shield-halved',
+                    color: 'text-blue-400',
+                    count: gameState.heroes.knightGuard,
+                    cost: Math.floor(600 * Math.pow(1.18, gameState.heroes.knightGuard)),
+                    action: () => { gameState.heroes.knightGuard++; }
+                },
+                {
+                    id: 'elvenArcher',
+                    title: 'エルフの弓術士',
+                    desc: 'DPS +180 の連続射撃',
+                    icon: 'fa-bow-arrow',
+                    color: 'text-emerald-400',
+                    count: gameState.heroes.elvenArcher,
+                    cost: Math.floor(8000 * Math.pow(1.22, gameState.heroes.elvenArcher)),
+                    action: () => { gameState.heroes.elvenArcher++; }
+                },
+                {
+                    id: 'dragonRider',
+                    title: '竜騎士バルフレア',
+                    desc: 'DPS +1,200 の全体火炎ブレス',
+                    icon: 'fa-dragon',
+                    color: 'text-amber-400',
+                    cost: Math.floor(100000 * Math.pow(1.25, gameState.heroes.dragonRider)),
+                    action: () => { gameState.heroes.dragonRider++; }
+                }
+            ];
+        }
+
+        function getArtifactsList() {
+            return [
+                {
+                    id: 'soulRing',
+                    title: '全知の指輪',
+                    desc: '全DPS & マナ生産 +25%',
+                    icon: 'fa-ring',
+                    color: 'text-fuchsia-400',
+                    count: gameState.artifacts.soulRing,
+                    cost: Math.floor(5 * Math.pow(2.0, gameState.artifacts.soulRing)),
+                    action: () => { gameState.artifacts.soulRing++; }
+                },
+                {
+                    id: 'goldenGoblet',
+                    title: '黄金の聖杯',
+                    desc: 'ゴールドドロップ +30%',
+                    icon: 'fa-wine-glass-empty',
+                    color: 'text-yellow-400',
+                    count: gameState.artifacts.goldenGoblet,
+                    cost: Math.floor(10 * Math.pow(2.2, gameState.artifacts.goldenGoblet)),
+                    action: () => { gameState.artifacts.goldenGoblet++; }
+                },
+                {
+                    id: 'featherBoots',
+                    title: '疾風のブーツ',
+                    desc: 'クリティカル率 +2%',
+                    icon: 'fa-shoe-prints',
+                    color: 'text-cyan-400',
+                    count: gameState.artifacts.featherBoots,
+                    cost: Math.floor(15 * Math.pow(2.5, gameState.artifacts.featherBoots)),
+                    action: () => { gameState.artifacts.featherBoots++; }
+                }
+            ];
+        }
+
+        function renderUpgradeLists() {
+            // Render Clicker Tab
+            const clickerContainer = document.getElementById('clickerUpgradeList');
+            clickerContainer.innerHTML = getClickerUpgradesList().map(u => `
+                <div class="bg-slate-900/90 p-2.5 rounded-2xl border border-slate-800 flex items-center justify-between gap-2 shadow">
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-10 h-10 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-lg ${u.color}">
+                            <i class="fa-solid ${u.icon}"></i>
+                        </div>
+                        <div class="flex flex-col">
+                            <span class="text-xs font-bold text-slate-100">${u.title} <span class="text-amber-400 text-[10px]">Lv.${u.level}</span></span>
+                            <span class="text-[10px] text-slate-400">${u.desc}</span>
+                        </div>
+                    </div>
+                    <button onclick="buyUpgrade('${u.id}', 'clicker')" class="px-3 py-2 rounded-xl text-xs font-black transition flex flex-col items-center justify-center min-w-[85px] ${gameState.gold >= u.cost ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 active:scale-95 shadow' : 'bg-slate-800 text-slate-500 border border-slate-700 cursor-not-allowed'}">
+                        <span>強化</span>
+                        <span class="number-font text-xs font-extrabold"><i class="fa-solid fa-coins mr-0.5"></i>${formatNum(u.cost)}</span>
+                    </button>
+                </div>
+            `).join('');
+
+            // Render Facilities Tab
+            const facilityContainer = document.getElementById('facilityUpgradeList');
+            facilityContainer.innerHTML = getFacilityUpgradesList().map(u => `
+                <div class="bg-slate-900/90 p-2.5 rounded-2xl border border-slate-800 flex items-center justify-between gap-2 shadow">
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-10 h-10 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-lg ${u.color}">
+                            <i class="fa-solid ${u.icon}"></i>
+                        </div>
+                        <div class="flex flex-col">
+                            <span class="text-xs font-bold text-slate-100">${u.title} <span class="text-cyan-400 text-[10px]">x${u.count}</span></span>
+                            <span class="text-[10px] text-slate-400">${u.desc}</span>
+                        </div>
+                    </div>
+                    <button onclick="buyUpgrade('${u.id}', 'facility')" class="px-3 py-2 rounded-xl text-xs font-black transition flex flex-col items-center justify-center min-w-[85px] ${gameState.gold >= u.cost ? 'bg-cyan-500 hover:bg-cyan-400 text-slate-950 active:scale-95 shadow' : 'bg-slate-800 text-slate-500 border border-slate-700 cursor-not-allowed'}">
+                        <span>建築</span>
+                        <span class="number-font text-xs font-extrabold"><i class="fa-solid fa-coins mr-0.5"></i>${formatNum(u.cost)}</span>
+                    </button>
+                </div>
+            `).join('');
+
+            // Render Heroes Tab
+            const heroContainer = document.getElementById('heroUpgradeList');
+            heroContainer.innerHTML = getHeroUpgradesList().map(u => `
+                <div class="bg-slate-900/90 p-2.5 rounded-2xl border border-slate-800 flex items-center justify-between gap-2 shadow">
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-10 h-10 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-lg ${u.color}">
+                            <i class="fa-solid ${u.icon}"></i>
+                        </div>
+                        <div class="flex flex-col">
+                            <span class="text-xs font-bold text-slate-100">${u.title} <span class="text-amber-300 text-[10px]">Lv.${u.count}</span></span>
+                            <span class="text-[10px] text-slate-400">${u.desc}</span>
+                        </div>
+                    </div>
+                    <button onclick="buyUpgrade('${u.id}', 'hero')" class="px-3 py-2 rounded-xl text-xs font-black transition flex flex-col items-center justify-center min-w-[85px] ${gameState.mana >= u.cost ? 'bg-indigo-500 hover:bg-indigo-400 text-white active:scale-95 shadow' : 'bg-slate-800 text-slate-500 border border-slate-700 cursor-not-allowed'}">
+                        <span>召喚</span>
+                        <span class="number-font text-xs font-extrabold"><i class="fa-solid fa-bolt mr-0.5"></i>${formatNum(u.cost)}</span>
+                    </button>
+                </div>
+            `).join('');
+
+            // Render Artifacts Tab
+            const artifactContainer = document.getElementById('artifactIdList');
+            artifactContainer.innerHTML = getArtifactsList().map(u => `
+                <div class="bg-slate-900/90 p-2.5 rounded-2xl border border-slate-800 flex items-center justify-between gap-2 shadow">
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-10 h-10 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-lg ${u.color}">
+                            <i class="fa-solid ${u.icon}"></i>
+                        </div>
+                        <div class="flex flex-col">
+                            <span class="text-xs font-bold text-slate-100">${u.title} <span class="text-fuchsia-300 text-[10px]">x${u.count}</span></span>
+                            <span class="text-[10px] text-slate-400">${u.desc}</span>
+                        </div>
+                    </div>
+                    <button onclick="buyUpgrade('${u.id}', 'artifact')" class="px-3 py-2 rounded-xl text-xs font-black transition flex flex-col items-center justify-center min-w-[85px] ${gameState.souls >= u.cost ? 'bg-fuchsia-600 hover:bg-fuchsia-500 text-white active:scale-95 shadow' : 'bg-slate-800 text-slate-500 border border-slate-700 cursor-not-allowed'}">
+                        <span>獲得</span>
+                        <span class="number-font text-xs font-extrabold"><i class="fa-solid fa-gem mr-0.5"></i>${formatNum(u.cost)}</span>
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        function buyUpgrade(id, type) {
+            AudioEngine.init();
+            let item;
+            if (type === 'clicker') item = getClickerUpgradesList().find(x => x.id === id);
+            if (type === 'facility') item = getFacilityUpgradesList().find(x => x.id === id);
+            if (type === 'hero') item = getHeroUpgradesList().find(x => x.id === id);
+            if (type === 'artifact') item = getArtifactsList().find(x => x.id === id);
+
+            if (!item) return;
+
+            if (type === 'hero') {
+                if (gameState.mana >= item.cost) {
+                    gameState.mana -= item.cost;
+                    item.action();
+                    AudioEngine.upgrade();
+                }
+            } else if (type === 'artifact') {
+                if (gameState.souls >= item.cost) {
+                    gameState.souls -= item.cost;
+                    item.action();
+                    AudioEngine.upgrade();
+                }
+            } else {
+                if (gameState.gold >= item.cost) {
+                    gameState.gold -= item.cost;
+                    item.action();
+                    AudioEngine.upgrade();
+                }
+            }
+
+            updateUI();
+        }
+
+        function calculatePendingSouls() {
+            if (gameState.stage < 5) return 0;
+            return Math.floor(Math.pow(gameState.stage / 5, 1.8));
+        }
+
+        function executePrestige() {
+            const earnedSouls = calculatePendingSouls();
+            if (earnedSouls <= 0) {
+                alert('ステージ5以上到達で転生可能です！');
+                return;
+            }
+
+            if (!confirm(`魔導転生を実行しますか？\n${earnedSouls} 個のソウルを獲得し、ゴールド/マナ/ステージがリセットされます。`)) return;
+
+            gameState.souls += earnedSouls;
+            gameState.prestigeCount += 1;
+
+            // Reset Stage and Base Currencies
+            gameState.gold = 0;
+            gameState.mana = 0;
+            gameState.stage = 1;
+            gameState.subStage = 1;
+            gameState.tapLevel = 1;
+            gameState.critRateLevel = 0;
+            gameState.critDmgLevel = 0;
+
+            // Reset Facilities and Heroes
+            for (let k in gameState.facilities) gameState.facilities[k] = 0;
+            for (let k in gameState.heroes) gameState.heroes[k] = 0;
+
+            AudioEngine.prestige();
+            spawnMonster();
+            updateUI();
+        }
+
+        function triggerSkill(skillKey) {
+            AudioEngine.init();
+            const sk = skills[skillKey];
+            if (sk.cd > 0) return;
+
+            if (skillKey === 'berserk') {
+                sk.active = true;
+                sk.timer = 10;
+                sk.cd = sk.maxCd;
+                document.getElementById('skillBerserk').classList.add('skill-active');
+            } else if (skillKey === 'goldRain') {
+                sk.active = true;
+                sk.timer = 15;
+                sk.cd = sk.maxCd;
+                document.getElementById('skillGoldRain').classList.add('skill-active');
+            } else if (skillKey === 'bigBang') {
+                sk.cd = sk.maxCd;
+                const dmg = Math.max(1, Math.floor(currentMonster.hp * 0.5));
+                applyDamageToMonster(dmg, true);
+            }
+        }
+
+        function updateSkillCooldowns(delta) {
+            for (let key in skills) {
+                const sk = skills[key];
+                if (sk.timer > 0) {
+                    sk.timer -= delta;
+                    if (sk.timer <= 0) {
+                        sk.active = false;
+                        if (key === 'berserk') document.getElementById('skillBerserk').classList.remove('skill-active');
+                        if (key === 'goldRain') document.getElementById('skillGoldRain').classList.remove('skill-active');
+                    }
+                }
+                if (sk.cd > 0) {
+                    sk.cd -= delta;
+                    const cdEl = document.getElementById(`skill${key.charAt(0).toUpperCase() + key.slice(1)}CD`);
+                    if (cdEl) {
+                        if (sk.cd > 0) {
+                            cdEl.classList.remove('hidden');
+                            cdEl.textContent = `${Math.ceil(sk.cd)}s`;
+                        } else {
+                            cdEl.classList.add('hidden');
+                        }
+                    }
+                }
+            }
+        }
+
+        function updateUI() {
+            document.getElementById('goldDisplay').textContent = formatNum(gameState.gold);
+            document.getElementById('manaDisplay').textContent = formatNum(gameState.mana);
+            document.getElementById('soulDisplay').textContent = formatNum(gameState.souls);
+
+            document.getElementById('dpsDisplay').textContent = formatNum(getManaPerSec());
+            document.getElementById('tapDmgDisplay').textContent = formatNum(getTapDamage());
+            document.getElementById('critRateDisplay').textContent = `${getCritRate()}%`;
+            document.getElementById('facilityDpsDisplay').textContent = `+${formatNum(getManaPerSec())}/秒`;
+
+            document.getElementById('pendingSoulsDisplay').textContent = calculatePendingSouls();
+
+            // Stats
+            document.getElementById('statTotalTaps').textContent = gameState.totalTaps;
+            document.getElementById('statTotalKills').textContent = gameState.totalKills;
+            document.getElementById('statMaxStage').textContent = gameState.maxStage;
+            document.getElementById('statPrestigeCount').textContent = gameState.prestigeCount;
+
+            renderUpgradeLists();
+        }
+
+        let lastTick = Date.now();
+
+        function gameLoop() {
+            const now = Date.now();
+            const delta = (now - lastTick) / 1000;
+            lastTick = now;
+
+            // Passive Mana generation
+            gameState.mana += getManaPerSec() * delta;
+
+            // Passive Hero DPS Damage
+            const heroDps = getHeroDps();
+            if (heroDps > 0 && currentMonster.hp > 0) {
+                applyDamageToMonster(heroDps * delta);
+            }
+
+            // Boss Countdown Timer
+            if (currentMonster.isBoss && currentMonster.hp > 0) {
+                currentMonster.bossTimer -= delta;
+                const pct = Math.max(0, (currentMonster.bossTimer / 30.0) * 100);
+                document.getElementById('bossTimerBar').style.width = `${pct}%`;
+                document.getElementById('bossTimerText').textContent = `残り時間: ${Math.max(0, currentMonster.bossTimer).toFixed(1)}秒`;
+
+                // Failed Boss Battle -> Retreat 1 stage
+                if (currentMonster.bossTimer <= 0) {
+                    gameState.subStage = 1;
+                    spawnMonster();
+                }
+            }
+
+            updateSkillCooldowns(delta);
+            updateUI();
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        function saveGame() {
+            gameState.lastSaveTime = Date.now();
+            localStorage.setItem('alchemy_tower_save_v1', JSON.stringify(gameState));
+        }
+
+        function loadGame() {
+            const saved = localStorage.getItem('alchemy_tower_save_v1');
+            if (saved) {
+                try {
+                    const parsed = JSON.parse(saved);
+                    gameState = { ...gameState, ...parsed };
+
+                    // Calculate offline time away
+                    const now = Date.now();
+                    const offlineSec = Math.floor((now - (gameState.lastSaveTime || now)) / 1000);
+
+                    if (offlineSec > 10) {
+                        const earnedMana = Math.floor(getManaPerSec() * offlineSec * 0.5); // 50% efficiency
+                        const earnedGold = Math.floor(2 * Math.pow(1.2, gameState.stage) * offlineSec * 0.2);
+
+                        gameState.mana += earnedMana;
+                        gameState.gold += earnedGold;
+
+                        document.getElementById('offlineGoldText').textContent = `+${formatNum(earnedGold)}`;
+                        document.getElementById('offlineManaText').textContent = `+${formatNum(earnedMana)}`;
+                        document.getElementById('offlineTimeText').textContent = `${Math.floor(offlineSec / 60)}分 ${offlineSec % 60}秒`;
+                        document.getElementById('offlineModal').classList.remove('hidden');
+                    }
+                } catch(e) {}
+            }
+        }
+
+        function setupEventListeners() {
+            // Tap Battle Zone for Attacks
+            const battleArea = document.getElementById('battleArea');
+            battleArea.addEventListener('pointerdown', (e) => {
+                if (e.target.closest('button')) return; // Ignore skill button clicks
+                AudioEngine.init();
+
+                gameState.totalTaps += 1;
+                const isCrit = (Math.random() * 100 < getCritRate());
+                let dmg = getTapDamage();
+                if (isCrit) dmg = Math.floor(dmg * getCritMultiplier());
+
+                applyDamageToMonster(dmg, isCrit, e.clientX, e.clientY);
+            });
+
+            // Navigation Tab Buttons
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const targetTab = btn.dataset.tab;
+
+                    document.querySelectorAll('.tab-btn').forEach(b => {
+                        b.classList.remove('active', 'text-amber-400', 'bg-slate-800', 'border', 'border-amber-500/30');
+                        b.classList.add('text-slate-400');
+                    });
+                    btn.classList.add('active', 'text-amber-400', 'bg-slate-800', 'border', 'border-amber-500/30');
+                    btn.classList.remove('text-slate-400');
+
+                    document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
+                    document.getElementById(targetTab).classList.remove('hidden');
+                });
+            });
+
+            // Active Skill Buttons
+            document.getElementById('skillBerserk').addEventListener('click', () => triggerSkill('berserk'));
+            document.getElementById('skillGoldRain').addEventListener('click', () => triggerSkill('goldRain'));
+            document.getElementById('skillBigBang').addEventListener('click', () => triggerSkill('bigBang'));
+
+            // Prestige & Modal Buttons
+            document.getElementById('btnPrestige').addEventListener('click', executePrestige);
+            document.getElementById('btnClaimOffline').addEventListener('click', () => {
+                document.getElementById('offlineModal').classList.add('hidden');
+            });
+
+            // Audio Toggle
+            document.getElementById('btnSoundToggle').addEventListener('click', () => {
+                AudioEngine.enabled = !AudioEngine.enabled;
+                const icon = document.getElementById('soundIcon');
+                icon.className = AudioEngine.enabled ? 'fa-solid fa-volume-high' : 'fa-solid fa-volume-xmark text-slate-500';
+            });
+
+            // Manual Save & Reset Buttons
+            document.getElementById('btnSaveManual').addEventListener('click', () => {
+                saveGame();
+                alert('ゲームデータを保存しました！');
+            });
+
+            document.getElementById('btnResetData').addEventListener('click', () => {
+                if (confirm('本当に全セーブデータを削除しますか？（復元できません）')) {
+                    localStorage.removeItem('alchemy_tower_save_v1');
+                    location.reload();
+                }
+            });
+        }
+
+        window.onload = function() {
+            loadGame();
+            spawnMonster();
+            setupEventListeners();
+            updateUI();
+
+            // Auto-save every 10 seconds
+            setInterval(saveGame, 10000);
+
+            // Start main loop
+            requestAnimationFrame(gameLoop);
+        };
+    </script>
+</body>
 </html>
